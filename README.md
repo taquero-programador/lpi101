@@ -565,4 +565,47 @@ ls log_[a-z]_201?_*_01.txt
 
 **[:xdigit:]**: números hexadecimales (normalmente 0123456789abcdefABCDEF).
 
+## Crear un script a partir de una serie de comandos
+`$#` devuelve el números de argumentos, si no se pasa ningún argumento el valore es `0`.
 
+```bash
+#!/bin/bash
+
+# se puede listar valores de una variable al estar separados por espacio
+
+FILES="/usr/sbin/accept /usr/sbin/pwck/ usr/sbin/chroot"
+
+for i in $FILES; do
+    echo $i
+done
+```
+
+```bash
+#!/bin/bash
+# recorrer los argumentos
+
+if [[ $# -eq 0 ]]; then
+    echo "ingresa algo"
+    exit 1 # termina bien, pero queremos un código de salida
+elif [[ $# -eq 1 ]]; then
+    echo "$@"
+    echo "$#"
+else
+    echo "demasiadas cosas"
+    for i in $@; do
+        echo $i
+    done
+fi
+```
+
+- Usando `echo -n` suprimirá la nueva línea después de imprimir, lo que significa que todos los ecos se imprimirán en la misma línea.
+- El comando `shift` eliminará el primer elemento de un array.
+
+#### Uso de expresiones regulares para realizar la comprobación de erroes
+
+    echo Animal | grep "^[A-Za-z]*$"
+
+El `^` y `$` indican el inicio y el final, el `[A-Za-z]` indica un rango de letras en
+mayúsculas o minúsculas, el `*` es un cuantificador, y lo modificara de manera que haga coincidir el cero con muchas letras. Solo aceptara letras, de lo contrario fallara.
+
+# pg 254
