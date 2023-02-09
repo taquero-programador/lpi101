@@ -647,4 +647,50 @@ else
 fi
 ```
 
-# pg 254
+Redirigir la salida con `/dev/null` no produce ningún resultado.
+
+#### Ejercicios
+```bash
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+    echo "This script requires at least 1 argument."
+    exit 1
+fi
+
+echo $1 | grep "^[A-Z]*$" > /dev/null
+if [ $? -ne 0 ]; then
+    echo "no cake for you!"
+    exit 2
+fi
+
+echo "here's your cake!"
+exit 0
+```
+
+```bash
+#!/bin/bash
+# $1 es un argumento que tomara como directorio
+# hará un respaldo de todo lo que termine en .txt y será file.txt.bak
+
+for filename in $1/*.txt; do
+    cp $filename $filename.bak
+done
+```
+
+```bash
+#!/bin/bash
+# toma cualquier número de argumentos y comprueba si es mayor a 10
+# imprime todos sobre la misma línea con -n
+# el código se puede reducir, solo es explicativo
+
+for i in $@; do
+    echo $i | grep "^[0-9]*$" > /dev/null
+    if [ $? -eq 0 ]; then
+        if [ $i -gt 10 ]; then
+            echo -n "$i "
+        fi
+    fi
+done
+echo "" # evita que imprima un carácter
+```
