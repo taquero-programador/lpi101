@@ -598,6 +598,23 @@ else
 fi
 ```
 
+```bash
+#!/bin/bash
+
+if [[ $# -eq 0 ]]; then
+    echo "Please enter at least one user to greet."
+    exit 1
+else
+    echo -n "Hello $1"
+    shift
+    for username in $@; do
+        echo -n ", and $username"
+    done
+    echo "!"
+    exit 0
+fi
+```
+
 - Usando `echo -n` suprimirá la nueva línea después de imprimir, lo que significa que todos los ecos se imprimirán en la misma línea.
 - El comando `shift` eliminará el primer elemento de un array.
 
@@ -606,6 +623,28 @@ fi
     echo Animal | grep "^[A-Za-z]*$"
 
 El `^` y `$` indican el inicio y el final, el `[A-Za-z]` indica un rango de letras en
-mayúsculas o minúsculas, el `*` es un cuantificador, y lo modificara de manera que haga coincidir el cero con muchas letras. Solo aceptara letras, de lo contrario fallara.
+mayúsculas o minúsculas, el `*` es un cuantificador, y lo modificara de manera que
+haga coincidir el cero con muchas letras. Solo aceptara letras, de lo contrario
+fallara.
+
+```bash
+#!/bin/bash
+
+if [[ $# -eq 0 ]]; then
+    echo "Please enter at least one user to greet."
+    exit 1
+else
+    for username in $@; do
+        echo $username | grep "^[A-Za-z]*$" > /dev/null
+        if [[ $? -eq 1 ]]; then
+            echo "ERROR: Names must only contains letters."
+            exit 2
+        else
+            echo "Hello $username!"
+        fi
+        done
+        exit 0
+fi
+```
 
 # pg 254
