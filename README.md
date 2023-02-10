@@ -392,7 +392,7 @@ subyacentes y las máquinas virtuales.
 
 Por último, el SaaS es el modelo en el que normalmente se paga una suscripción para
 utilizar software sin preocuparse de nada más. *Dropbox* y *Salesforce* son dos buenos
-ejemplos de Saas. La mayoria de los servicios se acceden a través de un navegador web.
+ejemplos de Saas. La mayoría de los servicios se acceden a través de un navegador web.
 
 Un proyecto como *OpenStack* es una colección de software de código abierto que puede
 hacer uso de diferentes hipervisores y otras herramientas con el fin de ofrecer un
@@ -694,3 +694,94 @@ for i in $@; do
 done
 echo "" # evita que imprima un carácter
 ```
+
+## El sistema operativo Linux
+#### El kernel y las distribuciones Linux
+Cuando se habla de las distribuciones, el sistema operativo es Linux. Linux es el
+*kernel* y el núcleo de cada distribución. El software del kernel es mantenido por un
+grupo de individuos liderados por Linus Torvalds. Torvalds es empleado de un consorcio
+de la industria llamado **The Linux Fundation** donde trabaja en el kernel de linux.
+
+**Linux Kernel**: Todas las distribuciones de Linux ejecutan el mismo sistema operativo, Linux.
+
+Para saber la versión del núcleo `uname -r`.
+
+#### Tipos de distribuciones Linux
+Puede parecer una opción obvia ejecutar siempre la última versión del kernel de Linux,
+pero no es tan simple como parecer. Podemos categorizar vagamente las distribuciones
+Linux en tres conjunto:
+
+- Enterprise Grade Linux Distributions
+    - Red Hat Enterprise Linux
+    - CentOS
+    - SUSE Linux Enterprise Server
+    - Debian GNU/Linux
+    - Ubuntu LTS
+- Consumer Grade Linux Distributions
+    - Fedora
+    - Ubuntu non-LTS
+    - openSUSE
+- Experimental and Hacker Distributions
+    - Arch
+    - Gentoo
+
+#### Enterprise Grade Linux
+Las distribuciones como CentOS (Community Enterprise OS) están diseñadas para
+implementarse dentro de grandes organizaciones que utilizan hardware empresarial. Las
+necesidades de las empresas son muy diferentes de las necesidades de las pequeñas
+empresas, aficionados o usuarios domésticos. Para garantizar la diponibilidad de sus
+servicios, los usuarios empresariales tienen requisitos más altos con respecto a la
+estabilidad de su hardware y software. Por lo tanto, las distribuciones Linux
+empresariales tienden a incluir versiones anteriores del kernel y otro software que
+funcionan de manera confiable. A menudo, las distribuciones tranfieren actualizaciones
+importantes, como correcciones de seguridad a estas versiones estables. En la mayoría
+de los casos, las distribuciones empresariales pueden carecer de soporte para el
+hardware már reciente y porporcionan versiones anteriores de paquete de software.
+Sin embargo, al igual que las distribuciones Linux para consumidores(consumer), las
+empresas también tienden a elegir componentes de hardware maduros y a coonstruir sus
+servicios en versiones de software estable.
+
+#### Consumer Grade Linux
+Las distribuciones como Ubuntu están más dirigidas a pequeñas empresas o usuarios
+domésticos y aficionados. Como tal, también es probable que estén utilizando el
+hardware már reciente que se encuentra en los sistemas de consumer. Estos sistemas
+necesitarán los controladores más recientes para aprovechar al máximo el nuevo
+hardware, pero es poco probable que la madurez tanto de hardware como de los
+controladores satisfagan las necesidades de las empresas más grandes. Sin embargo, para
+el mercado de consumo, el último kernel es exactamente lo que se necesita con los
+controladores más modernos, incluso si están poco probados. Los nuevos núcleos de
+Linux tendrán los controladores más recientes para admitir el hardware más reciente
+que probablemente esté en uso. Especialmente con el desarrollo que vemos con Linux en
+el mercado de juegos, es muy importante que los últimos controladores estén
+disponibles para estos usuarios.
+
+#### Experimental and Hacker Linux Distributions
+Distribuciones como Arch Linux o Gentoo Linux viven a la vanguardia de la tecnología.
+Contienen las versiones más recientes de software, incluso si tiene errores y
+características no probadas. A cambio, estas distribuciones tienden a usar un modelo
+de lanzamiento continuo que les permite entregar actualizaciones en cualquier momento.
+Estas distribuciones son utilizadas por usuarios avanzados que desean recibir siempre
+el software más reciente y son conscientes de que la funcionalidad puede romperse en
+cualquier momento y luego necesitan reparar sus sistemas.
+
+#### Unix
+Antes de tener Linux como sistema operativo, existía Unix. Unix solía venderse junto
+con el hardware y todavía hoy en día hay varios Unix comerciales como AIX y HP-UX
+disponibles en el mercado. Si bien Linux se inspiró mucho en Unix (y la falta de
+disponiblidad para cierto hardware), además, la familia de sistemas operativos BSD se
+basa directamente en Unix. Hoy, FreeBSD, NetBSD y OpenBSD junto con otros sistemas BSD
+relacionados, están disponibles como software libre.
+
+Unix se utilizó mucho en las empresas, pero hemos visto una disminuación en la suerte
+de Unix con el crecimiento de Linux. A medida que Linux ha crecido y las ofertas de
+soporte también han crecido, hemos visto que Unix comienza a desaparecer lentamente.
+Solaris, originalmente de Sun antes de mudarse a Oracle, ha desaparecido recientemente.
+Este fue unos de los sistemas operativos Unix más grandes utilizado por las
+compañias de telecomunicaciones, conocido como *Telco Grade Unix*.
+
+Los sistemas operativos Unix incluyen:
+- AIX
+- FreeBSD, NetBSD y OpenBSD
+- HP-UX
+- Irix
+- Solaris
