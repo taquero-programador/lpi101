@@ -1,5 +1,6 @@
 # Linux Professionl
 
+# Linux 101
 ## Los sistemas operativos populares y la evolución de Linux
 #### Introducción
 Linux es uno de los sistemas operativos más populares; su desarrollo se inició en 1991
@@ -702,7 +703,7 @@ Cuando se habla de las distribuciones, el sistema operativo es Linux. Linux es e
 grupo de individuos liderados por Linus Torvalds. Torvalds es empleado de un consorcio
 de la industria llamado **The Linux Fundation** donde trabaja en el kernel de linux.
 
-**Linux Kernel**: Todas las distribuciones de Linux ejecutan el mismo sistema operativo, Linux.
+**Linux Kernel**: todas las distribuciones de Linux ejecutan el mismo sistema operativo, Linux.
 
 Para saber la versión del núcleo `uname -r`.
 
@@ -786,4 +787,312 @@ Los sistemas operativos Unix incluyen:
 - Irix
 - Solaris
 
-pg 272
+## Conocer el hardware del ordenador
+#### Tipos de procesadores
+
+**i386**: hace referencia al conjunto de instrucciones de 32 bits asociado con el Intel
+80386.
+
+**x86**: por lo general, hace referencia a los conjuntos de instrucciones de 32 bits
+asociados con los sucesores 80386, como 80486, 80586 y Pentium.
+
+**x64/x84-64**: procesadores de referencias que admiten las instrucciones de 32 bits y
+64 bits de la familia x86.
+
+**AMD**: una referencia al soporte x86 de los procesadores AMD.
+
+**AMD64**: una referencia al soporte x64 de los procasadores AMD.
+
+**AMR**: hace referencia a un CPU de *Reduced Instruction Set Computer* (RISC) que no
+se basa en el conjunto de instrucciones x86. Comúnmente utilizado por dispositivos
+embebidos, móviles, tabletas y dispositivos con batería. Raspberry Pi utiliza una
+versión de Linux para ARM.
+
+El archivo `/proc/cpuinfo` contiene información detallada sobre el procesador de un
+sistema. Lamentablemente, los detalles no son amigables para los usuarios en general.
+Se puede obtener un resultado más general con el comando `lscpu`. Ejemplo:
+```bash
+Arquitectura:                        i686
+modo(s) de operación de las CPUs:    32-bit, 64-bit
+Orden de los bytes:                  Little Endian
+Tamaños de las direcciones:          32 bits physical, 48 bits virtual
+CPU(s):                              2
+Lista de la(s) CPU(s) en línea:      0,1
+Hilo(s) de procesamiento por núcleo: 2
+Núcleo(s) por «socket»:              1
+«Socket(s)»                          1
+ID de fabricante:                    GenuineIntel
+Familia de CPU:                      6
+Modelo:                              28
+Nombre del modelo:                   Intel(R) Atom(TM) CPU N470   @ 1.83GHz
+Revisión:                            10
+CPU MHz:                             1822.009
+CPU MHz máx.:                        1834.0000
+CPU MHz mín.:                        1000.0000
+BogoMIPS:                            3657.86
+Caché L1d:                           24 KiB
+Caché L1i:                           32 KiB
+Caché L2:                            512 KiB
+Vulnerability Itlb multihit:         Not affected
+Vulnerability L1tf:                  Not affected
+Vulnerability Mds:                   Not affected
+Vulnerability Meltdown:              Not affected
+Vulnerability Mmio stale data:       Not affected
+Vulnerability Retbleed:              Not affected
+Vulnerability Spec store bypass:     Not affected
+Vulnerability Spectre v1:            Not affected
+Vulnerability Spectre v2:            Not affected
+Vulnerability Srbds:                 Not affected
+Vulnerability Tsx async abort:       Not affected
+Indicadores:                         fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe nx lm constant_tsc arch_perfmon pebs bts cpuid aperfmperf pni dtes64 monitor ds_cpl est tm2 ssse3 cx16 xtpr pdcm movbe lahf_lm dtherm
+```
+
+**Bite size**: para la CPU, este número se relaciona tanto con el tamaño nativo de
+datos que manipula, así como la cantidad de memoria a la que puede acceder. La mayoría
+de los sistemas modernos son de 32 bits o 64 bits. Si un aplicación necesita acceso a
+más de 4 gigabytes de memoria, debe ejecutarse en un sistema de 64 bits, ya que 4
+gigabytes es la dirección máxima que se puede representar con 32 bits. Y, aunque las
+aplicaciones de 32 bits generalmente se pueden ejecutar en sistemas de 64 bits, las
+aplicaciones de 64 bits no se pueden ejecutar en sistemas de 32 bits.
+
+**Clock speed**: a menudo se expresa en megahercios (MHz) o gigahercios (GHz). Esto se
+relaciona con la rapidez con que un procesador ejecuta las instrucciones. Pero la
+velocidad del procesador es uno de los factores que afectan los factores de respuesta,
+los de espera y el rendimiento del sistema. Incluso un usuario "multi-taskin" rara
+vez mantiene activa una CPU de una PC de escritorio por más del 2 o 3 porciento del
+tiempo. En cualquier caso, si utiliza con frecuencia aplicaciones intensivas que
+involucran actividades como el cifrado o la representación de video, la velocidad de
+la CPU puede tener un impacto significativo en el rendimiento y el tiempo de espera.
+
+**Cache**: las CPU requieren un flujo constante de instrucciones y datos para
+funcionar. El costo y el consumo de energía de una memoria de sistema de varios
+gigabytes a la que se puede acceder a velocidades de reloj podría ser porhibitiva.
+La memoria caché del CPU está integrado en su chip para proporcionar un búfer de alta
+velocidad entre las CPU y la memoria del sistema. La memoria caché se separa en varias
+capas, comúnmente denominadas L1, L2, L3 e incluso L4. En el caso de la memoria caché,
+entre mayor sea suele ser mejor.
+
+**Cores**: Core o núcle se refiere a una CPU individual, además el núcleo representa
+una CPU física. *Hyper-Threading Tecnology* (HTT) permite que una sola CPU física
+procese simultáneamente múltiples instrucciones actuando virtualmente como múltiples
+CPU físicas. Por lo general, los núcleos físicos múltiples se empaquetan como un solo
+chip de procesador físico. En teoría, tener más núcleos para procesar tareas siempre
+parece producir un mejor rendimiento del sistema. Desafortunadamente, las aplicaciones
+de escritorio a menudo solo mantienen ocupadas las CPU 2 o 3 por ciento del tiempo,
+por lo que agregar más CPU inactivas probablemente resulte en una mejora mínima del
+rendimiento. Más núcleos son los más adecuados para ejecutar aplicaciones que están
+escritas para tener múltiples subprocesos independientes de operación, como la
+representación de cuadros de video, la representación de páginas web o entornos de
+máquinas virtuales multiusuario.
+
+## Donde los datos se almacenan
+#### Dónde se almacena los archivos binarios
+Al igual que cualquier otro archivo, los archivos ejecutables se encuentran en
+directorios que pertenecen en última instancia de `/`. Más específicamente, los
+programas se distribuyen en una estructura de tres niveles: el primer nivel (`/`)
+incluye programas que pueden ser necesarios en modo de usuario único, el segundo nivel
+(`/usr`) contiene la mayoría de los programas multiusuario y el tercer nivel
+(`/usr/local`) se utiliza para almacenar software que no es proporcionado por la
+distribución y que se ha compilado localmente.
+
+Las ubicaciones típicas para los programas incluyen:
+
+**`/sbin`**: contiene los archivos binarios esenciales para la administración del
+sistema, como `parted` o `ip`.
+
+**`/bin`**: contiene archivos binarios esenciales para todos los usuarios, como `ls`,
+`mv` o `mkdir`.
+
+**`/usr/sbin`**: almacena binarios para la administración del sistema, como `deluser`
+o `groupadd`.
+
+**`/usr/bin`**: incluye la mayoría de los archivos ejecutables, como `free`, `pstree`,
+`sudo` o `man` que pueden ser utilizados por todos los usuarios.
+
+**`/usr/local/sbin`**: se utiliza para almacenar programas instalados localmente para
+la administración del sistema que no son gestionados por el administrador de paquetes.
+
+**`/usr/local/bin`**: sirve para el mismo propósito que `/usr/local/sbin` pero para
+programas de usuario regulares.
+
+#### El directorio `/etc`
+En los primerios días de Linux había una carpeta para cada tipo de datos, como `/bin`
+para binarios y `/boot` para los núcleos. Sin embargo, `/etc` (etcétera) se creó como
+un directorio general para almacenar cualquier archivo que no perteneciera a las otras
+categorías. La mayoría de estos archivos eran archivos de configuración. Con el paso
+del tiempo, se agregaron más y már archivos de configuración, por lo que `/etc` se
+convirtió en la carpeta principal para los archivos de configuración de los programas.
+
+En `/etc` podemos encontrar diferentes patrones para los nombres de los archivos de
+configuración:
+
+- Archivos con una extensión *ad hoc* o sin extensión, por ejemplo
+    - **group**: base de datos de los grupos del sistema
+    - **hostname**: nombre del equipo
+    - **hosts**: lista de direcciones IP y sus traducciones de nombre de host.
+    - **passwd**: base de datos del sistema: compuesta por siete campos separados por dos puntos que proporcionan información sober el usuario.
+    - **profile**: archivo de configuración de todo el sistema para Bash.
+    - **shadow**: archivo encritado para contraseñas de usuario.
+- Archivos de inicialización que terminan con `rc`:
+    - **bash.bashrc**: archivo `.bashrc` en todo el sistema para shells interactivos.
+    - **nanorc**: ejemplo de archivo de inicialización para GNU nano.
+- Archivos que terminan en `conf`:
+    - **resolv.conf**: Archivo de configuración para el resolvedor que proporciona acceso al sistema de nombres de dominio de Internet (DNS).
+    - **sysctl.cond**: archivo de configuración para establecer variables del sistema para el núcleo.
+- Directorios con el sufijo `.d`:
+
+    Algunos programas con archivos de configuración único (`*.conf` o de otro modo)
+    han evolucionado para tener un directorio dedicado `*.d` que ayuda a construir
+    configuraciones modulares y más robustas. Por ejemplo, para configurar logrotate,
+    encontrará `logrotate.conf`, pero también los directorios `logrotate.d`.
+
+    Este enfoque es útil en aquellos casos en que diferentes aplicaciones necesitan
+    configuraciones para el mismo servicio específico. Si, por ejemplo, un paquete de
+    servidor web contiene una configuración de logrotate, esta configuracón ahora se
+    puede colocar en un archivo dedicado en el directorio `logrotate.d`. Este archivo
+    puede ser actualizado por el paquete del servidor web sin interferir con la
+    configuración de logrotate restante. Del mismo modo, los paquetes pueden agregar
+    tareas específicas colocando archivos en el directorio `/etc/cron.d` en lugar de
+    modicar `/etc/crotab`.
+
+    En Debian y derivados de Debian, este enfoque se ha aplicado a la lista de fuentes
+    confiables leídas por la herramienta de administración de paquetes `apt`: aparte
+    del clásico `/etc/apt/sources.list`, ahora encontramos el directorio
+    `/etc/aptsources.list.d`.
+
+#### Archivos de configuración en `HOME` (Dotfiles)
+A nievel de usuario, los programas almacenan sus configuraciones en archivos ocultos
+del directorio de inicio de cada usuario (también representado `~`). Recuerde, los
+archivos ocultos comienzan con un punto (`.`), de ahí su nombre: *dotfiles*.
+
+Algunos de estos archivos de puntos son scripts de Bash que personalizan la sesión de
+shell del usuario y se obtienen tan pronto como el usuario inica sesión en el sistema:
+
+**`.bash_history`**: almacena el historial de la línea de comandos.
+
+**`.bash_logout`**: incluye comandos para ejecutar al salir de la línea de comandos.
+
+**`.bashrc`**: script de inicialización de Bash para shells sin inicio de sesión.
+
+**`.profile`**: script de inicialización de Bash para shells de inicio de sesión.
+
+Los archivos de configuración de otros programas específicos del usuario se obtienen
+cuando se inician sus respectivos programas: `.gitconfi`, `.emacs.d`, `.ssh`, etc.
+
+#### El Kernel de Linux
+Antes de que se pueda ejecutar cualquier proceso, el kernel debe cargarse en una área
+protegida de la memoria. Después de eso, el prceso con PID `1` pone en marcha la cadena
+de procesos, es decir, un proceso inicia otro(s) y así sucesivamente. Una vez que los
+procesos están activos, el kernel de Linux se encarga de asignarle recursos (teclado,
+mouse, discos, memoria, interfaces de red, etc).
+
+#### Dönde se almacenan los núcleos: `/boot`
+El kernel reside en `/boot` junto con otros archivos relacinados con el arranque. La
+mayoría de estos archivos incluyen los componentes del número de versión del núcleo en
+sus nombres.
+
+El directorio `/boot` incluye los siguientes tipos de archivos con nombres
+correspondientes a la versión el kernel respectiva:
+
+**`config-4.9.0-9-amd64`**: los ajustes de configuración para el núcleo como las
+opciones y los módulos que se compilaron junto con el núcleo.
+
+**`initrd.img-4.9.0-9-amd64`**: imagen del disco RAM inicial que ayuda al proceso de
+inicio al cargar un sistemas de archivos raíz temporal en la memoria.
+
+**`System-map-4.9.0-9-amd64`**: el archivo `System-map` contiene las direcciones de
+las memoria de nombres de los símbolos del kernel. Cada vez que se reconstruya un
+kernel, el contenido del archivo cambiará, ya que las ubicaciones de memoria podrían
+ser diferentes. El kernel utiliza este archivo para buscar las ubicaciones de la
+memoria para un símbolo de kernel en particular, o viceversa.
+
+**`vmlinuz-4.9.0.9-amd64`**: El kernel propiamente dicho en un formato comprimido
+autoextraible que ahora espacio.
+
+**`grub`**: directorio de configuración para el gestor de arranque `grub2`.
+
+#### El directorio `/proc`
+El directorio `/proc` es uno de los llamados sistemas de archivos virtuales o psuedo,
+ya que su contenido no se escribe en el disco, sino que se carga en la memoria. Se
+llena dinámicamente cada vez que que la computadora se inicia y refleja constantemente
+el estado actual del sistema. `/proc` incluye información sobre:
+
+- Procesos ejecutables
+- Configuración del kernel
+- Hardware del sistema
+
+Este directorio también almacena archivos con información sobre el hardware del
+sistema y los ajustes de configuración del kernel. Algunos de estos archivos incluyen:
+
+**`/proc/cpuinfo`**: almacena información sobre el CPU del sistema.
+
+**`/proc/cmdline`**: almacena las cadenas pasadas al núcleo en el arranque.
+
+**`/proc/modules`**: muestra la lista de módulos cargados en el kernel.
+
+**El directorio `/proc/sys`**: este directorio incluye ajustes de la configuración
+del kernel por medio de archivos y clasificados en categorías por subdirectorio. La mayoría de estos archivos actúan como un interruptor, por eso solo contienen uno de
+los dos valores posibles: `0` o `1` ("on" u "off"). Por ejemplo:
+```bash
+cat /proc/sys/net/ipv4/ip_forward
+1
+```
+Sin embargo, hay unas excepciones:
+```bash
+cat /proc/sys/kernel/pid_max
+32768
+```
+
+#### Dispositivos de hardware
+Recuerde, en Linux "todo es un archivo". Esto implica que la información del
+dispositivo de hardware, así como los ajustes de configuración propios del núcleo se
+almacenan en archivos especiales que residen en directorios virtuales.
+
+#### El directorio `/dev`
+El directorio `/dev` contiene archivos de dispositivo o nodos para todos los
+dispositivos de hardware conectados. Estos archivos se utilizan como una interfaz
+entre los dispositivos y los procesos que los utilizan. Cada archivo de dispositivo
+se divide en una de dos categorías:
+
+- Dispositivos de bloque (Block devices): son aquellos en los que los datos se leen y escriben en bloques que puedan abordarse individualmente. Los ejemplos incluyen discos duros (y sus paritciones, como `/dev/sda1`), unidades flash USB, CD, DVD, etc.
+- Dispositivos de cáracter (Character devices): son aquellos en los que los datos se leen y escriben secuencialmente un cáracter a la vez. Los ejemplos incluyen teclados, la consola de texto (`/dev/console`), puertos seriales (como `/dev/ttySO`, etc.).
+
+Además, `/dev` incluye algunos archivos especiales que son bastante útiles para
+diferentes porpósito de programación:
+
+**`/dev/zero`**: proporciona tantos caracteres nulos como se solicite.
+
+**`/dev/null`**: aka *bit bucket*. Descarta toda la información que se le envía.
+
+**`/dev/urandom`**: genera números pseudialeatorios.
+
+#### El directorio `/sys`
+El sistema de archivos *sys* está montado en `/sys`. Se introdujo con la llegada del
+kernel 2.6 y significó una gran mejora en `/proc/sys`.
+
+Los procesos deben interactuar con los dispositivos en `/dev` y por lo tanto, el
+núcleo necesita un directorio que contenga información sobre estos dispositivos de
+hardware. Este directorios es `/sys` y sus datos están ordenados en categorías. Por
+ejemplo, para verificar la dirección MAC de su tarjeta de red (`enp0s3`) puede usar
+el comando `cat` en el siguiente archivo:
+
+    cat /sys/class/net/wlp1s0/address
+
+#### Memoria y tipos de memoria
+Básicamente, para que un programa comience a ejecutarse debe cargarse en la memoria.
+En general, cuando hablamos de memeoria nos referimos a *Random Access Memory* (RAM)
+y en comparación con los discos duros mecánicos tiene la ventaja de ser mucho más
+rápido. En el lado negativo, es volátil (una vez que la computadora se apaga, los
+datos desaparecen).
+
+Cuando se trara de memoria podemos diferenciar dos tipos principales en un sistema
+Linux:
+
+**Memoria física**: también conocido como *RAM*, son en forma de chips formados por
+circuitos integrados que contienen millones de transistores y condensadores. Estos a
+su vez, forman celdas de memoria. Cada una de estas celdas tiene un código
+hexadecimal asociado, una dirección de memeoria, para que pueda ser referenciada
+cuando sea necesario.
+
+**Swap**: también conocido como *swap space*, es la porción de memoria virtual que se
+encuentra en el disco duro y se usa cuando no hay más RAM disponible.
