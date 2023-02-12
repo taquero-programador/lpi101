@@ -280,6 +280,7 @@ adecuados, las dependencias necesarias y las actualizaciones futuras.
 #### Ejercicios
 1. Para cada uno de los siguientes comandos, indentifique si está asociado con el
 sistema de empaquetado Debian o Red Hat:
+
 Package Manager | Distribución
 -- | --
 `dpkg` | Debian sistema de empaquetado
@@ -309,6 +310,7 @@ popular para editar archivos SVG en sistemas Linux?
 
 6. Para cada uno de los siguientes formatos de archivo, escriba el nombre de una
 aplicación capaz de abrir y editar el archivo:
+
 Formato | Aplicación
 -- | --
 `png` | Gimp
