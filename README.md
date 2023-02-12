@@ -697,7 +697,7 @@ for i in $@; do
         fi
     fi
 done
-echo "" # evita que imprima un carácter
+echo "" # evita que imprima un carácter o solo echo
 ```
 
 ## El sistema operativo Linux
@@ -1140,4 +1140,141 @@ estas opciones incluyen:
 
 **`-h`**: formato legible para humanos.
 
+#### Procesos
+Cada vez que un usuario emite un comando, se ejecuta un programa y se generan uno o
+más procesos.
 
+Los procesos existen en una jerarquía. Después de que el kernel se carga en la memoria
+durante el arranque, se inicia el primer proceso que a su vez, inicia otros procesos
+también. Cada proceso tiene un identificador único (`PID`) y un identificador de
+proceso padre (`PPID`). Estos son números enteros positivos que se asignan en orden secuencial.
+
+**`top`**: obtiene una lista de los procesos en ejecución:
+- **`M`**: ordena por el uso de memoria
+- **`N`**: ordena por el número de identificación de proceso
+- **`T`**: ordena por tiempo de ejecución
+- **`P`**: ordena por porcentaje de uso de CPU
+
+**Snapshot de los procesos `ps`**: mientras que `top` proporciona información
+dinámica, el comando `ps` es estática:
+- **`-f`**: muestra la lista en formato completo
+- **`-uf`**: muestra la relación entre padre los procesos padre e hijo
+- **`-v`**: muestra el porcentaje de memoria utilizado
+
+#### Información del proceso en el directorio `proc`
+Ya hemos visto el sistema de archivos `/proc`. Este incluye un subdirectorio numerado
+para cada proceso en ejecución en el sistema (el número es el PID del proceso):
+```bash
+ls /proc
+# or
+ls /proc/1/
+```
+
+#### Carga del sistema
+Cada proceso puede potencialmente consumir recursos del sistema. La llamada carga del
+sistema intenta agregar la carga general del sistema en un solo indicador númerico.
+Puede ver la carga actual con el comando `uptime`:
+```bash
+uptime
+ 18:47:45 up  7:55,  1 user,  load average: 0.53, 0.62, 0.53
+```
+
+#### Registro del sistema y mensajería del sistema
+Tan pronto como el núcleo y los procesos comienzan a ejecutarse y comunicarse entre
+sí, se produce una gran cantidad de información. La mayor parte se envía a archivos:
+los llamados archivos de registro o simplemente *logs*.
+
+Sin iniciar sesión, la busqueda de un evento que sucedión en un servidor daría mucho
+dolor de cabeza a los administradores de sistemas, de ahí la importancia de tener una
+forma de estandarizada y centralizada de realizar un seguimiento de los eventos del
+sistema. Además, los registros son determiantes y reveladores cuando se trata de
+resolución de problemas y seguridad, así como fuente de datos confiables para
+comprender las estadísticas del sistema y hacer predicciones de tendencias.
+
+#### Iniciar sesión con el demonio syslog
+Tradicionalmente, los mensajes del sistema han sido gestionados por la instalación
+del registro estándar -syslog-o cualquiera de sus derivados -syslog-ng o rsyslog-.
+El demonio de registro recopila mensajes de otros servicios o programas y los
+almacena en archivos de registro, generalmente en `/var/log`. Sin embargo, algunos
+servicios se encargan de sus propios registros (por ejemplo, el servidor web Apache
+HTTPD). Del mismo modo, el kernel de Linux utiliza el "ring buffer" en memoria para
+almacenar sus mensajes de registro.
+
+#### Archivos de registros `/var/logd`
+Debido a que los registros son datos que varían con el tiempo, normalmente se
+encuentran en `/var/log`.
+
+Si explora `/var/log` se dará cuenta de que los nombres de los registros son, hasta
+cierto punto, bastante explicativos. Algunos ejemplos incluyen:
+- **`/var/log/auth.log`**: almacena información sobre la autenticación
+- **`/var/log/kern.log`**: almacena información del kernel
+- **`/var/log/syslog`**: almacena información del sistema
+- **`/var/log/messages`**: almacena datos del sistema y de algunas aplicaciones
+
+#### Accediendo a los archivos de registro
+
+    sudo tail -f /var/log/messages
+
+Encontrara la salida en el siguiente formato:
+- Timestamp
+- Nombre del host del que proviene el mensaje
+- Nombre del programa/servicio que generó el mensaje
+- El PID del programa que generó el mensaje
+- Descripción de la acción
+
+La mayoría de los archivos de registro están escritos en texto plano; sin embargo,
+algunos pueden contener datos binarios, como es el caso de `/var/log/wtmp` que
+almacena datos relevantes para inicios de sesión exitosos.
+
+#### Rotación de registro
+Los archivos de registro pueden crecer mucho en unas pocas semanas o meses y ocupar
+todo el espacio libre en disco. Para abordar esto, se utiliza la utilidad `logrotate`.
+Este realiza la rotación de registros o ciclos que implicac acciones tales como mover
+archivos de registro a un nuevo nombre, archivarlos y/o comprimirlos, a veces
+enviándolos por correo electrónico al administrador del sistema y eventualmente
+eliminándolos a medida que avanza. Las convenciones utilizadas para nombrar estos
+archivos de registro son diversas (por ejemplo, agregar un sufijo con la fecha); sin
+embargo, es común observar un sufijo con un número entero:
+```bash
+sudo ls /var/log/apache2
+access.log
+access.log.1
+error.log
+error.log.1
+other_vhosts_access.log
+```
+
+#### Kernel Ring Buffer
+El kernel ring buffer es una estructura de datos de tamaño fijo que registra los
+mensajes de arranque del núcleo, así como cualquier mensaje en vivo del kernel. La
+función de este buffer, uno muy importante, es el registrar todos los mensajes del
+kernel producidos en el arranque, cuando el `syslog` no está todavía disponible.
+El comando `dmesg` imprime el ring buffer del kernel (que solía estar también
+almacenado en `/var/log/dmesg`). Debido a la extensión del ring buffer, este comando
+se usa normalmente en combinación con la utilidad de filtrado de texto `grep` o un
+paginador como `less`. Por ejemplo, para buscar mensajes de arranque:
+
+    sudo dmesg
+
+#### El diario del sistema: systemd-journald
+A partir de 2015, systemd remplazó a SysV Init como adminstrador de servicios y
+sistema de facto en la mayoría de las principales distribuciones de Linux. Como
+consecuencia, el daemon journal-journald se ha convertido en los componentes de
+registro estándar reemplazando s syslog en la mayoría de los aspectos. Los datos ya
+no se almacenan en texto plano, sino en forma binaria. Por lo tanto, la utilidad
+`journalctl` es necesaria para leer los registros. Además de eso, journald es
+compatible con syslog y puede integrarse con este.
+
+`journalctl` es la utilidad que se utiliza para leer y consultar la base de datos
+(diario) de Systemd. Si es invocada sin opciones, imprime el journal completo.
+
+    journalctl
+
+Otras opciones incluyen:
+
+- **`-k` o `dmesg`**: sera equivalente a usar el comando `dmesg`
+- **`-b` o `--boot`**: muestra información del arranque
+- **`-u`**: muestra mensajes sobre una unidad especifica. Aproximadamente una unidad se puede definir como cualquier recurso manejado por systemd. Por ejemplo, `journalctl -u apache2.service` se usa para leer mensajes sobre el servicio web Apache2.
+- **`-f`**: muestras los mensajes de diario más recientes y sigue imprimiendo nuevas entradas a medida que se agregan al diario, de forma muy similar a `tail -f`.
+
+pg 333
