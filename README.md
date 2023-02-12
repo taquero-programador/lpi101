@@ -927,18 +927,18 @@ En `/etc` podemos encontrar diferentes patrones para los nombres de los archivos
 configuración:
 
 - Archivos con una extensión *ad hoc* o sin extensión, por ejemplo
-    - **group**: base de datos de los grupos del sistema
-    - **hostname**: nombre del equipo
-    - **hosts**: lista de direcciones IP y sus traducciones de nombre de host.
-    - **passwd**: base de datos del sistema: compuesta por siete campos separados por dos puntos que proporcionan información sober el usuario.
-    - **profile**: archivo de configuración de todo el sistema para Bash.
-    - **shadow**: archivo encritado para contraseñas de usuario.
+    - **`group`**: base de datos de los grupos del sistema
+    - **`hostname`**: nombre del equipo
+    - **`hosts`**: lista de direcciones IP y sus traducciones de nombre de host.
+    - **`passwd`**: base de datos del sistema: compuesta por siete campos separados por dos puntos que proporcionan información sober el usuario.
+    - **`profile`**: archivo de configuración de todo el sistema para Bash.
+    - **shadow**: archivo encriptado para contraseñas de usuario.
 - Archivos de inicialización que terminan con `rc`:
-    - **bash.bashrc**: archivo `.bashrc` en todo el sistema para shells interactivos.
-    - **nanorc**: ejemplo de archivo de inicialización para GNU nano.
+    - **`bash.bashrc`**: archivo `.bashrc` en todo el sistema para shells interactivos.
+    - **`nanorc`**: ejemplo de archivo de inicialización para GNU nano.
 - Archivos que terminan en `conf`:
-    - **resolv.conf**: Archivo de configuración para el resolvedor que proporciona acceso al sistema de nombres de dominio de Internet (DNS).
-    - **sysctl.cond**: archivo de configuración para establecer variables del sistema para el núcleo.
+    - **`resolv.conf`**: Archivo de configuración para el resolvedor que proporciona acceso al sistema de nombres de dominio de Internet (DNS).
+    - **`sysctl.conf`**: archivo de configuración para establecer variables del sistema para el núcleo.
 - Directorios con el sufijo `.d`:
 
     Algunos programas con archivos de configuración único (`*.conf` o de otro modo)
@@ -989,7 +989,7 @@ mouse, discos, memoria, interfaces de red, etc).
 #### Dönde se almacenan los núcleos: `/boot`
 El kernel reside en `/boot` junto con otros archivos relacinados con el arranque. La
 mayoría de estos archivos incluyen los componentes del número de versión del núcleo en
-sus nombres.
+sus nombres (versión de núcleo, revisión mayor, revisión menor y número de parche).
 
 El directorio `/boot` incluye los siguientes tipos de archivos con nombres
 correspondientes a la versión el kernel respectiva:
@@ -1096,3 +1096,44 @@ cuando sea necesario.
 
 **Swap**: también conocido como *swap space*, es la porción de memoria virtual que se
 encuentra en el disco duro y se usa cuando no hay más RAM disponible.
+
+Por otro lado, existe el concepto de memoria virtual, que es una abstracciónd e la
+cantidad total de memoria utilizable (RAM y espacio en disco).
+
+`free` analiza `/proc/meminfo` y muestra la cantidad de memoria libre y usada en el
+sistema de una manera muy clara:
+```bash
+free
+               total        used        free      shared  buff/cache   available
+Mem:         2050448      423744      116888       36900     1509816     1374176
+Swap:         999420        3360      996060
+```
+
+Expliquemos las diferentes columnas:
+
+**`total`**: cantidad de memoria física y de intercambio instalada.
+
+**`used`**: cantidad de memoria física e intercambio actualmente en uso.
+
+**`free`**: cantidad de memoria física e intercambio que actualmente no está en uso.
+
+**`shared`**: cantidad de memoria física utilizada principalmente por `tmpfs`.
+
+**`buff/cache`**: cantidad de memoria física actualmente en uso por las memorias
+intermedias del núcleo y la caché.
+
+**`available`**: estimación de cuánta memoria física está disponible para nuevos proceso.
+
+Por defecto, `free` muestra valores en kibibytes, pero permite una variedad de
+interruptores muestres sus resultados en diferentes unidades de medida. Algunas de
+estas opciones incluyen:
+
+**`-b`**: Bytes.
+
+**`-m`**: Mebibytes.
+
+**`-g`**: Gibibytes.
+
+**`-h`**: formato legible para humanos.
+
+
