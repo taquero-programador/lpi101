@@ -191,70 +191,72 @@ imagen para que se ajusten al disco duro real de la máquina virtual.
 #### Ejercicios
 1. ¿En qué se diferencia Debian GNU/Linux de Ubuntu?
 
-Ubuntu está basado en un snapshot de Debian, es por eso que existen muchas
-características similares entre ellos. Sin embargo, existen otras diferencias
-significativas entre las dos distribuciones. La primera sería la aplicabilidad para los
-principiantes. Ubuntu se recomienda para principiantes por su facilidad de uso. Por otro
-lado, Debian se recomienda para usuarios más avanzados. La mayor diferencia está en la
-complejidad del proceso de instalación el cual Ubuntu hace más simple al usuario.
+    Ubuntu está basado en un snapshot de Debian, es por eso que existen muchas
+    características similares entre ellos. Sin embargo, existen otras diferencias
+    significativas entre las dos distribuciones. La primera sería la aplicabilidad
+    para los principiantes. Ubuntu se recomienda para principiantes por su facilidad
+    de uso. Por otro lado, Debian se recomienda para usuarios más avanzados. La mayor
+    diferencia está en la complejidad del proceso de instalación el cual Ubuntu hace
+    más simple al usuario.
 
-Otra diferencia pudiera estar relacionada con la estabilidad de cada distribución.
-Debian se considera más estable comparada con Ubuntu. Debian recibe pocas
-actualizaciones que son probadas minuciosamente por lo que el sistema, de forma general,
-es más estable. Por otro lado, Ubuntu permite al usuario usar las últimas versiones
-de software y nuevas tecnologías.
+    Otra diferencia pudiera estar relacionada con la estabilidad de cada distribución.
+    Debian se considera más estable comparada con Ubuntu. Debian recibe pocas
+    actualizaciones que son probadas minuciosamente por lo que el sistema, de forma
+    general, es más estable. Por otro lado, Ubuntu permite al usuario usar las   
+    últimas versiones de software y nuevas tecnologías.
 
 2. ¿Cuáles son los entornos/plataformas más comunes para los que se utiliza Linux?
 
-Algunos de los entornos/plataformas comunes serían teléfonos inteligentes, computadoras
-de escritorio y servidores. En teléfonos inteligentes, puede ser utilizado por
-distribuciones como Android. En escritorio y servidores, puede utilizarse cualquier
-distribución, que sea adecuada a la funcionalidad de ese equipo, desde Debian, Ubuntu
-a CentOS y Red Hat Enterprise Linux.
+    Algunos de los entornos/plataformas comunes serían teléfonos inteligentes,
+    computadoras de escritorio y servidores. En teléfonos inteligentes, puede ser
+    utilizado por distribuciones como Android. En escritorio y servidores, puede
+    utilizarse cualquier distribución, que sea adecuada a la funcionalidad de ese 
+    equipo, desde Debian, Ubuntu a CentOS y Red Hat Enterprise Linux.
 
 3. Se planea instalar una distribución de Linux en un nuevo entorno. Nombre cuatro
 aspectos que deban ser considerados al elegir una distribución.
 
-El costo, el rendimiento, la escalabilidad, estabilidad y la demanda de hardware del
-sistema.
+    El costo, el rendimiento, la escalabilidad, estabilidad y la demanda de hardware del sistema.
 
 4. Nombre tres dispositivos en lo que se pueda ejecutar el sistema operativo Android,
 que no sean teléfonos inteligentes.
 
-Televisores inteligentes, tablets, Android Auto y relojes inteligentes.
+    Televisores inteligentes, tablets, Android Auto y relojes inteligentes.
 
 5. Explique tres ventajas importanes de la computación en la nube.
 
-La flexibilidad, la fácil recuperación y el bajo costo de uso. Los servicios basados en
-la nube son fáciles de implementar y escalar, dependiendo de los requisitos del negocio.
-Tiene una gran ventaja en las soluciones de respaldo y recuperación, ya que permite a
-las empresas recuperarse de los indicidentes más rápido y con menos repercusiones.
-Además, reduce los costos de operación, ya que permite pagar solo por los recursos que
-utiliza una empresa en un modelo basado en suscripción.
+    La flexibilidad, la fácil recuperación y el bajo costo de uso. Los servicios 
+    basados en la nube son fáciles de implementar y escalar, dependiendo de los
+    requisitos del negocio. Tiene una gran ventaja en las soluciones de respaldo y
+    recuperación, ya que permite a las empresas recuperarse de los indicidentes más
+    rápido y con menos repercusiones. Además, reduce los costos de operación, ya que
+    permite pagar solo por los recursos que utiliza una empresa en un modelo basado
+    en suscripción.
 
 6. Teniendo en cuenta el costo y el rendimiento, ¿Qué distribuciones son más adecuadas
 para una empresa que tiene como objetivo reducir los costos de licencias, manteniendo
 el rendimiento al máximo?
 
-Una de las distribuciones más adecuadas para ser utilizadas por empresas es CentOS. Esto
-se debe a que incorpora todos los productos de Red Hat que utiliza en su sistema
-operativo comercial, a la vez que es de uso gratuito. Del mismo modo, las versiones
-de Ubuntu LTS garantizan la compatibilidad durante un periodo de tiempo más largo.
-Las versiones estables de Debian GNU/Linux también se usan a menudo en entornos
-empresariales.
+    Una de las distribuciones más adecuadas para ser utilizadas por empresas es
+    CentOS. Esto se debe a que incorpora todos los productos de Red Hat que utiliza
+    en su sistema operativo comercial, a la vez que es de uso gratuito. Del mismo
+    modo, las versiones de Ubuntu LTS garantizan la compatibilidad durante un periodo 
+    de tiempo más largo. Las versiones estables de Debian GNU/Linux también se usan a 
+    menudo en entornos empresariales.
 
 7. ¿Cuáles son las principales ventajas de Raspberry Pi y qué funciones pueden tener en
 los negocios?
 
-A pesar de que el Raspberry Pi es muy pequeño, puede utilizarse como una computadora
-normal. Además, es de bajo costo y puede manejar el tráfico web y muchas otras
-funcionalidades. Se puede usar como un servidor, cortafuegos y se puede usar como placa
-principal para robots y muchos otros dispositivos pequeños.
+    A pesar de que el Raspberry Pi es muy pequeño, puede utilizarse como una
+    computadora normal. Además, es de bajo costo y puede manejar el tráfico web y
+    muchas otras funcionalidades. Se puede usar como un servidor, cortafuegos y se
+    puede usar como placa principal para robots y muchos otros dispositivos pequeños.
 
 8. ¿Qué gama de distribuciones ofrecen Amazon Web Services y Google Cloud?
 
-Las distribuciones comunes son Ubuntu, CentOS y Red Hat Enterprise Linux. Amazon tiene
-Amazon Linux y Kali Linux, mientras que Google ofrece servidores FreeBSD y Windows.
+    Las distribuciones comunes son Ubuntu, CentOS y Red Hat Enterprise Linux. Amazon
+    tiene Amazon Linux y Kali Linux, mientras que Google ofrece servidores FreeBSD y
+    Windows.
 
 ## Principales aplicaciones de código abierto
 #### Introducción
@@ -293,17 +295,17 @@ Package Manager | Distribución
 3. ¿Qué aplicación del paquete LibreOffice se puede utilizar para trabajar con hojas
 de cálculo?
 
-Calc
+    Calc
 
 4. ¿Qué navegador web de código abierto se utiliza como base para el desarrollo de
 Google Chrome?
 
-Chromium
+    Chromium
 
 5. SVG es un estándar abierto para gráficos vectoriales. ¿Cuál es la aplicación más
 popular para editar archivos SVG en sistemas Linux?
 
-Inkscape
+    Inkscape
 
 6. Para cada uno de los siguientes formatos de archivo, escriba el nombre de una
 aplicación capaz de abrir y editar el archivo:
@@ -318,7 +320,7 @@ Formato | Aplicación
 7. ¿Qué paquete de software permite compartir archivos entre máquinas Linux y Windows
 a través de la misma red local?
 
-Samba
+    Samba
 
 8. ¿Cómo puede eliminar automáticamente el paquete llamado `cups` y sus archivos de
 configuración de un sistema basado en DEB?
@@ -328,12 +330,12 @@ configuración de un sistema basado en DEB?
 9. ¿Qué paquete puede usar para convertir una imagen TIFF a JPG desde la línea de
 comandos?
 
-ImageMagick
+    ImageMagick
 
 10. ¿Con qué software puede abrir documentos de Microsoft Word enviados por un usuario
 de Windows?
 
-LibreOffice - OpenOffice
+    LibreOffice - OpenOffice
 
 ## Software de Código Abierto y licencias
 #### Introducción
