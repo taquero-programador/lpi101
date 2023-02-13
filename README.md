@@ -1327,7 +1327,7 @@ Método para agregar manualmente una dirección IPv6 a una interfaz:
 
     sudo ip addr add 2001:db8:0:abcd:0:0:0:7334/64 dev ens33
 
-### DNS
+#### DNS
 Las direcciones IP son dificiles de recordar y no tiene exactamente un alto factor
 de frialdad si está tratando de comercializar un servicio o producto. Aquí es donde
 entra en juego el *Domain Name System*. Es una forma más simple, DNS es una guía
@@ -1647,4 +1647,158 @@ el usuario `root`.
 **`/etc/sudoers.d`**: este directorio puede contener archivos que complementan la
 configuración del archivo `sudoers`.
 
-> Aunque `/etc/sudoers` es un archivo de texto, nunca debe editarse directamente directamente. Si necesita cambiar su contenido, debe de usar `visudo`.
+> Aunque `/etc/sudoers` es un archivo de texto, nunca debe editarse directamente. Si necesita cambiar su contenido, debe de usar `visudo`.
+
+#### `/etc/passwd`
+El archivo `/etc/passwd` se conoce comúnmente como el "archivo de contraseñas". Cada
+línea contiene múltiples campos delimitados por dos puntos (`:`). A pesar del nombre,
+actualmente el hash real de la contraseña no se almacena en este archivo.
+
+La sintaxis típica de una línea de este archivo es la siguiente:
+
+    USERNAME:PASSWORD:UID:GID:GECOS:HOMEDIR:SHELL
+
+**`USERNAME`**: el nombre de usuario conocido como login (nombre), como `root`,
+`nobody`, `emma`.
+
+**`PASSWORD`**: ubicación heredada del hash de contraseña. Casi siempre `x`, lo que
+indica que la contraseña está almacenada en el archivo `/etc/shadow`.
+
+**`UID`**: el ID del usuario (UID), como `0`, `99`, `1024`.
+
+**`GID`**: el ID del grupo (GID), como `0`, `99`, `1024`.
+
+**`GECOS`**: una lista CSV de información del usuario que incluye nombre, ubicación,
+número de teléfono. Por ejemplo: `Emma Smith`, `42 Douglas St`, `555.555.555`.
+
+**`HOMEDIR`**: ruta del directorio de inicio del usuario, como `/root`, `/home/emma`.
+
+**`SHELL`**: el shell predeterminado para este usuario, como `/bin/bash` o `/bin/zsh`.
+
+Por ejemplo, en la siguiente línea describe al usuario `emma`:
+
+    emma:x:1000:1000:Emma Smith,42 Douglas St,555.555.5555:/home/emma:/bin/bash
+
+#### Comprendiendo el campo `GECOS`
+El campo GECOS contiene tres o más campos delimitados por una coma, también conocida
+como una lista de valores separados por coma (CSV). Aunque no existe un estándar
+obligatorio, los campos suelen estar en el siguiente orden:
+
+    NAME,LOCATION,CONTACT
+
+**`NAME`**: es el "nombre completo" del usuario o "nombre del software" en el caso de
+una cuenta de servicio.
+
+**`LOCATION`**: suele ser la ubicación física del usuario dentro de un edificio,
+número de habitación, el departamento de contacto o persona en el caso de una cuenta
+de servicio.
+
+**`CONTACT`**: enumera información de contacto, como el número de teléfono del hogar
+o del trabajo.
+
+Los campos adicionales pueden incluir información de contacto adicional, como un
+número de casa o dirección de correo electrónico. Para cambiar la información en el
+campos GECOS, use el comando `chfn` y responda las preguntas. Si no se proporciona un
+nombre de usuario después del nombre de comando, cambiará la información para el
+usuario actual:
+
+    chnf
+
+#### `/etc/group`
+El archivo `/etc/group` contiene siempre campos delimitados por dos puntos (`:`) que
+almacenan información básica sobre los grupos en el sistema. A veces se le llama
+"archivo de grupo". La sintaxis para cada línea es:
+
+    NAME:PASSWORD:GID:MEMBERS
+
+**`NAME`**: es el nombre del grupo, como `root`, `users`, `emma`, etc.
+
+**`PASSWORD`**: ubicación heredada de un hash de contraseña de un grupo opcional. Casi
+siempre `x`, lo que indica que la contraseña y se almacena en `/etc/gshadow`.
+
+**`GID`**: el ID del grupo (GID), como `0`, `99`, `1024`.
+
+**`MEMBERS`**: una lista de los nombres de usuario separados por comas que son
+miembros del grupo, como `jsmith`, `emma`.
+
+El siguiente ejemplo muestra una línea que contiene información sobre el grupo
+`students`:
+
+    students:x:1023:jsmith,emma
+
+#### `/etc/shadow`
+La siguiente tabla enumera los atributos almacenados en el archivo `/etc/shadow`,
+comúnmente conocido como el "shadow file". El archivo contiene campos siempre
+delimitados por dos puntos (`:`).
+
+Las sintaxis básica para una línea en este archivo es:
+
+    USERNAME:PASSWORD:LASTCHANGE:MINAGE:MAXAGE:WARN:INACTIVE:EXPDATE
+
+**`USERNAME`**: el nombre del usuario, como `root`, `nobody`, etc.
+
+**`PASSWORD`**: un hash unidireccional de la contraseña, precedido de un "salt". Por
+ejemplo, `!!`, `!$1$01234567$ABC... , $6$012345789ABCDEF$012...`.
+
+**`LASTCHANGE`**: fecha del último cambio de contraseña den días de la "epoca", como
+`17909`.
+
+**`MINAGE`**: minimo de días antes que al usuario se le permita cambiar la contraseña.
+
+**`MAXAGE`**: máximo de días antes que al usuario se le permita cambiar la contraseña.
+
+**`WARN`**: período de advertencia (en días) antes de que caduque la contraseña.
+
+**`INACTIVE`**: antigüedad máxima (en días) de la contraseña después del vencimento.
+
+**`EXPDATE`**: fecha de caducidad (en días) de la contraseña desde la "epoca".
+
+Ejemplo de una línea en el archivo `/etc/shadow`:
+
+    emma:$6$nP532JDDogQYZF8I$bjFNh9eT1xpb9/n6pmjlIwgu7hGjH/eytSdttbmVv0MlyTMFgBIXESFNUm
+To9EGxxH1OT1HGQzR0so4n1npbE0:18064:0:99999:7::
+
+La "epoca" en un sistema POSIX es la medianoche (0000), hora universal coordinada
+(UTC), el jueves 1 de enero de 1970. La mayoría de las fechas y horas POSIX están
+en segundos desde "epoca" o en caso del archivo `/etc/shadow`, en días desde la epoca.
+
+Aunque existen diferentes soluciones de autenticación, el método elemental de
+almacenamiento de contraseñas es la función hash unidireccional. Esto se hace para que
+la contraseña nunca se almacene en texto sin cifrar en un sistema, ya que la función
+de hash no es reversible. Puede convertir una contraseña en un hash, pero
+(idealmente) no es posible volver a convertir un hash en una contraseña.
+
+Como máximo, se requiere un método de fuerza bruta para trocear todas las
+combinaciones de una contraseña, hasta que coincida. Para mitigar el problema de un
+hash de contraseña sea decifrado en un sistema, los sistemas Linux usan un "salt"
+aleatorio en cada hash de contraseña para un usuario. Por lo tanto, el hash para una
+contraseña de usuario en un sistemas Linux generalmente no será el mismo que en otro
+sistema Linux, incluso si la contraseña es la misma.
+
+En el archivo `/etc/shadow`, la contraseña puede tomar varias formas. Estos
+formularios generalmente incluyen los siguiente:
+
+**`!!`**: esto significa una cuenta "deshabilitada" (sin posible autenticación) y sin
+una contraseña hash almacenada.
+
+**`!$1$01234567$ABC...`**: una cuenta "deshabilitada" (debido al signo de
+exclamación inicial), con una función hash anterior, hash salt y cadena hash
+almacenada.
+
+**`$1$0123456789ABC$012...`**: cuenta "habilitada", con una función hash, hash salt y
+cadena de hash almacenados.
+
+La función hash. hash salt y la cadena hash están precedidas y delimitadas por un
+símbolo de dólar (`$`). La longitud del hash salt debe ser entre ocho y dieciséis
+caracteres. Ejemplos de los tres más comúnes:
+
+**`$1$01234567$ABC...`**: una función hash de MD5 (1), con un ejemplo de longitud de
+hash de ocho.
+
+**`$5$01234567ABCD$012...`**: una función hash de SHA256 (5), con un ejemplo de
+longitud hash de doce.
+
+**`$6$01234567ABCD$012...`**: una función hash de SHA512 (6), con un ejemplo de
+longitud de hash de doce.
+
+pg381
