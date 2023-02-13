@@ -1497,4 +1497,156 @@ UID/GID.
 
 Algunas distribuciones de Linux todavía tienen cuentas de servicio previamente
 reservadas con un UID <100, y también podrían considerarse una cuenta del sistema,
-aunque no se creen en la instalación del siste,a
+aunque no se creen en la instalación del sistema operativo. Por ejemplo, en las
+distribuciones Linux basadas en Fedora (incluido Red Hat), el usuario Apache del
+servidor web tiene un UID (y GID) 48. Claramente es una cuenta del sistema, a pesar
+de tener un directorio de inicio de sesión (generalmente en `/usr/share/httpd` o
+`/var/www/html/`)>.
+
+Las cuentas del sistema son UID <1000, y las cuentas de usuario normales son UID
+>1000. Como las cuentas de usuario normales son >1000, estos UID también pueden
+incluir cuentas de servicio.
+
+#### Shells de inicio de sesión y directorios de inicio
+Algunas cuentas tienen un shell de inicio de sesión, mientras que otras no, ya que no
+requieren acceso interactivo y por temas de seguridad. En lamayoría de las
+distribuciones de Linux, el shell predeterminado de inicio de sesión es *Bourne Again
+Shell* o `bash`, pero puede haber otros shells disponibles, como C Shell (`csh`),
+Korn shell (`ksh`) o Z shell (`zsh`), entre otros.
+
+Un usuario pueden cambiar su shell de inicio de sesión utilizando el comando `chsh`.
+Por defecto, el comando se ejecuta en modo interactivo y muestra un mensaje
+preguntado qué shell debe usar. La respuesta debería ser la ruta completa del binario
+de shell:
+```bash
+chsh
+Changing the login shell for emma
+Enter the new value, or press ENTER for the default
+Login Shell [/bin/bash]: /usr/bin/zsh
+```
+
+También puede ejecutar el comando en modo no interactivo, con el parametro `-s`
+seguida de la ruta del binario:
+
+    chsh -s /usr/bin/zsh
+
+La mayoría de las cuentas tienen definido un directorio de inicio. En Linux, este
+suele ser la única ubicación donde esa cuenta de usuario tiene acceso garantizado de
+escritura, con algunas excepciones (por ejemplo, áreas del sistema de archivos
+temporales). Sin embargo, por razones de seguridad, algunas cuentas se configuran a
+propósito para que no tengan acceso de escritura ni siquiera a su propio directorio
+de inicio.
+
+#### Obtenga información sobre sus usuarios
+Enumerar la información básica de los usuarios es una práctica muy común y cotidiana
+en un sistema Linux. En algunos casos, se deberá cambiar de usuario y aumentar los
+privilegios para completar algunas tareas.
+
+Incluso los usuarios tienen la capacidad de enumerar atributos y acceder desde la
+línea de comandos.
+
+Listar la información actual de un usuario en la línea de comandos es tan simple con
+`id`. La salida variará según su ID de inicio de sesión:
+```bash
+id
+uid=1024(emma) gid=1024(emma)
+1024(emma),20(games),groups=10240(netusers),20480(netadmin)
+context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023
+```
+
+En la lista anterior, el usuario (`emma`) tiene identificadores que se desglosan de la
+siguiente manera:
+- `1024` = ID de usuario (UID), seguido del nombre de usuario
+- `1024` = ID de grupo primario (GID), seguido del nombre de grupo
+- Una lista de GID adicionales (nombres de grupo) a los que también pertenece el usuario.
+
+Para enumerar la última vez que los usuarios han iniciado sesión es `last`:
+```bash
+last
+emma pts/3 ::1
+Fri Jun 14 04:28
+still logged in
+reboot system boot 5.0.17-300.fc30. Fri Jun 14 04:03 reboot system boot 5.0.17-300.fc30. Wed Jun 5 14:32 - 15:19 (00:46)
+reboot system boot 5.0.17-300.fc30. Sat May 25 18:27 - 19:11 (00:43)
+reboot system boot 5.0.16-100.fc28. Sat May 25 16:44 - 17:06 (00:21)
+reboot system boot 5.0.9-100.fc28.x Sun May 12 14:32 - 14:46 (00:14)
+root tty2
+```
+
+La información que figura en las columnas puede variar, pero algunas entradas notables
+en el listado anterior son:
+- Un usuario `emma` inicio sesión a través de la red (pseudo TTY `pts/3`) y todavía está conectado.
+- Se enumera la hora del arranque actual, junto con el kernel. En el ejemplo anterior, unos 25 minutos antes de que el usuario inicie sesión.
+- El superusuario `root` inicio sesión a través de una consola virtual (TTY `tty2`), a mediados de mayo.
+
+Una variante de `last` es el comando `lastb`, que enumera todos los últimos intentos
+de inicio de sesión incorrectos.
+
+Los comandos `who` y `w` enumeran solo los inicios de sesión activos en el sistema.
+
+El comando `w` muestra más información, incluida la siguiente:
+- La hora actual y cuánto tiempo ha estado funcionando el sistema
+- ¿Cuántos usuarios están conectados?
+- Los promedios de carga (load averages) de los últimos 1, 5 y 15 minutos
+
+Y la información adicional para cada sesión de un usuario activo.
+- Seleccionar, tiempos totales de utilización de la CPU (`IDLE, JCPU` y `PCPU`).
+- El proceso actual (`-bash`). El tiempo total de utilización de la CPU de ese proceso es el último elemento (`PCPU`).
+
+#### Cambio de usuario y aumento de privilegios
+En un mundo ideal, los usuarios nunca necesitarían escalar privilegios para completar
+sus tareas. El sistema "simplemente funcionaría" y todo estaría configurado para
+varios accesos.
+
+En la mayoría de los sistemas Linux actuales, el comando `su` solo se usa para escalar
+privilegios a `root`, que es el usuario predeterminado si no se especifica un nombre
+de usuario después del nombre del comando. Si bien se puede para cambiar a otro
+usuario, no es una buena práctica: los usuarios deben iniciar sesión desde otro
+sistema, a través de red, consola física o terminal en el sistema.
+
+    su -
+
+Después de ingresar la contraseña se superusuario (`root`), el usuario tiene un shell
+de superusuario.
+
+El símbolo de dólar (`$`) indica en la línea de comandos un shell de usuario no
+privilegiado, mientras que el símbolo de libra (`#`) indica en la línea de comandos
+un shell de superusuario (`root`). Se recomienda encarecidamente que el carácter final
+de cualquier aviso nunca se cambie de este estándar de "comprensión universal", ya que
+esta nomeclatura se utiliza en materiales de aprendizaje.
+
+#### Archivos de control de acceso
+Casi todos los sistemas operativos tienen un conjunto de ubicaciones utilizados para
+almacenar controles de acceso. En Linux, estos son típicamente archivos de texto
+ubicados en el directorio `/etc`, que es donde deben almacenarse los archivos de
+configuración del sistema. Por defecto, todos los usuarios del sistema pueden leer
+este directorio, pero solo `root` puede escribirlo.
+
+Los archivos principales relacionados con cuentas de usuarios, atributos y control
+de acceso son:
+
+**`/etc/passwd`**: este archivo almacena información básica sobre los usuarios en el
+sistema, incluyendo UID y GID, directorio de inicio, tipo de shell, etc. A pesar del
+nombre, aquí no se almacenan contraseñas.
+
+**`/etc/group`**: este archivo almacena información básica sobre todos los grupos de
+usuarios en el sistema, como el nombre del grupo, GID y sus miembros.
+
+**`etc/shadow`**: aquí es donde se almacenan las contraseñas de los usuarios. Por
+seguridad son hash.
+
+**`/etc/gshadow`**: este archivo almacena información más detallada sobre los grupos,
+incluida una contraseña cifrada que permite a los usuarios convertirse temporalmente
+en un miembro del grupo. En una lista de usuarios puede convertirse en un miembro
+de inclusive una lista de administradores.
+
+También hay archivos relacionados con la escalada de privilegios básicos en sistemas
+Linux, como en los comandos `su` y `sudo`. Por defecto, estos solo son accesibles por
+el usuario `root`.
+
+**`/etc/sudoers`**: este archivo controla quién y cómo usar el comando `sudo`.
+
+**`/etc/sudoers.d`**: este directorio puede contener archivos que complementan la
+configuración del archivo `sudoers`.
+
+> Aunque `/etc/sudoers` es un archivo de texto, nunca debe editarse directamente directamente. Si necesita cambiar su contenido, debe de usar `visudo`.
