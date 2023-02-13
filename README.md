@@ -1503,9 +1503,7 @@ servidor web tiene un UID (y GID) 48. Claramente es una cuenta del sistema, a pe
 de tener un directorio de inicio de sesión (generalmente en `/usr/share/httpd` o
 `/var/www/html/`)>.
 
-Las cuentas del sistema son UID <1000, y las cuentas de usuario normales son UID
->1000. Como las cuentas de usuario normales son >1000, estos UID también pueden
-incluir cuentas de servicio.
+>Las cuentas del sistema son UID <1000, y las cuentas de usuario normales son UID (>)1000. Como las cuentas de usuario normales son >1000, estos UID también pueden incluir cuentas de servicio.
 
 #### Shells de inicio de sesión y directorios de inicio
 Algunas cuentas tienen un shell de inicio de sesión, mientras que otras no, ya que no
