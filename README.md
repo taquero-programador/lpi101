@@ -1418,3 +1418,83 @@ sockets que escuchan nuevas conexiones.
 Enumerar todos los sockets TCP actualmente en uso:
 
     ss -t
+
+## Seguridad y permisos de usuario
+#### Identificadores (UIDs/GIDs)
+Los *User* y *Group Identifiers* (UIDs/GIDs) son las referencias básicas y enumeradas
+a las cuentas. Las primeras implementaciones eran enteros limitados a 16 bits (valores
+de 0 a 65535), pero los sistemas del siglo XIX admiten UIDs y GIDs de 64 bits. Los
+usuarios y grupos se enumeran de forma independiente, por lo que el mismo ID puede
+representar tanto a usuario como a un grupo.
+
+Cada usuario no tiene solo un UID, sino también un GID primario. EL GID primario para
+un usuario puede ser exclusivo de solo ese usuario y puede terminar sin ser utilizado
+por ningún otro. Sin embargo, este grupo también podría ser un grupo compartido por
+numerosos usuarios. Además de estos grupos principales, cada usuario tambien puede ser
+miembro de otros grupos.
+
+Por defecto en los sistemas Linux, cada usuario está asignado a un grupo con el mismo
+nombre de usuario y el mismo GID que su UID. Por ejemplo, si crear un nuevo usuario
+`newuser`, por defecto, su grupo predeterminado también será `newuser`.
+
+#### La cuenta de superusuario
+En Linux, la cuenta de superusuario tiene el GID `0` y también se denomina `root`. El
+directorio de inicio para el superusuario es un directorio dedicado de nivel superior,
+`/root`, al que solo puede acceder el usuario `root`.
+
+#### Cuentas de usuario estándar (User Accounts)
+Todas las cuentas que no sean `root` son cuentas de usuario técnicamente regulares,
+pero en un sistema Linux el término colequial *user accounts* a menudo significa una
+cuenta de usuario "regular" (sin privilegios). Por lo general, tiene las siguientes
+propiedades, con algunas excepciones.
+
+- EL UID comienza con 1000 (4 dígitos), aunque en algunos sistemas heredados pueden comenzar en 500.
+- Posee un definido directorio de inicio, generalmente es un subdirectorio de `/home`, dependiendo de la configuración local del sitio.
+- Posee un shell definido para el inicio de sesión. En Linux, el shell predeterminado sueles ser *Bourne Again Shell* (`/bin/sh`), aunque puede haber otros disponibles.
+
+Si una cuenta de usuario no tiene un shell válido en sus atributos, el usuario no podrá abrir un shell interactivo. Usualmente `/sbin/nologin` se usa para un shell
+inválido. Esto pueden tener un propósito, solo si el usuario autenticará para otros
+servicios que no sea la consola o el acceso SSH, por ejemplo, solo para el acceso
+Secure FTP (sftp).
+
+#### Cuentas del sistema (System Accounts)
+Las cuentas del sistema (System Access) normalmente se crean en el momento de la
+instalación del sistema. Estos son para instalaciones, programas y servicios que no
+se ejecutarán como superusuario. En un mundo ideal, todas estas serían instalaciones
+del sistema operativo.
+
+Las cuentas del sistema varían, pero sus atributos incluyen:
+- Los UID suelen ser inferiores a 100 (2 dígitos) o 500-1000 (3 dígitos).
+- Ya sea o no que posean un directorio de inicio dedicado o un directorio que generalmente noes un subdirectorio de `/home`.
+- Sin shell de inicio de sesión válido (normalmente `/sbin/nologin`), con raras excepciones.
+
+En Linux la mayoría de las cuentas del sistema iniciarán sesión y tampoco necesitan
+un shell en sus atributos. Muchos procesos de propiedad y ejecutados por las cuentas
+del sistema se bifurcan en su propio entorno por la administración del sistema,
+ejecutándose con la cuenta del sistema especifica. Estas cuentas generalmente tienen
+privilegios limitados o no tienen privilegios (la mayoría de las veces).
+
+En general, las cuentas del sistema no deben tener un válido shell de inicio de
+sesión. Lo contrario sería un problema de seguridad en la mayoría de los casos.
+
+#### Cuentas de servicio (Service Accounts)
+Las cuentas de servicio generalmente se crean cuando los servicios se instalan y
+configuran. Al igual que las cuentas del sistema, son para instalaciones, programas y
+servicios que no se ejecutarán como superusuario.
+
+Las cuentas de sistema y servicio son similares y se intercambian a menudo. Esto
+incluye la ubicación de los directorios de inicio que normalmente están fuera de
+`/home`, si se define en todas (las cuentas de servicio a menudo tienen más
+probabilidad de tener una ubicación, en comparación las cuentas del sistema), además
+no hay un shell válido de inicio de sesión. Aunque no existe una definición estricta,
+la diferencia principal entre las cuentas de sistema y servicio se desglosa en
+UID/GID.
+
+**Cuentas del sistema**: UID/GID <100 (2- dígitos) o <500-1000 (3- dígitos).
+
+**Cuentas de servicio**: UID/GID >1000 (4+ dígitos), pero no una cuenta de usuario
+"estándar" o "regular", una cuenta para servicios con un UID/GID > 1000 (4+ dígitos).
+
+Algunas distribuciones de Linux todavía tienen cuentas de servicio previamente
+reservadas con un UID <100, y también podrían considerarse una cuenta del sistema,
+aunque no se creen en la instalación del siste,a
