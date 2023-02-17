@@ -1993,4 +1993,90 @@ envejecimiento de la contraseña:
 - **`-u`**: desbloquea la cuenta de usuario (elimina `!` al inicio del hash).
 - **`-S`**: muestra información sobre el estado de la contraseña para una cuenta específica.
 
+## Gestión de los permisos y la propiedad de los archivos
+Al usar un sistema multiusuario, Linux necesita alguna forma de rastrear quién es
+dueño de cada archivo y si un usuario puede o no realizar acciones. Lo anterior es
+para garantizar la privacidad de los usuarios que deseen mantener la confidencialidad
+del contenido de sus ficheros, así como garantizar la colaboración al hacer que
+ciertos archivos sean accesibles para múltiples usuarios.
 
+#### Consultar información sobre archivos y directorios
+El comando `ls` se usa para obtener una lista de contenido de cualquier directorio.
+```bash
+ls
+Another_Directory
+picture.jpg
+text.txt
+```
+
+```bash
+ls -l
+total 536
+drwxrwxr-x 2 carol carol
+4096 Dec 10 15:57 Another_Directory
+-rw------- 1 carol carol 539663 Dec 10 10:43 picture.jpg
+-rw-rw-r-- 1 carol carol
+1881 Dec 10 15:57 text.txt
+```
+
+Cada columna en la salida anterior tiene un significado:
+- La primera columna de la lista muestra el tipo de archivo y los permiso, por ejemplo, en `drwxrwxr-x`:
+    - El primer carácter, `d` indica el tipo de archivo
+    - Los siguientes tres caracteres, `rwx` indican los permisos para el propietario del archivo, también conocido como usuario o `u`.
+    - Los siguientes tres caracteres, `rwx` indica los permisos del grupo que posee el archivo, también conocido como `g`.
+    - Los últimos tres caraceres, `r-x` indican los permisos para cualquier otra persona, también conocidos como otros o `o`.
+- La segunda columna indica el número de enlaces duros (hard links) que apuntan a ese archivo. Para un directorio, significa el número de subdirectorios, más un enlace a sí mismo (`.`) y al directorio padre (`..`).
+- La tercera y cuarta columna muestra información de propiedad: el usuario y el grupo que posee el archivo.
+- La quinta columna muestra el tamaño del archivo en bytes.
+- La sexta columna muestra la fecha y la hora precisa, o la marca del tiempo cuando se modificó el archivo por úlitma vez.
+- La séptima y última columna muestran el nombre del archivo.
+
+#### Directorios
+Listar el contenido de un directorio:
+
+    ls -l path/
+
+Para listar información solo del directorio:
+
+    ls -ld path/
+
+Para los archivos ocultos:
+
+    ls -la path/
+
+#### Comprendiendo los tipos de archivos
+**`-` (archivo noral)**: un archivo puede contener datos de cualquier tipo.
+
+**`d` (directorio)**: un directorio contiene otros archivos o directorios y ayuda a
+organizar el sistema de archivos.
+
+**`l` (enlace suave)**: este archivo es un puntero a otro archivo o directorio en
+otra parte del sistema de archivos.
+
+**`b` (dispositivo de bloque)**: este archivo representa un archivo virtual o físico,
+generalmente discos u otros tipos de dispositivos de almacenamiento.
+
+**`c` (dispositivo de caracteres)**: representa un archivo virtual o físico. Los
+terminales (como el terminal principal `/dev/ttyS0`) y los puertos seriales son
+ejemplos comunes de dispositivos de caracteres.
+
+**`s` (socket)**: los sockets sirven como "conductores" para pasar información entre
+dos programas.
+
+#### Numeric mode
+En *modo númerico* los permisos se específican de manera diferente: como un valor
+númerico de tres dígitos en notación octal, un sistema númerico de base 8.
+
+Cada permiso tiene un valor correspondiente, y se específica en el siguiente orden:
+primero lectura (`r`) que es 4; luego escritura (`w`), que es 2 y el último ejecución
+(`x`), representado por 1. Si no hay permisos, use el valor cero (`0`). Entonces un
+permiso `rwx` sería 7 (`4+2+1`) y `r-x` (`4+0+1`).
+
+El primero de los tres dígitos representa los permisos para el usuario (`u`), el
+segundo para el grupo (`g`) y el tercero para otros (`o`). Si quisiéramos establecer
+los permisos para un archivo como `rw-rw----`, el valor octal sería `660`:
+
+    chmod 660 file.txt
+
+#### Modificando la propiedad del archivo
+pg410
