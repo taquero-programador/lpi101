@@ -1801,4 +1801,196 @@ longitud hash de doce.
 **`$6$01234567ABCD$012...`**: una función hash de SHA512 (6), con un ejemplo de
 longitud de hash de doce.
 
-pg381
+## Crear usuarios y grupos
+Administrar usuarios y grupos en un equipo con Linux es uno de los aspectos clave de
+la administación del sistema. De hecho, Linux es un sistema operativo multiusuario en
+el que varios de estos pueden usar la máquina al mismo tiempo.
+
+La información sobre usuarios y grupos se almacena en cuatro archivos dentro del árbol
+del directorio `/etc/`:
+
+**`etc/passwd`**: es un archivo se siete campos delimitados por dos puntos que
+contienen información básica sobre los usuarios.
+
+**`/etc/group`**: es un archivo de cuatro campos delimitados por dos puntos que
+contiene información básica sobre grupos.
+
+**`/etc/shadow`**: es un archivo de nueve campos delimitados por dos puntos que
+contiene contraseñas cifradas de los usuarios.
+
+**`/etc/gshadow`**: es un archivo de cuatros campos delimitados por dos punto que
+contiene contraseñas cifradas de los grupos.
+
+Todos estos archivos se actualizan mediante un conjunto de herramientas de línea de
+comandos para la administración de usuarios y grupos. También se pueden administrar
+mediante aplicaciones gráficas según la distribución que proporcionan interfaces más
+simples e inmediatas.
+
+#### El archivo `/etc/passwd`
+`/etc/passwd` es un archivo legible por todos que contiene una lista de usuarios en
+cada línea:
+
+    frank:x:1001:1001::/home/frank:/bin/bash
+
+Cada línea consta de siete campos delimitados por dos puntos:
+
+**`Username`**: el nombre utilizado cuando el usuario inicia sesión en el sistema.
+
+**`Password`**: la contraseña cifrada (o una `x` si usa contraseñas ocultas).
+
+**`User ID (UID)`**: el número de ID asignado al usuario en el sistema.
+
+**`Group ID (GID)`**: el número de grupo primario del usuario en el sistema.
+
+**`GECOS`**: un campo de comentario opcional, que se utiliza para agegar información
+adicional sobre el usuario (como el nombre completo). El campo puede contener
+múltiples entradas separadas por coma.
+
+**`Home Directory`**: la ruta absoluta del directorio de inicio de usuario.
+
+**`Shell`**: la ruta absoluta del programa que se inicia automáticamente cuando el
+usuario inicia sesión en el sistema (generalmente un shell interactivo como `/bin/bash`).
+
+#### El archivo `/etc/group`
+`/etc/group` es un archivo legible por todos que contiene una lista de grupos, cada
+una en una línea separada:
+
+    developer:x:1002:
+
+Cada línea consta de cuatro campos delimitados por dos puntos:
+
+**`Group Name`**: el nombre del grupo.
+
+**`Group Password`**: la contraseña cifrada del grupo (o una `x` si usa contraseñas ocultas).
+
+**`Group ID (GID)`**: el número de identificación asignado al grupo en el sistema.
+
+**`Member List`**: una lista delimitada por comas de los usuarios que pertenecen al
+grupo, excepto aquellos para quienes este es el grupo primario.
+
+#### El archivo `/etc/shadow`
+`/etc/shadow` es un archivo legible solo por el usuario `root` y usuarios con
+privilegios de `root`. Además contiene las contraseñas cifradas de los usuarios
+separadas por una línea:
+
+    frank:$6$i9gjM4Md4MuelZCd$7jJa8Cd2bbADFH4dwtfvTvJLOYCCCBf/.jYbK1IMYx7Wh4fErXcc2xQVU2N1gb97yIYaiqH.jjJammzof2Jfr/:18029:0:99999:7:::
+
+Cada línea consta de nueve campos delimitados por dos puntos:
+
+**`Username`**: el nombre utilizado cuando el usuario inicia sesión en el sistema.
+
+**`Encrypted Password`**: la contraseña cifrada del usuario (si el valor es `!`, la
+cuneta está bloqueada).
+
+**`Date of last password change`**: la fecha del último cambio de contraseña, como
+número de días desde 01/01/1970. Un valor `0` significa que el usuario debe cambiar
+la contraseña en el siguiente acceso.
+
+**`Minimum password age`**: el número mínimo de días después de un cambio de
+contraseña que debe pasar antes de que el usuario pueda cambiar nuevamente.
+
+**`Password warning period`**: el número de días antes de que caduque la contraseña,
+durante los cuales se advierte al usuario que se debe cambiar.
+
+**`Password inactivity period`**: el número de días de que caduca la contraseña el
+cual el usuario debe actualizarla. Después de este período, si el usuario no cambia
+la contraseña, la cuenta se deshabilitará.
+
+**`Account expiration date`**: la fecha, como número de días desde el 01/01/1970 en
+que se deshabilitará la cuennta de usuario. Un campo vacío significa que la cuenta de
+usuario nunca caducará.
+
+**`A reserved fiel`**: un campo reservado para uso futuro.
+
+#### El archivo `/etc/gshadow`
+`/etc/gshadow` es un archivo legible solo por el usuario `root` y por usuarios con
+privilegios de `root` que contiene contraseñas cifradas para grupos, cada uno en una
+línea separada:
+
+    developer:$6$7QUIhUX1WdO6$H7kOYgsboLkDseFHpk04lwAtweSUQHipoxIgo83QNDxYtYwgmZTCU0qSCuCkErmyR263rvHiLctZVDR7Ya9Ai1::
+
+Cada línea consta de cuatro campos delimitados por dos puntos:
+
+**`Group name`**: el nombre del grupo.
+
+**`Encrypted password`**: la contraseña cifrada para el grupo (se usa cuando un
+usuario que no es miembro del grupo, desea unirse al grupo usando el comando `newgrp`,
+si la contraseña comienza con `!`, nadie puede acceder al grupo con `newgrp`).
+
+**`Group administrators`**: una lista delimitada por comas de los administradores del
+grupo (puede cambiar la contraseña deñ grupo y puede agregar o eliminar miembros del
+grupo con el comando `gpasswd`).
+
+**`Group members`**: una lista delimitada por comas de los miembros del grupo.
+
+#### Agregar y eliminar cuentas de usuario
+En Linux, puede agragar una nueva cuenta de usuario con el comando `useradd` (es
+mejor `adduser`) y puede eliminar una cuenta de usuario con el comando `userdel`.
+
+Si desea crear una cuenta nueva de usuario llamada `frank` con una configuración
+predeterminada, puede ejecutar lo siguiente:
+
+    sudo useradd frank
+
+Después de crear el nuevo usuario, puede establecer una contraseña usando `passwd`:
+
+    sudo passwd frank
+
+Las opciones más importantes que se aplican al comando `useradd` son:
+
+- **`-c`**: crea una nueva cuenta de usuario con comentarios personalizados (por ejemplo, nombre completo).
+- **`-d`**: craer una nueva cuenta de usuario con un directorio de inicio personalizado.
+- **`-e`**: crea una nueva cuenta de usuario estableciendo una fecha específica en la que se deshabilitará.
+- **`-f`**: crear una nueva cuenta de usuario estableciendo el número de días después de que caduque la contraseña durante los cuales el usuario debe actualizar la contraseña.
+- **`-g`**: crea una nueva cuenta de usuario con un GID específico.
+- **`-G`**: crea una nueva cuenta de usuario agragándola a múltiples grupos secundarios.
+- **`-m`**: crea una nueva cuenta de usuario con su directorio de inicio.
+- **`-M`**: crea una nueva cuenta de usuario sin su directorio de inicio.
+- **`-s`**: crea una nueva cuenta de usuario con un shell de inicio de sesión específico.
+- **`-u`**: crea una nueva cuenta de usuario con un UID específico.
+
+Si deasea eliminar una cuenta de usuario, puede usar el comando `userdel`. La opción
+`-r` también elimina el directorio de inicio de usuario y todo su contenido, junto
+con la cola del correo del usuario. Otros archivos, ubicados en otro lugar, deben
+buscarse y eliminarse manualmente.
+
+#### El directorio `skel`
+Cuando agrega una nueva cuenta de usuario, incluso al crear su directorio de inicio,
+el directorio de inicio recién creado se llena con archivos creados y carpetas que
+se copian del directorio de skel (por defecto `/etc/skel`). La idea detras de esto, es
+simple: un administrador del sistema quiere agregar nuevos usuarios que tengan los
+mismos archivos y directorios en su hogar. Por lo tanto, si desea personalizar los
+archivos y carpetas que se crean automáticamente en el directorio de inicio de las
+nuevas cuentas de usuario, debe agregar estos nuevos archivos y carpetas al directorio
+skel.
+
+El contenido de este directorio está oculto. Para enumerar el contenido usar `ls -Al`.
+
+#### Agregar y eliminar grupos
+En cuanto a la gestión de grupos, puede agregar o eliminar grupos utilizando
+`groupadd` y `groupdel`.
+
+Crear un nuevo grupo llamado `developer`:
+
+    sudo groupadd -g 1090 developer
+
+La opción `-g` de este comando crea un grupo con un GID específico.
+
+Comando para eliminar el grupo `developer`:
+
+    sudo groupdel developer
+
+#### El comando `passwd`
+este comando se usa principalmente para cambiar la contraseña de usuario. Cualquier
+otro usuario puede cambiar su contraseña, pero solo el usuario `root` puede cambiar
+la contraseña de cualquier usuario.
+
+Dependiendo de la opción `passwd` utilizada, puede controlar aspectos específicos del
+envejecimiento de la contraseña:
+- **`-d`**: elimina la contraseña de una cuenta de usuario (estableciendo así una contraseña vacía y convirtiéndola en una cuenta sin contraseña).
+- **`-e`**: fuerza a la cuenta de usuario a cambiar de contraseña.
+- **`-l`**: bloquea la cuenta de usuario (coloca un signo de `!` al inicio del hash).
+- **`-u`**: desbloquea la cuenta de usuario (elimina `!` al inicio del hash).
+- **`-S`**: muestra información sobre el estado de la contraseña para una cuenta específica.
+
+
