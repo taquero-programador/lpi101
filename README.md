@@ -2235,4 +2235,5 @@ ls -lh test.sh
 -rwsr-sr-x 1 carol carol 66 Jan 18 17:29 test.sh
 ```
 
-
+## Directorios y archivos especiales
+pg426
