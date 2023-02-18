@@ -1523,7 +1523,7 @@ Enter the new value, or press ENTER for the default
 Login Shell [/bin/bash]: /usr/bin/zsh
 ```
 
-También puede ejecutar el comando en modo no interactivo, con el parametro `-s`
+También puede ejecutar el comando en modo no interactivo, con el parámetro `-s`
 seguida de la ruta del binario:
 
     chsh -s /usr/bin/zsh
@@ -2079,4 +2079,160 @@ los permisos para un archivo como `rw-rw----`, el valor octal sería `660`:
     chmod 660 file.txt
 
 #### Modificando la propiedad del archivo
-pg410
+El comando `chown` se usa para modificar la propiedas de un archivo o directorio. La
+sintaxis es bastante simple:
+
+    chown username:groupname filename
+
+Por ejemplo, verifiquemos un archivo llamado `text.txt`:
+```bash
+ls -l text.txt
+-rw-rw---- 1 carol carol 1881 Dec 10 15:57 text.txt
+```
+El usuario propietario del archivo es `carol`, y el grupo también es `carol`. Ahora
+modifiquemos el grupo que posee el archivo a otro grupo como `students`:
+```bash
+chown carol:students text.txt
+ls -l text.txt
+-rw-rw---- 1 carol students 1881 Dec 10 15:57 text.txt
+```
+
+Tenga cuenta que el usuario que posee un archivo no necesita pertenecer al grupo que
+lo posee. En el ejemplo anterior, `carol` no necesita ser miembroo del grupo
+`students`. Sin embargo, ella tiene que ser miembro del grupo para tranferir la
+propiedad del archivo a ese grupo.
+
+El grupo o usuario puede omitirse si no desea cambiarlos. Entonces, para cambiar solo
+el grupo que posee un archivo, usaría `chown :students test.txt`. Para cambiar solo
+el usuario, el comando sería `chown carol test.txt`. Alternativamente, puede usar el
+comando `chgrp students test.txt` para cambiar solo el grupo.
+
+A menos que sea el administrador del sistema (`root`), no puede cambiar la propiedad
+de un archivo propiedad de otro usuario o grupo al que no pertenece.
+
+#### Consultado los grupos
+Antes de cambiar la propiedad de un archivo, puede ser útil saber qué grupos existen
+en el sistema, qué usuarios son miembros de un grupo y a qué grupos pertenece un
+usuario. Esas tareas se pueden realizar con dos comandos, `groups` y `groupmems`.
+
+Para saber los grupos que existen en un sistema:
+
+    groups
+
+Para saber a qué grupos pertenece un usuario:
+
+    groups carol
+
+Para hacer lo contrario, mostrar qué usuarios pertenecen a un grupo, user `groupmems`.
+El parámetro `-g` específica el grupo, y `-l` enumerará todos sus miembros:
+
+    sudo groupmems -g sudo -l
+
+#### Permisos especiales
+Además de los permisos de lectura, escritura y ejecución para el usuario, grupos y
+otros, cada archivo puede tener otros permisos especiales que pueden alterar la forma
+en que funciona un directorio o cómo se ejecuta un programa. Se puede especificar en
+modo simbólico o numérico, y son los siguientes:
+
+**Stick bit**  
+El stick bit, también llamado *restricted deletion flag*, tiene el valor octal `1` y
+en modo simbólico está representado por una `t` dentro de los permisos del otro. Esto
+se aplica solo a los directorios, y en Linux evita que los usuarios eliminen o cambien
+el nombre de un archivo en un directorio a menos que sean dueños de ese archivo o 
+directorios.
+
+Los directorios con el conjunto de bits fijos muestran una `t` que reemplaza la `x`
+en los permisos para otros a la hora de ver la salida de `ls -l`:
+```bash
+ls -ld Sample_Directory/
+drwxr-xr-t 2 carol carol 4096 Dec 20 18:46 Sample_Directory/
+```
+En el modo numérico, los permisos especiales se especifican usando una "notación de
+4 dígitod", con el primer dígito representando el permiso especial para actuar. Por
+ejemplo, para establecer el stick bit (valor `1`) para el directorio 
+`Another_Directory` en modo numérico con permisos `755`, el comando sería:
+```bash
+chmod 1755 Another_Directory
+ls -ld Another_Directory
+```
+
+**Set GID**  
+Establecer GID, también conocido como SGID o "Set Group ID bit", tiene el valor octal
+2 y en modo simbólico está representado por una `s` en los permisos del grupo. Esto
+se puede aplicar a archivos ejecutables o directorios. En los archivos ejecutables,
+otorgará la ejecución del archivo con privilegios del grupo. Cuando se aplica los
+directorios, hará que cada archivo o directorio creado debajo herede el grupo del
+directorio principal.
+
+Los archivos y directorios con bit SGID muestan una `s` que reemplaza la `x` en los
+permisos para el grupo den la salida de `ls -l`:
+```bash
+ls -l test.sh
+-rwxr-sr-x 1 carol carol 33 Dec 11 10:36 test.sh
+```
+Para agregar permisos SGID a un archivo en modo simbólico, el comando sería:
+```bash
+chmod g+s test.sh
+ls -l test.sh
+-rwxr-sr-x 1 carol root
+33 Dec 11 10:36 test.sh
+```
+El siguiente ejemplo lo hará comprender mejor los efectos de SGID en un directorio.
+Supongamos que tenemos un directorio llamado `Sample_Directory`, propiedad el usuario
+`carol` y el grupo `users`, con la siguiente estructura de permisos:
+```bash
+ls -ldh Sample_Directory/
+drwxr-xr-x 2 carol users 4,0K Jan 18 17:06 Sample_Directory/
+```
+Ahora, cambiemos de directorio y usando el comando `touch`, creemos un archivo vacío
+dentro del él. 
+```bash
+cd Sample_Directory/
+touch newfile
+ls -lh newfile
+-rw-r--r-- 1 carol carol 0 Jan 18 17:11 newfile
+```
+Como podemos ver, el archivo es propiedad del usuario `carol` y del grupo `carol`.
+Pero, si el directorio tuviera establecido el permiso SGID, el resultado sería
+diferente. Primero, agreguemos el bis SGID al `Sample_Directory` y verifiquemos los
+resultados:
+```bash
+sudo chmod g+s Sample_Directory/
+ls -ldh Sample_Directory/
+drwxr-sr-x 2 carol users 4,0K Jan 18 17:17 Sample_Directory/
+```
+La `s` en los permisos del grupo indica que el bit SGID está establecido. Ahora,
+cambiemos a este directorio y nuevamente creemos un archivo:
+```bash
+cd Sample_Directory/
+touch emptyfile
+ls -lh emptyfile
+-rw-r--r-- 1 carol users 0 Jan 18 17:20 emptyfile
+```
+Como podemos ver, el grupo que posee el archivo es `users`. Esto se debe a que el bit
+SGID hizo que el archivo heredara el propietario del grupo de su directorio principal
+que es `users`.
+
+**Set UID**  
+SUID, también conocido como "Set User ID", tiene el valor octal `4` y está
+representado por una `s` en los permisos user en modo simbólico. Solo se aplicaa los
+archivos y su comportamiento es similar al bit SGID, pero el proceso se ejecutará con
+los permisos del usuario que posee el archivo. Los archivos con el bit SUID muestran
+una `s` que reemplaza la `x` en los permisos para el usuario en la salida `ls -l`:
+```bash
+ls -ld test.sh
+-rwsr-xr-x 1 carol carol 33 Dec 11 10:36 test.sh
+```
+Puede cambiar múltiples permisos especiales en un parámetro agrgándolos juntos. 
+Entonces, para establecer SGID (valor `2`) y un SUID (valor `4`) en modo numérico para
+el script `test.sh` con permisos `755`, sebe escribir:
+
+    chmod 6755
+
+Y el resultado sería:
+```bash
+ls -lh test.sh
+-rwsr-sr-x 1 carol carol 66 Jan 18 17:29 test.sh
+```
+
+
