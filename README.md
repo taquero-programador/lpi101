@@ -2236,4 +2236,38 @@ ls -lh test.sh
 ```
 
 ## Directorios y archivos especiales
-pg426
+#### Archivos temporales
+Los archivos temporales son archivos utilizados por los programas para almacenar datos
+que solo se necesitan por un corto tiempo. Estos pueden ser datos de procesos en
+ejecución, registros de bloqueo, archivos de memoria virtual de un autoguardado,
+archivos intermedios utilizados durante una conversión de archivos, archivos de caché,
+etc.
+
+#### Ubicación de los archivos temporales
+La versión 3.0 del *Filesystem Hierarchy Standard* (FHS) define las ubicaciones
+estándar para los archivos temporales en los sistemas Linux. Cada ubicación tiene
+un propósito y comportamiento diferente, y ser recomienda que los desarrolladores
+sigan las convenciones establecidas por el FHS cuando escriban datos temporales en el
+disco.
+
+**`/tmp`**: según el FHS, los programas no deben asumir que los archivos escritos se
+conservarán entre las invocaciones de un programa. La recomendación es que este
+directorio sea limpiado durante el arranque del sistema, aunque esto no es obligatorio.
+
+**`/var/tmp`**: otra ubicación para los archivos temporales, pero esta no debe ser
+borrada durante el arranque del sistema, es decir, los archivos almacenados aquí
+normalmente persistirán entre los reinicios.
+
+**`/run`**: este directorio contiene variables en tiempo de ejecución utilizados por
+los procesos en ejecución, como los archivos de identificación de los procesos 
+(`.pid`). Los programas que necesitan más de un archivo de tiempo de ejecución pueden
+crear subdirectorios aquí. Esta ubicación debe ser despejada durante el arranque del
+sistema. El propósito de este directorio fue una vez servido por `/var/run` y en
+algunos sistemas `/var/run` pueden ser un enlace simbólico a `/run`.
+
+Tenga en cuenta que no hay nada que impida a un programa crear archivos temporales en
+otra parte del sistema, pero es buena práctica respetar las convenciones establecidas
+por FHS.
+
+#### Permisos en los archivos temporales
+pg428
