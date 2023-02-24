@@ -1,6 +1,4 @@
-# Linux Professionl
-
-# Linux 101
+# Linux 60
 ## Los sistemas operativos populares y la evolución de Linux
 #### Introducción
 Linux es uno de los sistemas operativos más populares; su desarrollo se inició en 1991
