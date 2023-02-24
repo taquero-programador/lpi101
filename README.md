@@ -2158,7 +2158,7 @@ ls -ld Another_Directory
 
 **Set GID**  
 Establecer GID, también conocido como SGID o "Set Group ID bit", tiene el valor octal
-2 y en modo simbólico está representado por una `s` en los permisos del grupo. Esto
+`2` y en modo simbólico está representado por una `s` en los permisos del grupo. Esto
 se puede aplicar a archivos ejecutables o directorios. En los archivos ejecutables,
 otorgará la ejecución del archivo con privilegios del grupo. Cuando se aplica los
 directorios, hará que cada archivo o directorio creado debajo herede el grupo del
@@ -2270,4 +2270,149 @@ otra parte del sistema, pero es buena práctica respetar las convenciones establ
 por FHS.
 
 #### Permisos en los archivos temporales
-pg428
+Disponer de directorios temporales en todo el sistema en un sistema multiusuario,
+presenta algunos problemas en lo que respecta a los permisos de acceso. Al principio
+se pensó que tales directorio serían "escritor por todo el mundo", es decir, que
+cualquier usuario podría escribir o borrar datos en ellos. Pero si esto fuera cieto,
+¿cómo podríamos evitar que un usuario borre o modifique los archivos creados por
+otros?
+
+La solución es un permiso especial llamado *stick bit*, que se aplica tanto a
+directorios como a archivos. Sin embargo, por razones de seguridad, el kernel de Linux
+ingnora el bit fijo cuando se aplica a los archivos. Cuando este bit especial se
+establece para un directorio, evita que los usuarios eliminen o renombren un archivo
+dentro de ese directorio a menos que sea propietarios del archivo.
+
+Los directorios con el stick bit muestran una `t` reemplazando la `x` en los permisos
+de *otros* en la salida `ls -l`. Por ejemplo, revisemos los permisos de los
+directorios `/tmp` y `/var/tmp`:
+```bash
+ls -ldh /tmp/ /var/tmp/
+drwxrwxrwt 25 root root 4,0K Jun 7 18:52 /tmp/
+drwxrwxrwt 16 root root 4,0K Jun 7 09:15 /var/tmp/
+```
+Como puedes ver por la `t` que reemplaza a la `x` en los permisos para otros, ambos
+directorios tienen el stick bit.
+
+Para poner el stick bit en un directorio usando `chmod` en modo númerico, usa la
+notación de cuatro dígitos y `1` como primer dígito. Por ejemplo:
+
+    chmod 1755 temp
+
+Cuando use el modo simbólico, use el parámetro `t`. Entonces,`+t` para establecer el
+stick bit, y `-t` para desactivarlo:
+
+    chmod +t temp
+
+#### Comprendiendo los enlaces
+Ya hemos dicho que el Linux, todo se trata como un archivo. Pero hay un tipo especial
+llamado *link*, y hay dos tipos de enlaces en un sistema Linux:
+
+**Enlaces simbólicos**: también llamados *enlaces suaves* (soft links), apuntan a la
+ruta de otro archivo. Si borras el archivo al que apunta el enlace (llamado *taget*),
+el enlace seguirá existiendo, pero dejara de funcionar, ya que ahora apunta a nada.
+
+**Enlaces duros**: piensa en un enlace duro como un segundo nombre para el archivo
+original. No son duplicados, sino una entrada adicional en el sistema de archivos que
+apunta al mismo lugar (inodo) en el disco.
+
+#### Trabajar con enlaces duros (Hard Links)
+#### Creación de enlaces duros
+El comando para crear un enlace duro en Linux es `ln`. La sintaxis básica es:
+
+    ls target link_name
+
+El `target` debe existir (este es el archivo al que aputará el enlace), y si el
+destino no está en el directorio actual, o si quieres crear un enlace en otro lugar,
+debes definir la ruta completa. Por ejemplo, el comando:
+
+    ln target.txt /home/carol/Documents/hardlink
+
+Creará un archivo llamado `hardlink` en el directorio `/home/carol/Documents/`,
+enlazado al archivo `target.txt` en el directorio actual.
+
+Si se omite el úlitmo parámetro (`link_name`), se creará un enlace con el mismo
+nombre del objetivo en el directorio actual.
+
+#### Administrar los enlaces duros
+Los enlaces duros son entradas en el sistema de archivos que tienen nombres
+diferentes, pero que apuntan a los mismos datos en el disco. Todos esos nombre son
+iguales y pueden ser usados para referirse a un archivo. Si se cambia el contenido de
+unos de los nombres, el contenido de todos los demás nombres que apuntan a ese archivo
+cambian, ya que todos estos nombres apuntan a los mismos datos. Si elimina uno de los
+nombres, los otros nombres seguiran funcionando.
+
+Esto sucede porque cuando borrar un archivo, los datos no se borral realmente del
+disco. El sistema simplemente borra la entrada en la tabla del sistema de archivos que
+apuntan al inodo correspondiente a los datos del disco. Pero si tiene una segunda
+entrada que apunta al mismo inodo, todavía puedes llegar a los datos. Pienso en ello
+como dos caminos que convergen en el mismo punto. incluso si bloqueas o redireccionas
+uno de los caminos, todavía puedes llegar al destino usando el otro.
+
+Puedes comprobarlo usando el parámetro `ls -i`:
+```bash
+ls -li
+total 224
+3806696 -r--r--r-- 2 carol carol 111702 Jun 7 10:13 hardlink
+3806696 -r--r--r-- 2 carol carol 111702 Jun 7 10:13 target.txt
+```
+El número que precede a los permisos es el número `inode`. ¿Ves que tanto el archivo
+`hardlink` como el archivo `target` tienen el mismo número (`38006696`)? Esto es
+porque uno es un enlace duro del otro.
+
+Pero, ¿cuál es el original y cuál es el enlace? No se puede decir realmente, ya que
+para todos los porpósitos prácticos son los mismos.
+
+Los archivos temporales son archivos utilizados por los programas para almacenar
+datos que solo se necesitan por un corto tiempo. Estos pueden ser los datos en
+procesos en ejecución, registros de bloqueo, archivos de memoria virtual de un
+autoguardado, archivos intermedios utilizados durante una conversión de archivos,
+archivos de caché, etc.
+
+A diferencia de los enlaces simbólicos, solo puede crear enlaces duros a los archivos,
+y tanto el enlace como el destino deben residir en el mismo sistema de archivos.
+
+#### Mover y eliminar enlaces duros
+Dado que los enlaces duros se tratan como archivos normales, pueden eliminarse con
+`rm` y cambiarse de nombre o moverse por el sistema de archivos con `mv`. Y dado que
+un enlace duro apunta al mismo inodo de destino (taget), puede moverse libremente,
+sin temor a romper el enlace.
+
+#### Enlaces simbólicos
+#### Creando enlaces simbólicos
+El comando utilizado para crear un enlace simbólico tambien es `ls`, pero agregando
+el parámetro `-s`:
+
+    ln -s target.txt /home/carol/Documents/softlink
+
+#### Administrando los enlaces simbólicos
+Los enlaces simbólicos apuntan a otra ruta en el sistema de archivos. Puede crear un
+enlace simbólico a los archivos y directorios, incluso en diferentes particiones. Es
+bastante fácil detectar un enlace simbólico en la salida `ls -l`:
+```bash
+ls -lh
+total 112K
+-rw-r--r-- 1 carol carol 110K Jun 7 10:13 target.txt
+lrwxrwxrwx 1 carol carol 7 10:14 softlink -> target.txt
+```
+En el ejemplo anterior, el primer cáracter en los permisos del archivos `softlink` es
+`l`, indica un enlace simbólico. Además, justo después del nombre del archivo vemos
+el nombre del objetivo al que apunta el enlace, el archivo `taget.txt`.
+
+#### Mover y eliminar enlaces simbólicos
+Como los enlaces duros, los enlaces simbólicos pueden ser eliminados usnado `rm` y
+movidos o renombrados usando `mv`. Sin embargo, se debe tener especial cuidado al
+crearlos, para evitar romper el enlace si se mueve de su ubicación original.
+
+Cuando se crean enlaces simbólicos hay que tener en cuenta que, a menos que se
+especifique completamente un camino, la ubicación del objetivo se interpreta como
+relativa a la ubicación del enlace. Esto puede crear problemas si el enlace o el
+archivo al que apunta, se mueve.
+
+La forma de evitarlo es especificar siempre el camino completo al objetivo al crear
+el enlace:
+
+    ln -s /home/carol/Documents/original.txt softlink
+
+De esta manera, no importa a dónde muevas el enlace, este seguirá funcionando, porque
+apunta a la ubicación absoluta del objetivo (`target`).
