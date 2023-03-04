@@ -391,7 +391,7 @@ proporcionan las reglas más importantes, pero se pueden agregar nuevas para cas
 específicos.
 
 #### Dispositivos de almacenamiento
-En Linux, los dispotivos de almacenamiento se denominan genéricamente dispositivos de
+En Linux, los dispositivos de almacenamiento se denominan genéricamente dispositivos de
 bloque, porque los datos se leen desde y hacia estos dispositivos en bloques de datos
 almacenados en búfer con diferentes tamaños y posiciones. Cada dispositivo de bloque
 se identifica mediante un archivo en el directorio `/dev`, con el nombre del archivo
@@ -419,5 +419,315 @@ se utilizan para la primera y segunda partición del dispositivo identificado pr
 segunda partición del dispositivo identificado en segundo lugar. Los dipositivos NVMe
 reciben el prefíjo `nvme`, como en `/dev/nvme0n1p1` y `/dev/nvme0n1p2`.
 
-pg29
-test
+## Arranque del sistema
+Para controlar una máquina, el componente principal del sistema operativo, el núcleo,
+debe cargarse mediante un programa llamado *bootloader*, que a su vez lo carga un
+firmware preinstalado como BIOS o UEFI. El gesto de arranque se puede personalizar para
+pasar párametros al núcleo, como qué partición contiene el sistema de archivos raíz o
+en qué modo debe ejecutarse el sistema operativo. Una vez cargado, el núcleo continúa
+el proceso de arranque identificando y configurando el hardware. Por último, el núcleo
+del sistema operativo llama a la utilidad responsable de iniciar y administrar los
+servicios del sistema.
+
+#### BIOS o UEFI
+Los procedimientos ejecutados por las máquinas x86 para ejecutar el gestor de arranque
+son diferentes si usa BIOS o UEFI, abreviatura de *Basic Input/Output System*, es un
+programa almacenado en un chip de memoria no volátil conectado a la placa base, que se
+ejecuta cada vez que se enciende la computadora. Este tipo de programa se llama
+firmware y su ubicación de almacenamiento es independiente de los otros dispositivos
+de almacenamiento que pueda tener el sistema. El BIOS supone que los primeros 440 bytes
+en el primer dispositivo corresponden a almacenamiento, siguiendo el orden definido en
+la utilidad de configuración de BIOS, la primera etapa del cargador de arranque
+(también llamado *bootstrap*). Los primeros 512 bytes de un dispositivo de
+almacenamiento se denomina MBR (*Master Boot Record*), de dispositivos de
+almacenamiento que utilizan el esquema de partición estándar DOSy, además de la primera
+etapa del gestor de arranque, contiene la tabla de particiones. Si el MBR no contiene
+los datos correctos, el sistema no podrá arrancar, a menos que se emplee un método
+alternativo.
+
+En términos generales, los pasos previos a la operación para un sistema equipado con
+BIOS son:
+
+1. El proceso POST (*power-on self-test*) se ejecutan para identificar fallas de dipositivos simples tan pronto se encienda la máquina.
+2. El BIOS activa los componentes básicos para cargar el sistema, como salida de video, teclado y medios de almacenamiento.
+3. El BIOS carga la primera etapa del gestor de arranque desde el MBR (los primeros 440 bytes del primer dispositivo, como se define en la utilidad de configuración de BIOS).
+4. La primera etapa del gestor de arranque llama a la segunda etapa del gestor de arranque, responsable de presentar las opciones de arranque y cargar el núcleo del sistema operativo.
+
+El UEFI, abreviatura de *Unified Extensible Firmware Interface*, difiere del BIOS en
+algunos puntos claves. Como BIOS, el UEFI también es un firmware, pero puede
+identificar particiones y leer muchos sistemas de archivos que se encuentran en ellas.
+EL UEFI no se base en MBR, teniendo en cuenta solo la configuración almacenada en su
+memoria no volátil (NVRAM) conectada a la placa base. Estas definiciones indican la
+ubicación de los programas compatibles con UEFI, llamados EFI applications, que se
+ejecutan automáticamente o se llamarán desde un menú de arranque. Las aplicaciones EFI
+pueden ser gestores de arranque, selectores de sistema operativos, herramientas para
+el diagnóstico y reparación del sistema, etc. Deben estar en un partición de
+dispositivos de almacenamiento convencional y un sistema de archivos compatible. Los
+sistemas de archivos compatibles estándar son FAT12, FAT6 y FAT31 para dipositivos de
+bloque e ISO-9660 para medios ópticos. Este enfoque permite la implementación de
+herramientas muchos más sofisticadas que las posibles con BIOS.
+
+La partición que contiene las particiones EFI se llaman *EFI System Partition* o
+simplemente ESP. Esta partición no debe compartirse con otros sistemas de archivos del
+sistema, como el sistema de archivos raíz o los sistemas de archivos de datos del
+usuario. El directorio EFI en la partición ESP contiene las aplicaciones señaladas por
+las entradas guardadas en la NVRAM.
+
+En términos generales, los pasos de arranque del sistema preoperativo en un sistema
+como UEFI son:
+
+1. El proceso POST (*power-on self-test*) se ejecuta para identificar fallas del dipositivo simples tan pronto cómo se encienda la máquina.
+2. El UEFI activa los componentes básicos para cargar el sistema, como salida de video, teclado y medios de almacenamiento.
+3. El firmware de UEFI lee las definiciones almacenadas en NVRAM para ejecutar la aplicación EFI predefinida almacenada en el sistema de archivos de la partición ESP. Por lo general, la aplicación EFI predefinida es un gesto de arranque.
+4. Si la aplicación EFI predefinida es un gestor de arranque, cargará el núcleo para iniciar el sistema operativo.
+
+El estándar UEFI también admite una característica llamada *Secure Boot*, que solo
+permite la ejecución de aplicaciones EFI firmadas, es decir, aplicaciones EFI
+autorizadas por el fabricante de hardware. Esta características aumenta la protección
+contra software malicioso, pero puede dificultar la instalación de sistemas operativos
+no cubiertos por la garantía del fabricante.
+
+#### El cargador de arranque
+El gestor de arranque más popular para Linux en la arquitectura x86 es GRUB
+(*Grand Unified Bootloader*). Tan pronto como lo llame el BIOS o UEFI, GRUB muestra una
+lista de los sistemas operativos disponibles para arrancar. A veces, la lista no
+aparece automáticamente, pero se puede invocar precionando `Shift` mientras el BIOS
+está llamando a GRUB. En los sistemas UEFI, la tecla `Esc` debería usarse en su lugar.
+
+Desde el menú GRUB es posible elegir cuál de los núcleos instalados debe cargarse y
+pasarle los parámetros. La mayoría de los parámetros del núcleo siguen el patrón
+`option=value`. Algunos de los parámetros de Linux más útiles son:
+
+**`acpi`**: habilita/deshabilita el soporte ACPI. `acpi=off` deshabilitará
+compatibilidad con ACPI.
+
+**`init`**: establece un iniciador de sistema operativo. Por ejemplo, `init=/bin/bash`
+establecerá shell Bash como iniciados. Esto significa que se iniciará una sesión de
+shell justo después del proceso de arranque del kernel.
+
+**`systemd.unit`**: establece un *systemd* para que se active. Por ejemplo,
+`systemd.unit=graphical.target`. Systemd también acepta los niveles de ejecución
+numéricos definidos para SysV. Para activar el nivel de ejecución1, por ejemplo, solo
+es necesario incluir el número `1` o la letra `S` (abreviatura de "single") como
+parámetro del núcleo.
+
+**`mem`**: establece la cantidad de RAM disponible para el sistema. Este parámetro es
+útil cuando se utilizan máquinas virtuales, limitando la cantidad de RAM disponible
+para cada una de ellas. El uso de `mem=512` limitará a 512 megabytes la cantidad de
+RAM disponible para un sistema virtual en particular.
+
+**`maxcpus`**: Limita el número de procesadores (o núcleos de procesador) visibles para
+el sistema en máquinas simétricas multiprocesador. También es útil en máquinas
+virtuales. Un valor de `0` desactiva el soporte para máquinas multiprocesador y tiene
+el mismo efecto que el parámetro del núcleo `nosmp`. El parámetro `maxcpus=2` limitará
+el número de procesadores disponibles para el sistema operativo a dos.
+
+**`quiet`**: oculta la mayoría de los mensajes de arranque.
+
+**`vga`**: selecciona un modo de video. El parámetro `vga=ask` mostrará una lista de
+modos disponibles.
+
+**`root`**: establece la partición raíz, disitinta de la preconfigurada en el gestor
+de arranque. Por ejemplo, `root=/dev/sda3`.
+
+**`rootflags`**: opciones de montaje para el sistema de archivos raíz.
+
+**`ro`**: hace que el montaje inicial del sistema de archivos raíz sea de solo lectura.
+
+**`rw`**: permite escribir en el sistema de archivos raíz durante el montaje inicial.
+
+Por lo general, no es necesario cambiar los parámetros del núcleo de Linux, pero puede
+ser útill para detectar y resolver problemas relacionados con el sistema operativo.
+Los parámetros del núcleo del sistema operativo deben agregarse al archivo
+`/etc/default/grub` en la línea `GRUB_CMDLINE_LINUX` para que sean persistenten durante
+los reinicios. Se debe generar un nuevo archivo de conficuración para el gestor de
+arranque cada vez que `/etc/default/grub` cambie, lo cual se logra mediante el comando
+`grub-mkconfig -o /boot/grub/grub.cfg`. Una vez que el sistema operativo se está
+ejecutando, los parámetros del núcleo utilizados para cargar la sesión actual están
+disponibles en el archivo `/proc/cmdline`.
+
+#### Inicialización del sistema
+Además del núcleo, el sistema operativo depende de otros componentes que proporcionan
+las características esperadas. Muchos de estos componentes se cargan durante el proceso
+de inicialización del sistema, que varía desde simples scripts de consola hasta
+programas de servicio más complejos. Las secuencias de comandos a menudo se utilizan
+para realizar tareas de corta duración que se ejecutarán y finalizarán durante el
+proceso de inicialización del sistema. Los servicios, también conocidos como demonios,
+pueden estar activos todo el tiempo, ya que pueden ser responsables de los aspectos
+intrínsecos del sistema operativo.
+
+La diversidad de formas en que los scripts de inicio y los demonios con las
+características más diferentes se pueden integrar en una distribución de Linux es
+enorme, un hecho que historicamente obstaculizó el desarrollo de una solución única
+que cumplieran con las expectativas de los mantenedores y usuarios de todas las
+distribuciones de Linux. Sin embargo, cualquier herramienta que los encargados de las
+distribuciones hayan elegido para realizar esta función al menos podrá iniciar, detener
+y reiniciar los servicios del sistema. El sistema mismo suele realizar estas acciones
+después de una actualización de software, por ejemplo, pero el administrador del
+sistema casi siempre necesitará reiniciar manualmente el servicio de realizar modificaciones en su archivo de configuración.
+
+También es conveniente que un administador de sistemas pueda activar un conjunto
+particular de demonios, dependiendo de las circunstancias. Debería ser posible, por
+ejemplo, ejecutar solo un conjunto mínimo de servicios para realizar tareas de
+mantenimiento del sistema.
+
+La inicialización del sistema operativo comienza cuando el gestor de arranque carga el
+núcleo en la RAM. Luego, el núcloe se hará cargo de la CPU y comenzará a detectar y
+configurar los aspectos fundamentales del sistema operativo, como la configuración
+básica de los dispositivos y el direccionamiento de la memoria.
+
+El núcleo del sistema operativo abrirá el *initramfs* (*initial RAM filesystem*).
+Initramfs es un archivo que contiene un sistema de archivos utilizados como un sistema
+de archivos raíz temporal durante el proceso de arranque. El objetivo principal de un
+archivo initramfs es proporcionar los módulos necesarios para que el núcleo pueda
+acceder al sistema de archivos raíz "real" del sistema operativo.
+
+Tan pronto como el sistema de archivos raíz esté disponible, el núcleo montara todos
+los sistemas de archivos configurados en `/etc/fstab` y luego ejecutara el primer
+programa. una utilidad llamada `init`. El programa `init` es responsable de ejecutar
+todos los scripts de inicialización y demonios del sistema. Existen implementaciones
+distintas de tales iniciadores de sistemas aparte del init tradicional, como `systemd`
+y `Upstart`. Una vez que se carga el programa init, initramfs se elimina de la RAM.
+
+**SysV standard**: un administrador de servicios basado en el estándar *SysVinit*
+controla qué demonios y recursos estarán disponiles empleando el concepto de 
+*runlevels*. Los niveles de ejecución están numerados del 0 al 6 y están diseñados por
+los encargados de la distribución para cumplir con propósitos específicos. Las únicas
+definiciones de nivel de ejecución compartidas entre todas las distriuciones son los
+niveles de ejecución 0, 1 y 6.
+
+**systemd**: systemd es un administrador moderno de sistemas y servicios con una capa
+de compatibilidad para los comandos y niveles de ejecución de SysV. systemd tiene una
+estructura concurrente, emplead sockets y D-Bus para la activación de los servicios,
+ejecución de demonios a demanda, monitoreo de procesos con cgroups, snapshot support,
+recuperación se sesión del sistema, control de punto de montaje y un control de
+servicio basado en la dependencia. En los últimos años, la mayoría de las principales
+distribuciones de Linux han adapatado gradualmente systemd como su administrador de
+sistema predeterminado.
+
+**Upstart**: al igual que systemd, Upstart es un sustituto de init. El objetivo de
+Upstart es acelerar el proceso de arranque paralelizando el proceso de carga de los
+servicios del sistema. Upstart fue utilizado por distribuciones basadas en Ubuntu
+en versiones anteriores, pero hoy dio paso a systemd.
+
+#### Inspección de inicialización
+Pueden ocurrir errores durante el proceso de arranque, pero pueden no ser tan críticos
+para detener completamente el sistema operativo. No obstante, estos errores pueden
+comrometer el comportamiento esperado del sistema. Todos los errores pueden comprometer
+el comportamiento esperado del sistema. Todos los errores dan como resultado mensajes
+que pueden usarse para futuras investigaciones, ya que contienen información valiosa
+sobre cuándo y cómo ocurrió el error. Incluso cuando no se generan mensajes de error,
+la información recopilada durante el proceso de arranque puede ser útil para fines de
+ajuste y configuración.
+
+El espacio de memoria donde el kernel almacena sus mensajes, incluidos sus mensajes de
+arranque, se llamada *kernel rinf buffer*. Los mensajes se guardan en el búfer del
+anillo del núcleo incluso cuando no se muestran durante el proceso de inicialización,
+como cuando se muestra una animación en su lugar. Sin embargo, el buffer del anillo
+del núcleo pierde todos los mensajes cuando es sistema está apagado o al ejecutar el
+comando `dmesg --clear`. Sin opciones, el comando `dmsesg` muestra los mensajes
+actuales en el búfer del núcleo:
+```bash
+dmesg
+[
+5.262389
+] EXT4-fs (sda1): mounted filesystem with ordered data mode. Opts:
+(null)
+[ 5.449712 ] ip_tables: (C) 2000-2006 Netfilter Core Team
+[ 5.460286 ] systemd[1]: systemd 237 running in system mode.
+[ 5.480138 ] systemd[1]: Detected architecture x86-64.
+[ 5.481767 ] systemd[1]: Set hostname to <torre>.
+[ 5.636607 ] systemd[1]: Reached target User and Group Name Lookups.
+[ 5.636866 ] systemd[1]: Created slice System Slice.
+[ 5.637000 ] systemd[1]: Listening on Journal Audit Socket.
+[ 5.637085 ] systemd[1]: Listening on Journal Socket.
+[ 5.637827 ] systemd[1]: Mounting POSIX Message Queue File System...
+[ 5.638639 ] systemd[1]: Started Read required files in advance.
+[ 5.641661 ] systemd[1]: Starting Load Kernel Modules...
+[ 5.661672 ] EXT4-fs (sda1): re-mounted. Opts: errors=remount-ro
+[ 5.694322 ] lp: driver loaded but no devices found
+[ 5.702609 ] ppdev: user-space parallel port driver
+[ 5.705384 ] parport_pc 00:02: reported by Plug and Play ACPI
+[ 5.705468 ] parport0: PC-style at 0x378 (0x778), irq 7, dma 3
+[PCSPP,TRISTATE,COMPAT,EPP,ECP,DMA]
+[ 5.800146 ] lp0: using parport0 (interrupt-driven).
+[ 5.897421 ] systemd-journald[352]: Received request to flush runtime journal
+from PID 1
+```
+La salida de `dmseg` puede tener cientos de líneas, por lo que la lista anterior
+contiene solo el extracto que muestra el núcleo que llama al administrador del servicio
+systemd. Los valores al comienzo de las líneas son la cantidad de segundos relativos
+al inicio de la carga del núcleo.
+
+En sistemas basados en systemd, el comando `journalctl` mostrará los mensajes de
+inicialización con la opción `-b`, `--boot`, `-k` o `--dmesg`. El comando
+`journalctl --list-boots` muestra una lista de números de arranque relativos al
+arranque actual, su hash de identifiación y las marcas de tiempo del primero y el
+último mensaje correspondientes:
+```bash
+journalctl --list-boots
+-4 9e5b3eb4952845208b841ad4dbefa1a6 Thu 2019-10-03 13:39:23 -03—Thu 2019-10-03
+13:40:30 -03
+-3 9e3d79955535430aa43baa17758f40fa Thu 2019-10-03 13:41:15 -03—Thu 2019-10-03
+14:56:19 -03
+-2 17672d8851694e6c9bb102df7355452c Thu 2019-10-03 14:56:57 -03—Thu 2019-10-03
+19:27:16 -03
+-1 55c0d9439bfb4e85a20a62776d0dbb4d Thu 2019-10-03 19:27:53 -03—Fri 2019-10-04
+00:28:47 -03
+0 08fbbebd9f964a74b8a02bb27b200622 Fri 2019-10-04 00:31:01 -03—Fri 2019-10-04
+10:17:01 -03
+```
+Los registros de inicialización anteriores también se mantienen en sistemas basados en
+systemd, por lo que los mensajes de sesiones anteriores del sistema operativo aún se
+pueden inspeccionar. Si se proporcionan las opciones `-b` o `--boot=0`, se mostrarán
+los mensajes para el arranque actual. Las opciones `-b -1` o `--boot=-1`, mostrarán
+mensajes de la inicialización anterior. Las opciones `-b -2` o `--boot=-2`, mostrarán
+los mensajes de la inicialización antes de eso y así sucesivamente. El siguiente
+extracto muestra el llamado del sistema operativo al administrador del servicio
+systemd para el último proceso de inicialización:
+```bash
+journalctl -b 0
+oct 04 00:31:01 ubuntu-host kernel: EXT4-fs (sda1): mounted filesystem with ordered
+data mode. Opts: (null)
+oct 04 00:31:01 ubuntu-host kernel: ip_tables: (C) 2000-2006 Netfilter Core Team
+oct 04 00:31:01 ubuntu-host systemd[1]: systemd 237 running in system mode.
+oct 04 00:31:01 ubuntu-host systemd[1]: Detected architecture x86-64.
+oct 04 00:31:01 ubuntu-host systemd[1]: Set hostname to <torre>.
+oct 04 00:31:01 ubuntu-host systemd[1]: Reached target User and Group Name Lookups.
+oct 04 00:31:01 ubuntu-host systemd[1]: Created slice System Slice.
+oct 04 00:31:01 ubuntu-host systemd[1]: Listening on Journal Audit Socket.
+oct 04 00:31:01 ubuntu-host systemd[1]: Listening on Journal Socket.
+oct 04 00:31:01 ubuntu-host systemd[1]: Mounting POSIX Message Queue File System...
+oct 04 00:31:01 ubuntu-host systemd[1]: Started Read required files in advance.
+oct 04 00:31:01 ubuntu-host systemd[1]: Starting Load Kernel Modules...
+oct 04 00:31:01 ubuntu-host kernel: EXT4-fs (sda1): re-mounted. Opts:
+commit=300,barrier=0,errors=remount-ro
+oct 04 00:31:01 ubuntu-host kernel: lp: driver loaded but no devices found
+oct 04 00:31:01 ubuntu-host kernel: ppdev: user-space parallel port driver
+oct 04 00:31:01 ubuntu-host kernel: parport_pc 00:02: reported by Plug and Play
+ACPI
+oct 04 00:31:01 ubuntu-host kernel: parport0: PC-style at 0x378 (0x778), irq 7, dma
+3 [PCSPP,TRISTATE,COMPAT,EPP,ECP,DMA]
+oct 04 00:31:01 ubuntu-host kernel: lp0: using parport0 (interrupt-driven).
+oct 04 00:31:01 ubuntu-host systemd-journald[352]: Journal started
+oct 04 00:31:01 ubuntu-host systemd-journald[352]: Runtime journal
+(/run/log/journal/abb765408f3741ae9519ab3b96063a15) is 4.9M, max 39.4M, 34.5M free.
+oct 04 00:31:01 ubuntu-host systemd-modules-load[335]: Inserted module 'lp'
+oct 04 00:31:01 ubuntu-host systemd-modules-load[335]: Inserted module 'ppdev'
+oct 04 00:31:01 ubuntu-host systemd-modules-load[335]: Inserted module 'parport_pc'
+oct 04 00:31:01 ubuntu-host systemd[1]: Starting Flush Journal to Persistent
+Storage...
+```
+La inicialización y otros mensajes emitidos por el sistema operativo se almacenan en
+archivos dentro del directorio `/var/log/`. Si ocurre un error crítico y el sistema
+operativo no puede continuar el proceso de inicialización después de cargar el kernel
+y el initramfs, se podría usar medio de arranque alternativo para iniciar el sistema
+y acceder al sistema de archivos correspondiente. Luego, los archivos almacenados en
+`/var/log/` pueden buscarse por posibles razones que causan la interrupción del proceso
+de arranque. Las opciones `-D` o `--directory` del comando `journalctl` se pueden usar
+para leer mensajes de registro en directorios que no sean `/var/log/journal`, que es
+la ubicación predeterminada para los mensajes de registro de systemd. Como los mensajes
+de registro de systemd se almacena en texto sin formato, se requiere el comando
+`journalctl` para leerlos.
+
+pg 47
