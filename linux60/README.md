@@ -182,7 +182,7 @@ imágenes que contienen instalaciones listas para ejecutar tanto de las distribu
 populares, así como sus propias versiones de Linux. El usuario podrá elegir una imagen
 que contiene sus distribución preferida y acceder a una instancia en la nube que ejecute
 esta distribución poco después de haberse creado. La mayoría de los proveedores agregan
-herramientas a sus imágenes para ajustar la instalación a una instancia especifica en la
+herramientas a sus imágenes para ajustar la instalación a una instancia específica en la
 nube. Estas herramientas pueden, por ejemplo, extender los sistemas de archivos de la
 imagen para que se ajusten al disco duro real de la máquina virtual.
 
@@ -1272,7 +1272,7 @@ Otras opciones incluyen:
 
 - **`-k` o `dmesg`**: sera equivalente a usar el comando `dmesg`
 - **`-b` o `--boot`**: muestra información del arranque
-- **`-u`**: muestra mensajes sobre una unidad especifica. Aproximadamente una unidad se puede definir como cualquier recurso manejado por systemd. Por ejemplo, `journalctl -u apache2.service` se usa para leer mensajes sobre el servicio web Apache2.
+- **`-u`**: muestra mensajes sobre una unidad específica. Aproximadamente una unidad se puede definir como cualquier recurso manejado por systemd. Por ejemplo, `journalctl -u apache2.service` se usa para leer mensajes sobre el servicio web Apache2.
 - **`-f`**: muestras los mensajes de diario más recientes y sigue imprimiendo nuevas entradas a medida que se agregan al diario, de forma muy similar a `tail -f`.
 
 ## Tu ordenador en la red
@@ -1469,7 +1469,7 @@ Las cuentas del sistema varían, pero sus atributos incluyen:
 En Linux la mayoría de las cuentas del sistema iniciarán sesión y tampoco necesitan
 un shell en sus atributos. Muchos procesos de propiedad y ejecutados por las cuentas
 del sistema se bifurcan en su propio entorno por la administración del sistema,
-ejecutándose con la cuenta del sistema especifica. Estas cuentas generalmente tienen
+ejecutándose con la cuenta del sistema específica. Estas cuentas generalmente tienen
 privilegios limitados o no tienen privilegios (la mayoría de las veces).
 
 En general, las cuentas del sistema no deben tener un válido shell de inicio de
@@ -1595,7 +1595,7 @@ sus tareas. El sistema "simplemente funcionaría" y todo estaría configurado pa
 varios accesos.
 
 En la mayoría de los sistemas Linux actuales, el comando `su` solo se usa para escalar
-privilegios a `root`, que es el usuario predeterminado si no se especifica un nombre
+privilegios a `root`, que es el usuario predeterminado si no se específica un nombre
 de usuario después del nombre del comando. Si bien se puede para cambiar a otro
 usuario, no es una buena práctica: los usuarios deben iniciar sesión desde otro
 sistema, a través de red, consola física o terminal en el sistema.
@@ -2129,7 +2129,7 @@ El parámetro `-g` específica el grupo, y `-l` enumerará todos sus miembros:
 #### Permisos especiales
 Además de los permisos de lectura, escritura y ejecución para el usuario, grupos y
 otros, cada archivo puede tener otros permisos especiales que pueden alterar la forma
-en que funciona un directorio o cómo se ejecuta un programa. Se puede especificar en
+en que funciona un directorio o cómo se ejecuta un programa. Se puede específicar en
 modo simbólico o numérico, y son los siguientes:
 
 **Stick bit**  
@@ -2145,7 +2145,7 @@ en los permisos para otros a la hora de ver la salida de `ls -l`:
 ls -ld Sample_Directory/
 drwxr-xr-t 2 carol carol 4096 Dec 20 18:46 Sample_Directory/
 ```
-En el modo numérico, los permisos especiales se especifican usando una "notación de
+En el modo numérico, los permisos especiales se específican usando una "notación de
 4 dígitod", con el primer dígito representando el permiso especial para actuar. Por
 ejemplo, para establecer el stick bit (valor `1`) para el directorio 
 `Another_Directory` en modo numérico con permisos `755`, el comando sería:
