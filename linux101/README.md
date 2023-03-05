@@ -3,7 +3,7 @@
 ## Arquitectura del sistema
 #### Activación de dispositivos
 la utilidad de configuración del sistema se presenta después de presionar una tecla
-específica cuando se enciende la computadora. La tecla que debe presionar varía de un
+especifica cuando se enciende la computadora. La tecla que debe presionar varía de un
 fabricante a otro, pero generalmente es `del` o una de las teclas de función, como
 `F2` o `F12`. Generalmente, la combinación de teclas para iniciar la configuración del
 BIOS se muestra en la patalla al iniciar la máquina.
@@ -507,7 +507,7 @@ shell justo después del proceso de arranque del kernel.
 
 **`systemd.unit`**: establece un *systemd* para que se active. Por ejemplo,
 `systemd.unit=graphical.target`. Systemd también acepta los niveles de ejecución
-numéricos definidos para SysV. Para activar el nivel de ejecución1, por ejemplo, solo
+numéricos definidos para SysV. Para activar el nivel de ejecución 1, por ejemplo, solo
 es necesario incluir el número `1` o la letra `S` (abreviatura de "single") como
 parámetro del núcleo.
 
@@ -591,7 +591,7 @@ y `Upstart`. Una vez que se carga el programa init, initramfs se elimina de la R
 
 **SysV standard**: un administrador de servicios basado en el estándar *SysVinit*
 controla qué demonios y recursos estarán disponiles empleando el concepto de 
-*runlevels*. Los niveles de ejecución están numerados del 0 al 6 y están diseñados por
+*runlevel*. Los niveles de ejecución están numerados del 0 al 6 y están diseñados por
 los encargados de la distribución para cumplir con propósitos específicos. Las únicas
 definiciones de nivel de ejecución compartidas entre todas las distriuciones son los
 niveles de ejecución 0, 1 y 6.
@@ -730,4 +730,380 @@ la ubicación predeterminada para los mensajes de registro de systemd. Como los 
 de registro de systemd se almacena en texto sin formato, se requiere el comando
 `journalctl` para leerlos.
 
-pg 47
+## Cambiar los niveles de ejecución/objetivos de arranque y apagar y reiniciar el sistema
+Una característica común entre los sistemas operativos que siguen los principios de
+diseño de Unix es el empleo de procesos separados para controlar disitintas funciones
+del sistema. Estos procesos, llamados daemons (o, más generalmente, services), también
+son responsables de las características extendidas subyacentes al sistema operativo,
+como los servicios de aplicaciones de red (servidor HTTP, intercambio de archivos,
+correo electrónico, etc.), bases de datos, configuración sobre demanda, etc. Aunque
+Linux utiliza un núcleo monolítico, muchos aspectos de bajo nivel del sistema operativo
+se ven afectados por demonios, como el equilibrio de carga y la configuración de
+firewall.
+
+Los demonios (daemons) que deberían estar activos dependen del propósito del sistema.
+El conjunto de demonios activos también deben poder modificarse en tiempo de ejecución,
+de modo que los servicios se puedan iniciar y detener sin tener que reiniciar todo el
+sistema. Para poder abordar este problema, cada distribución principal de Linux ofrece
+alguna forma o utilidad de administración de servicios para controlar el sistema.
+
+Los servicios pueden ser controlados por scripts de shell o por un programa y sus
+archivos de configuración compatibles. El primer método lo implementa el estándar
+*SysVinit*, también conocido como System V o simplemente SysV. El segundo método es
+implementado por systemd y Upstart. Historicamente, los administradores de servicios
+basados en SysV fueron los más utilizados por las distribuciones Linux. Hoy en día,
+los administradores de servicos basados en sistemas se encuentran con mayor frecuencia
+en la mayoría de las distribuiciones de Linux. El administrador de servicios es el
+primer programa lanzado por el núcleo durante el proceso de arranque, por lo que su PID
+(número de identificación de proceso) siempre es `1`.
+
+#### Estándar SysVinit
+Un administrador de de servicios basado en el estándar Sysvinit proporcionará conjuntos
+predefinidos del estado del sistema, llamados *runlevels*, y sus correspondientes
+archivos de script se servico para ser ejecutados. Los niveles de ejecución están
+numerados de `0` a `6`, y generalmente se asignan a los siguientes propósitos.
+
+**Runlevel 0**: apagado del sistema.
+
+**Runlevel 1, s o usuario único**: modo de usuario único, sin red y otras capacidades
+no esenciales (modo de mantenimiento).
+
+**Runlevel 2, 3 y 4**: modo multiusuario. Los usuarios pueden iniciar sesión por
+consola o por red. Los niveles de ejecución 2 y 4 no se usan con frecuencia.
+
+**Runlevel 5**: modo multiusuario. Es equivalente a 3, más el inicio de sesión en modo
+gráfico.
+
+**Runlevel 6**: reinicio del sistema.
+
+El programa responsable de administrar los niveles de ejecución y los demonios/recursos
+asociados es `/sbin/init`. Durante la inicialización del sistema, el proragama `init`
+identifica el nivel de ejecución solicitado, definido por un parámetro del núcleo del
+sistema operativo o en el archivo `/etc/initab` , y carga los scripts asociados que
+se enumeran allí para el nivel de ejecución dado. Cada nivel de ejecución puede tener
+muchos archivos de servico asociados, generalmente scripts en el directorio
+`/etc/init.d/`. Como no todos los niveles de ejecución son equivalentes a través de
+diferentes distribuciones de Linux, también se puede encontrar una breve descripción
+del propósito del nivel de ejecución en las distribuciones basadas en SysV.
+
+La sintaxis del archivo `/etc/initab` usa este formato:
+
+    id:runlevel:action:process
+
+El `id` es un nombre genérico de hasta cuatro caracteres de longitud utilizados para
+identificar la entrada. La entrada `runlevel` es una lista de números de niveles para
+los que se deben ejecutar una acción espefícica. El término `action` define cómo `init`
+ejecutará el proceso indicado por el término `process`. Las acciones diponibles son:
+
+**`boot`**: el proceso se ejecutará durante la inicialización del sistema. El campo
+`runlevel` se ignora.
+
+**`bootwait`**: el proceso se ejecutará durante la inicialización del sistema e `init`
+esperará hasta que termine para continuar. El campo `runlevel` se ignora.
+
+**`sysinit`**: el proceso se ejecutará después de la inicialización del sistema,
+independientemente del nivel de ejecución. El campo `runlevel` se ingora.
+
+**`wait`**: el proceso se ejecutará para los niveles de ejecución dados e `init`
+esperará hasta que termine para continuar.
+
+**`respawn`**: el proceso se reiniciará si finaliza.
+
+**`ctrlaltdel`**: el proceso se ejecutará cuando el proceso init reciba la señal
+`SIGINT`, que activará cuando se presione la secuencia de teclas `Ctrl + Alt + Supr`.
+
+El nivel de ejecución predeterminado, el que se elegirá si no se proporciona otro como
+parámetro del núcleo, también se defiene en `/etc/inittab`, en la entrada
+`id:x:initdefault`. La `x` es el número del nivel de ejecución predeterminado. Este
+número nunca debe ser `0` o `6`, ya que provocaría que el sistema se apague o reinicie
+tan pronto y como finalice el proceso de arranque. A continuación se muestra un archivo
+típico `/etc/inittab`:
+```bash
+# Nivel de ejecución predeterminado
+id:3:initdefault:
+# Script de configuración ejecutado durante el arranque
+si::sysinit:/etc/init.d/rcS
+# Acción tomada en el nivel de ejecución S (usuario único)
+~:S:wait:/sbin/sulogin
+# Configuración para cada nivel de ejecución
+l0:0:wait:/etc/init.d/rc 0
+l1:1:wait:/etc/init.d/rc 1
+l2:2:wait:/etc/init.d/rc 2
+l3:3:wait:/etc/init.d/rc 3
+l4:4:wait:/etc/init.d/rc 4
+l5:5:wait:/etc/init.d/rc 5
+l6:6:wait:/etc/init.d/rc 6
+# Acción tomada sobre teclado ctrl+alt+del
+ca::ctrlaltdel:/sbin/shutdown -r now
+# Habilitar consolas para los niveles de ejecución 2 y 3
+1:23:respawn:/sbin/getty tty1 VC linux
+2:23:respawn:/sbin/getty tty2 VC linux
+3:23:respawn:/sbin/getty tty3 VC linux
+4:23:respawn:/sbin/getty tty4 VC linux
+# Para el nivel de ejecución 3, también habilite serial
+# terminales ttyS0 y ttyS1 (módem) consolas
+S0:3:respawn:/sbin/getty -L 9600 ttyS0 vt320
+S1:3:respawn:/sbin/mgetty -x0 -D ttyS1
+```
+El comando `telinit q` debe ejecutarse cada vez que de modifica el archivo 
+`/etc/inittab`. El argumento `q` (o `Q`) le dice a init que vuelva a cargar su
+configuración. Este paso es importante para evitar que el sistema se detenga debido
+a una configuración incorrecta en `/etc/inittab`.
+
+Los scripts utilizados por `init` para configurar cada nivel de ejecución se alamcena
+en el directorio `/etc/init.d/`. Cada nivel de ejecución tiene un directorio asociado
+en `/etc/`, llamado `/etc/rc0.d/`, `/etc/rc1.d`, `/etc/rc2.d`, etc., con los scritpts
+eso debería ejecutarse cuando comienze el nivel de ejecución, los archivos de esos
+directorios son enlaces simbólicos a los scripts reales en `/etcinit.d/`. Además, la
+primera letra del nombre de archivo del enlace en el directorio del nivel de ejecución
+indica si el servicio debe iniciarse o terminarse para el nivel de ejecución
+correspondiente. El nombre de archivo de un enlace que comienza con la letra `K`
+determina que el servicio se eliminará al ingresar el nivel de ejecución (kill).
+Comenzando con la letra `S`, el servicio se iniciará al ingresar el nivel de ejecución
+(inicio). El directorio `/etc/rc1.d/`, por ejemplo, tendrá muchos enlaces a los scripts
+de red que comienzan con la letra `K`, considerando que el nivel de ejecución `1`
+corresponde a un solo usuario, sin conectividad de red.
+
+El comando `runlevel` muestra el nivel de ejecución actual para el sistema. El comando
+`runlevel` muestra dos valores, el primero es el nivel de ejecución anterior y el
+segundo es el nivel de ejecución actual:
+```bash
+runlevel
+N 3
+```
+La letra `N` en la salida muestra que el nivel de ejecución no ha cambiado desde el
+último arranque. En el ejemplo, el `runlevel 3` es el nivel de ejecución actual del
+sistema.
+
+El mismo programa `init` puede usarse para alternar entre niveles de ejecución en un
+sistema en ejecución, sin la necesidad de reiniciar. El comando `telinit` también se
+puede usar para alternar entre los niveles de ejecución. Por ejemplo, los comandos
+`telinit 1`, `telinit s` o `telinit S` cambiarán el sistema al nivel de ejecución 1.
+
+#### systemd
+Actualmente, systemd es el conjunto de herramientas más utilizado para administrar los
+recursos y servicios del sistema, que systemd denomina unidades (*units*). Una unidad
+consta de nombre, tipo y archivo de configuración correspondiente. Por ejemplo, la
+unidad para un proceso de servidor httpd (como el servidor web Apache) será
+`httpd.service` en distribuciones basadas en Red Hat, su archivo de configuración
+también se llamará `httpd.service` (en Distribuciones basadas en Debian esta unidad
+es llamada `apache2.service`).
+
+Hay siete tipos distintos de unidades systemd:
+
+**service**: el tipo de unidad más común, para recursos activos del sistema que se
+pueden iniciar, interrumpir y recargar.
+
+**socket**: el tipo de unidad socket puede ser un socket de sistema de archivos o un
+socket de red. Todas las unidades de socket tienen una unidad de servicio
+correspondiente, cargada cuando el socket recibe una solicitud.
+
+**device**: una unidad de dispositivo está asociada con un dispositivo de hardware
+identificado por el núcleo. Un dispositivo solo se tomará como una unidad systemd si
+existe una regla udev para este porpósito. Se puede usar una unidad de dispositivo
+para resolver dependencias de configuración cuando se detecta cierto hardware, dado
+que las propiedades de la regla udev se pueden usar como parámetros para la unidad de
+dispositivo.
+
+**mount**: una unidad de montaje es una definición de punto de montaje en el sistema
+de archivos, similar a una entrada en `/etc/fstab`.
+
+**automount**: una unidad de montaje automático también es una definición de punto de
+montaje en el sistema de archivos, pero se monta automáticamente. Cada unidad de
+montaje automático tiene una unidad de montaje correspondiente, que se inicia cuando
+se accede al punto de montaje automático.
+
+**target**: una unidad target es una agrupación de unidades, administradas como una
+sola unidad.
+
+**snapshot**: una unidad snapshot es un estado guardado del administrador del sistema
+(no disponible en todas las distriuciones Linux).
+
+El comando principal para controlar las unidades systemd es `systemctl`. El comando
+`systemctl` se usa para ejecutar todas la tareas relacionadas con la activación,
+desactivación, ejecución, interrupción, monitoreo de la unidad, etc. Para una unidad
+ficticia llamada `unit.service`, por ejemplo, las acciones más comúnes de `systemctl`
+serán:
+
+**`systemctl start unit.service`**: inicia una unidad (`unit`).
+
+**`systemctl stop unit.service`**: detiene una unidad (`unit`).
+
+**`systemctl restart unit.service`**: reinicia una unidad (`unit`).
+
+**`systemctl status unit.service`**: muestra el estado de la unidad (`unit`), 
+incluyendo si está en ejecución o no.
+
+**`systemctl is-active unit.service`**: muestra *active* si la unidad (`unit`) está
+en ejecución o inactiva.
+
+**`systemctl enable unit.service`**: la unidad (`unit`) se cargará durante la
+inicialización del sistema.
+
+**`systemctl disable unit.service`**: la unidad (`unit`) no se cargará durante la
+inicialización del sistema.
+
+**`systemctl is-enable unit.service`**: verifica si la unidad (`unit`) comienza con el
+sistema. La respuesta se almacena en la variable `$?`. El valor `0` indica que `unit`
+comienza con el sistema y el valor `1` indica que `unit` no comienza con el sistema.
+
+Si no existen otras unidades con el mismo nombre en el sistema, el sufijo después del
+punto se puede quitar. Si, por ejemplo, solo hay una unidad `htppd` de tipo `service`,
+entonces solo `httpd` es suficiente como parámetro de unidad para `systemctl`.
+
+El comando `systemctl` también puede controlar *system targets*. La unidad 
+`multi-user.taget`, por ejemplo, combina todas las unidades requeridas por el entorno
+multiusuario. Es similar al nivel de ejecución número 3 en un sistema que utiliza SysV.
+
+El comando `systemctl isolate` alterna entre diferentes objetivos. Por lo tanto, para
+alternar manualmente al objetivo `multiusuario`:
+
+    systemctl isolate multi-user.target
+
+Hay objetivos correspondientes a los niveles de ejecución de SysV, comenzado con
+`runlevel0.target` hasta `runlevel6.target`. Sin embargo, systemd no utiliza el archivo
+`/etc/inittab`. Para cambiar el objetivo predeterminado del sistema, la opción
+`systemd.unit` se puede agregar a la lista de parámetros del núcleo del sistema
+operativo. Por ejemplo, para usar `multi-user.target` como objetico estándar, el
+parámetro del núcleo del sistema operativo debe ser `systemd.unit=multi-user.taget`.
+Todos los parámetros del kernel pueden hacerse persistentes cambiando la configuración
+del gestor de arranque.
+
+Otra forma de cambiar el objetivo predeterminado es modificar el enlace simbólico
+`/etc/systemd/system/default.target` para que apunte al objetivo deseado. La
+redefinición del enlace se puede hacer con el comando `systemctl` por sí mismo:
+
+    systemctl set-default multi-user.target
+
+Del mismo modo, puede determinar cuál es el objetivo de arranque predeterminado de su
+sistema con el siguiente comando:
+
+    systemctl get-default
+
+Similar a los sistemas que adoptan SysV, el objetivo predeterminado nunca debe apuntar
+a `shutdown.target`, ya que corresponde al nivel de ejecución 0 (apagado).
+
+Los archivos de configuración asociados con cada unidad de pueden encontrar en el
+directorio `/lib/systemd/system/`. El comando `systemctl list-unit-files` enumera todas
+las unidades disponibles y muestra si están habilitadas para iniciarse cuando se inicia
+el sistema. La opción `--type` seleccionará solo las unidades para un tipo dado, como
+en `systemctl list-unit-files --type=service` y 
+`systemctl list-unit-files --type=target`.
+
+Las unidades activas o unidades que han estado activas durante la sesión actual del
+sistema se pueden enumerar con el comando `systemctl -list-units`. Al igual que la
+opción `list-unit-files`, el comando `systemctl list-units --type=service`
+seleccionará solo unidades de tipo `service` y el comando 
+`system list-units --type=target` seleccionará solo unidades del tipo `target`.
+
+systemd también es responsable de desencadenar y responder a eventos relacionados con
+a energía del sistema. El comando `systemctl suspend` pondrá el sistema en modo de
+bajo consumo, manteniendo los datos actuales en la memoria. El comando
+`systemctl hibernate` copiará todos los datos de la memoria al disco, por lo que el
+estado actual del sistema se puede recuperar después de apagarlo. Las acciones
+asociadas con tales eventos se definen en el archivo `/etc/systemd/logind.conf` o en
+archivos separados dentro del directorio `/etc/systemd/logind.conf.d/`. Sin embargo,
+esta función systemd solo se puede usar cuando no hay otro administrador de energía
+ejecutándose en el sistema, como el demonio `acpid`. El demonio `acpid` es el
+principal administrador de energía de Linux y permite ajustes más precisos a las
+acciones posteriores a eventos relacionados con la energía, como cerrar la tapa del
+portátil, batería baja o niveles de carga de la batería.
+
+#### Upstart
+Los scripts de inicialización utilizados por Upstart se encuentran en el directorio
+`/etc/init/`. Los servicios del sistema de pueden enumerar con el comando
+`initctl list`, que también muestra el estado actual de los servicios y, si está
+disponible, su número PID.
+```bash
+initctl list
+avahi-cups-reload stop/waiting
+avahi-daemon start/running, process 1123
+mountall-net stop/waiting
+mountnfs-bootclean.sh start/running
+nmbd start/running, process 3085
+passwd stop/waiting
+rc stop/waiting
+rsyslog start/running, process 1095
+tty4 start/running, process 1761
+udev start/running, process 1073
+upstart-udev-bridge start/running, process 1066
+console-setup stop/waiting
+irqbalance start/running, process 1842
+plymouth-log stop/waiting
+smbd start/running, process 1457
+tty5 start/running, process 1764
+failsafe stop/waiting
+```
+Cada acción de Upstart  tiene un propio comando independiente. Por ejemplo, el
+comando `start` puede usarse para iniciar la sexta terminal virtual:
+
+    start tty6
+
+El estado actual de un recurso se puede verificar con el comando `status`:
+```bash
+status tty6
+tty6 start/running, process 3282
+```
+Y la interrupción de un servicio se realiza con el comando `stop` :
+
+    stop tty6
+
+Uptart no usa el archivo `/etc/inittab` para definir los niveles de ejecución, pero
+los comandos heredados `runlevel` y `telinit` todavía pueden usarse para verificar
+y alternar entre los niveles de ejecución.
+
+#### Apagado y reinicio
+Un comando muy tradicional utilizado para apagar o reiniciar el sistema se llama
+`shutdown`. El comando `shutdown` agregara funciones adicionales al proceso de
+apagado: notifica automáticamente a todos los usuarios conectados con un mensaje de
+advertencia en sus sesiones de shell y se evitan nuevos inicios de sesión. El comando
+`shutdown` actúa como un intermediario para los procedimientos SysV o systemd, es
+decir, ejecuta la acción seleccionada llamando a la acción correspondiente en el
+administrador de servicios adoptado por el sistema.
+
+Después de ejecutar `shutdown`, todos los procesos reciben la señal `SIGTERM`,
+seguida de la señal `SIGKILL`, luego el sistema se apaga o cambia su nivel de
+ejecución. Por defecto, cuando no se utilizan las opciones `-h` o `-r`, el sistema
+alterna al nivel de ejecución 1, es decir, el modo de usuario único. Para cambiar
+las opciones predeterminadas para `shutdown`, el comando debe ejecutarse con la
+siguiente sintaxis:
+
+    shutdown [option] time [message]
+
+Solo se requiere el parámetro `time`. El parámetro `time` define cuándo se ejecutará
+la acción solicitada, aceptando los siguientes formatos:
+
+**`hh:mm`**: este formato especifica el tiempo de ejecución como hora y minutos.
+
+**`+m`**: este formato especifica cuántos minutos esperar antes de la ejecución.
+
+**`now o +0`**: este formato determina la ejecución inmediata.
+
+El parámetro `message` es el texto de advertencia enviado a todas las sesiones de
+terminal de los usuarios conectados.
+
+La implementación de SysV permite limitar a los usuarios que podrán reiniciar la
+máquina presionando `Ctrl + Alt + Supr`. Esto es posible colocando la opción `-a`
+para el comando `shutdown` presente en la línea con respecto a `ctrlaltdel` en el
+archivo `/etc/inittab`. Al hacer esto, solo los usuarios cuyos nombres estén en el
+archivo `/etc/shutdown.allow` podrán reiniciar el sistema con la combinación de
+teclas `Ctrl + Alt + Supr`.
+
+El comando `systemctl` también se puede usar para apagar o reiniciar la máquina en
+sistemas que emplean systemd. Para reiniciar el sistema, se debe usar el comando
+`systemctl reboot`. Para apagar el sistema, se debe usar el comando 
+`systemctl poweroff`. Ambos comandos requieren privilegios de root para ejecutarse,
+ya que los usuarios comunes no pueden realizar dichos procedimientos.
+
+No todas las actividades de mantenimiento requieren que el sistema se apague o
+reinicie. Sin embargo, cuando es necesario cambiar el estado del sistema al modo de
+usuario único, es importanten advertir a los usuarios que han iniciado sesión para
+que no sea vean perjudicados por la finalización brusca de sus actividades.
+
+De manera similar a lo que hace el comando `shutdown` cuando se apaga o reinicia el
+sistema, el comando `wall` puede enviar un mensaje a las sesiones de terminal de todos
+los usuarios conectados. Para hacerlo, el administrador del sistema solo necesita
+proporcionar un archivo o escribir directamente el mensaje como parámetros para
+ordenar `wall`.
+
+pg 63
