@@ -1106,4 +1106,256 @@ los usuarios conectados. Para hacerlo, el administrador del sistema solo necesit
 proporcionar un archivo o escribir directamente el mensaje como parámetros para
 ordenar `wall`.
 
-pg 63
+## Instalación de Linux y gestión de paquetes
+#### Diseño del esquema de particionado del disco duro
+Antes de que un disco pueda ser usado por una computadora, necesita ser particionado.
+Una partición es un subconjunto lógico del disco físico, como una cerca "lógica".
+Particionar es una forma de compartimentar la información almacenada en el disco,
+separando, por ejemplo, los datos del sistema operativo de los datos del usuario.
+
+Cada disco necesita al menos una partición, pero puede tener varias particiones, y la
+información en ella se almacena en una tabla de particiones. Esta tabla incluye
+información sobre el primer y último sector de la partición y su tipo, así como más
+detalles sobre cada partición.
+
+Dentro de cada partición hay un sistema de archivos. El sistema de archivos describe
+la forma en que la información se almacena realmente en el disco. Esta información
+incluye cómo están organizados los directorios, cuál es la relación entre ellos,
+dónde están los datos para cada archivo, etc.
+
+Las particiones no pueden abarcar varios discos. Pero al usar *Logical Volume Manager*
+(LVM) se pueden combinar varias particiones, incluso a través de discos, para formar
+un único volumen lógico.
+
+Los volúmenes lógicos eliminan las limitaciones de los dispositivos físicos y le
+permiten trabajar con "grupos" de espacio en disco que se pueden combinar o distribuir
+de una manera mucho más flexible que las particiones tradicionales. LVM es útil en
+situaciones en las que necesitaría agregar más espacio a una partición sin tener que
+migrar los datos a un dispositivo más grande.
+
+#### Puntos de montaje
+Para poder acceder a un sistema de archivos Linux, debe estar montado. Esto significa
+adjuntar el sistema de archivos a un punto específico en el árbol del directorio de
+su sistema, llamado punto de montaje (*mount point*).
+
+Cuando esté montado, el contenido del sistemas de archivos estará disponible en el
+punto de montaje. Por ejemplo, imagine que tiene un partición con los datos personales
+de sus usuarios (sus directorios de inicio), que contiene los directorios `/john`,
+`/jack` y `/carol`. Cuando se monta en `/home`, el contenido de esos directorios
+estará disponible en `/home/john`, `/home/jack` y `/home/carol`.
+
+El punto de montaje debe existir antes de montar el sistema de archivos. No puede
+montar una partición en `/mnt/userdata` si este directorio no existe. Sin embargo, si
+el directorio si existe y contiene archivos, esos archivos no estarán disponibles
+hasta que desmonte el sistema de archivos. Si lista los contenidos del directorio,
+verá los archivos almacenados en el sistema de archivos montados, no los contenidos
+originales del directorio.
+
+Los sistemas de archivos se pueden montar en cualquier lugar que desee. Sin embargo,
+hay algunas buenas prácticas que deben seguirse para facilitar la administración del
+sistema.
+
+Tradicionalmente `/mnt` era el directorio en el que se montaban todos los dispositivos
+externos y una cantidad de puntos de anclaje preconfigurados para dispositivos
+comunes, como unidades de CD-ROM (`/mnt/cdrmo`) y disquetes (`/mnt/floppy`).
+
+Esto ha sido reemplzado por `/media`, que ahora es el punto de montaje predeterminado
+para cualquier medio extraíble por el usuario (por ejemplo, discos externos, unidades
+flash USB, lectores de tarjetas de memoria, discos ópticos, etc.) conectados al
+sistema.
+
+En la mayoría de las distribuciones modernas de Linux y entornos de escritorio, los
+dispositivos extraíbles se montan automáticamente en `/media/user/LABEL` cuando se
+conecta al sistema, donde `user` es el nombre del usuario y `LABEL` es la etiqueta
+del dispositivo. Por ejemplo, una unidad flash USB con la etiqueta `FlashDrive`
+conectada por el usuario `john` se montaría en `/media/john/FlashDrive`. La forma en
+que se maneja esto es diferente según el entorno de escritorio.
+
+Dicho esto, cada vez que necesite manualmente montar un sistema de archivos, es una
+buena práctica montarlo en `/mnt`.
+
+#### Manteniendo las cosas separadas
+En Linux, hay algunos directorios que deberían mantenserse en particiones separadas.
+Hay muchas razones para esto: por ejemplo, al montar los archivos relacionados con el
+gestor de arranque (almacenados en `/boot`) en una partición de arranque, se asegura
+de que su sistema aún pueda arrancar en caso de un bloqueo en el sistema de archivos
+raíz.
+
+Mantener los directorios personales del usuario (en `/home`) en una partición separada
+facilita la reinstalación del sistema sin el riesgo de tocar accidentalmente los datos
+del usuario. Mantener los datos relacionados con un servidor web o de base de datos
+(generalmente en `/var`) es una partición separada (o incluso en un disco separado)
+facilita la administración del sistema si necesita agregar más espacio en disco para
+esos casos de uso.
+
+Incluso puede haber razones de rendimiento para mantener ciertos directorios en
+particiones separadas. Es posible que desee mantener el sistema de archivos raíz (`/`)
+en una unidad SSD rápida y directorios más grandes como `/home` y `/var` en discos
+duros más lentos que ofrecen mucho más espacio por una fracción del costo.
+
+#### La partición de arranque (`/boot`)
+La partición de arranque contiene archivos utilizados por el gestor de arranque para
+cargar el sistema operativo. En sistemas Linux, el gestor de arranque suele ser
+GRUB2 o, en sistemas más antiguos, GRUB Legacy. La partición generalmente se monta en
+`/boot` y sus archivos se almacena en `/boot/grub`.
+
+Técnicamente, no se necesita un partición de arranque, ya que en la mayoría de los
+casos GRUB puede montar la partición raíz (`/`) y cargar los archivos desde un
+directorio separado `/boot`.
+
+Sin embargo, puede desear una partición de arranque separada por seguridad 
+(garantizando que el sistema se inicie incluso en caso de bloqueo del sistema de
+archivos raíz), o si desea utilizar un sistema de archivos que el gestor de arranque
+no puede entender en la partición raíz, o si utiliza un método de cifrado o
+compresión no compatible.
+
+La partición de arranque suele ser la primera partición del disco. Esto se debe a que
+el BIOS original de la PC de IBM definió los discos usando cilindros, cabezas y
+sectores (*cylinders, head y sectors* (CHS)), con un máximo de 1024 cilindros, 256
+cabezas y 63 sectores, lo que resulta en un tamaño de disco máximo de 528 MB
+(504 MB en MS-DOS). Esto significa que nada más allá de esta marca no sería accesible
+en los sistemas heredados, a menos que usaran un esquema de direccionamiento de disco
+diferente (como *logical Block Addressing*, LBA).
+
+Por lo tanto, para una máxima compatibilidad, la partición de arranque generalmente se
+encuentra al comienzo del disco y termina antes del cilindro 1024 (528 MB), asegurando
+que pase lo que pase, la máquina siempre podrá cargar el núcleo.
+
+Dado que la partición de arranque solo almacena los archivos que necesita el gestor de
+arranque, el disco RAM inicial y las imágenes del núcleo, puede ser bastante pequeño
+para los estándares actuales. Un buen tamaño es alrededor de 300 MB.
+
+#### La partición del sistema EFI (ESP)
+La *EFI System Partition* (ESP) es utilizado por máquinas basadas en la interfaz de
+firmware extensible unificada (*Unified Extensible Firmware Interface* (UEFI)) para
+almacenar cargadores de arranque e imágenes del núcleo de los sistemas operativos
+instalados.
+
+Esta partición está formateada en un sistema de archivos basado en FAT. En un disco
+particionado con una tabla de particiones GUID, tiene un identificador único global
+`C12A7328-F81F-11D2-BA4B-00A0C93EC93B`. Si el disco fue formateado bajo el esquema de
+particón MBR, la ID de la partición es `0xEF`.
+
+En las máquinas que ejecutan Microsoft Windows, esta partición suele ser la primera en
+el disco, aunque esto no es obligatorio. El sistema opeativo crea (o completa) el ESP
+después de la instalación, y en un sistema Linux se monta en `/boot/efi`.
+
+#### La partición `/home`
+Cada usuario en el sistema tiene un directorio de inicio para almacenar archivos
+personales y preferencias, y la mayoría de ellos se encuentran en `/home`. Por lo
+general, el directorio de inicio es el mismo que el nombre de usuario, por lo que el
+usuario John tendría un directorio en `/home/john`.
+
+Sin embargo, hay excepciones. Por ejemplo, el directorio de inicio para el usuario
+raíz es `/root` y algunos servicios del sistema pueden tener usuarios asociados con
+directorios de inicio en otros lugares.
+
+No existe una regla para determinar el tamaño de una partición para el directorio
+`/home`. Debe tener en cuenta la cantidad de usuarios en el sistema y cómo se
+utilizara. Un usuario que solo navega por la web y procesa textos requerirá menos
+espacio que uno que trabaje con la edición de video, por ejemplo.
+
+#### Información variable (`/var`)
+Este directorio contiene "datos variables", o archivos y directorios en los que el
+sistema debe poder escribir durante la operación. Esto incluye registros del sistema
+(en `/var/log`), archivos temporales (`/var/tmp`) y datos de aplicaciones de caché
+(en `/var/cache`).
+
+`/var/www/html` también es el directorio predeterminado para los archivos de datos del
+servidor web Apache y `/var/lib/mysql` es la ubicación predeterminada para los
+archivos de base de datos del servidor MySQL. Sin embargo, ambos pueden ser cambiados.
+
+Una buena razón para poner `/var` en una partición separada es la estabilidad. Muchas
+aplicaciones y procesos escriben en `/var` y subdirectorios, como `/var/log` o
+`/var/tmp`. Un proceso con un comportamiento anormal puede escribir datos hasta que no
+quede espacio libre en el sistema de archivos.
+
+Si `/var` está en `/` esto puede desencadenar un estado de emergencia del núcleo del
+sistema operativo (Kernel Panic) y corrupción del sistema de archivos, causando una
+situación de las que es díficil recuperarse. Pero si `/var` se mantiene en una
+partición separada, el sistema de archivos raíz no se verá afectada.
+
+Al igual que en `/home`, no existe una regla universal para determinar el tamaño de
+una partición para `/var`, ya que variará con la forma en la que se utiliza el
+sistema. En un sistema doméstico, puede tomar solo unos pocos gigabytes. Pero en una
+base de datos o servidor web se puede necesitar mucho más espacio. En tales
+escenarios, puede ser conveniente colocar `/var` en una partición en un disco
+diferente al de la partición raíz, agragando una capa adicional de protección contra
+fallas en el disco físico.
+
+#### Partición de intercambio (Swap)
+La partición de intercambio se utiliza para intercambiar páginas de memoria RAM a
+disco según sea necesario. Esta partición debe ser de un tipo específico y
+configurarse con una utilidad adecuada llamada `mkswap` antes de poder usarse.
+
+La partición de intercambio no se puede montar como las demás, lo que significa que no
+puede acceder a ella como un directorio normal y echar un vistazo a su contenido.
+
+Un sistema puede tener múltiples particiones de intercambio (aunque esto es poco
+común) y Linux también admite el uso de archivos de intercambio en lugar de
+particiones, lo que puede ser útil para aumentar rápidamente el espacio de
+intercambio cuando sea necesario.
+
+El tamaño de la partición de intercambio es una polémica. Es posible que la antigua
+regla de los primeros días de Linux ("dos veces la cantidad de RAM") ya no se aplique
+dependiendo de cómo se esté utilizando el sistema y la cantidad de RAM física
+instalada.
+
+En la documentación para Red Hat Enterprise Linux 7, Red Hat recomienda lo siguiente:
+
+Cantidad de RAM | Tamaño de intercambio recomendado | Intercambio c/ hibernación
+--|--|--
+< 2 GB of RAM | 2x cantidad de RAM | 3x cantidad de RAM
+2-8 GB of RAM | mismo tamaño RAM | 2x cantidad de RAM
+8-64 GB of RAM | al menos 4 GB | 1.5x cantidad de RAM
+> 64 GM of RAM | al menos 4 GB | no recomendado
+
+Por supuesto, la cantidad de intercambio puede depender de la carga de trabajo. Si la
+máquina está ejecutando un servicio crítico, como una base de datos, un servidor web
+o SAP, es aconsejale consultar la documentación de estos servicios para obtener una
+recomendación.
+
+#### LMV
+Una desventaja de la partición es que el administrador del sistema tiene que decidir
+de antemano cómo se distribuirá el espacio disponible en un dispositivo de
+almacenamiento. Esto puede presentar algunos desafíos más adelante, si una partición
+requiere más espacio de lo planeado originalmente. Por supuesto, las particiones
+pueden redimensionarse, pero esto puede no ser posible si, por ejemplo, no hay
+espacio libre en el disco.
+
+*Logical Volume Managmente* (LVM) es una forma de virtualización de almacenamiento que
+ofrece a los administradores de sistemas un enfoque más flexible para administrar el
+espacio en disco que la partición tradicional. El objetivo de LVM es facilitar la
+gestión de las necesidades de almacenamiento de sus usuarios finales. La unidad básica
+es el *Physical Volume* (PV), que es un dispositivo de bloque en un sistema como una
+partición de disco o un arreglo RAID.
+
+Los PV se agrupan en Grupos de volúmenes (VG) que abtraen los dispositivos subyacentes
+y se ven como un único dispositivo lógico, con la capacidad de almacenamiento
+combinada de los componentes del PV.
+
+Cada volumen en un grupo de volúmenes se subdivide en partes de tamaño fijo llamada
+*extents*. Las extensiones en un PV se denominan *Physical Extents* (PE), mientras
+que las del volumen lógico son *Logical Extents* (LE). En general, cada extensión
+lógica se asigna a una extensión física, pero esto puede cambiar si se utilizan
+características como la duplicación de disco.
+
+Los grupos de volúmenes se pueden subdivir en volúmenes lógicos (LV), que funcionan de
+forma similar a las particiones pero con más flexibilidad.
+
+El tamaño de un volumen lógico, tal como se especificó durante su creación, esta
+definido por el tamaño de las extensiones físicas (4 MB por defecto) multiplicado por
+el número de extensiones en el volumen. A partir de esto, es fácil comprender que para
+aumentar un Volumen Lógico, por ejemplo, todo lo que el administrador del sistema
+tiene que hacer es agregar más extensiones del grupo disponible en el Grupo de
+Volúmenes. Del mismo modo, se pueden eliminar extensiones para reducir LV.
+
+Después de crear un volumen lógico, el sistema operativo lo ve como un dispositivo de
+bloque normal. Se creará un directorio en `/dev`, nombrado como `/dev/VGNAME/LVNAME`,
+donde `VGNAME` es el nombre de grupo de volúmenes y `LVNAME` es el nombre del volumen
+lógico.
+
+Estos dispositivos pueden formatearse con el sistema de archivos deseado utilizando
+utilidades estándar (como `mkfs.ext4`, por ejemplo) y montarse usando los métodos
+habituales, ya sea manualmente con el comando `mount` o automáticamente agregándolos
+al archivo `/etc/fstab`.
