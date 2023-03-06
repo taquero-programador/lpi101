@@ -1359,3 +1359,279 @@ Estos dispositivos pueden formatearse con el sistema de archivos deseado utiliza
 utilidades estándar (como `mkfs.ext4`, por ejemplo) y montarse usando los métodos
 habituales, ya sea manualmente con el comando `mount` o automáticamente agregándolos
 al archivo `/etc/fstab`.
+
+## Instalar un gestor de arranque
+Cuando una computadora se enciende, el primer software que se ejecuta es el cargador
+de arranque. Este es un código cuyo único proposito es cargar el núcleo del sistema
+operativo y entregarle el control. El núcleo cargara los controladores necesarios,
+inicializará el hardware y luego cargará el resto del sistema operativo.
+
+GRUB es el gestor de arranque utilizado en la mayoría de las distribuciones Linux.
+Puede cargar el núcleo de Linux u otros sistemas operativos, como Windows, y puede
+manejar múltiples imágenes y parámetros del núcleo del sistema operativo como entradas
+de menú separadas. La selección del núcleo en el arranque se realiza a través de una
+interfaz controlado por teclado, y hay una interfaz de línea de comandos para editar
+las opciones y paŕametros de arranque.
+
+La mayoría de las distribuciones de Linux instalan y configuran GRUB (en realidad,
+GRUB 2) automáticamente, por lo que un usuario normal no necesita pensar en eso.
+Sin embargo, como administrador del sistema, es vital saber cómo controlar el proceso
+de arranque para poder recuperar el sistema de una falla de arranque después de una
+actualización fallida del núcleo, por ejemplo.
+
+#### GRUB Legacy vs GRUB 2
+La versión original de GRUB (*Grand Unified Bootloader*), ahora cononcida como GRUB
+legacy se desarrolló en 1995 como parte del proyecto GNU Hurd, y más tarde se adoptó
+como el gestor de arranque predeterminado de muchas distribuciones de Linux,
+reemplazando alternativas anteriores como LILO.
+
+GRUB 2 es una reescritura completa de GRUB con el objetivo de ser más limpio, más
+seguro, más robusto y más potente. Entre las muchas ventajas sobre GRUB Legacy se
+encuentra un archivo de configuración mucho más flexible (con muchos más comandos y
+sentencias condicionales, similar a un lenguaje de script), un diseño más modular y
+una mejor localización/internacionalización.
+
+También hay soporte para temas y menús gráficos de arranque con pantallas de
+presentación, la capacidad de arrancar archivos ISO de LiveCD directamente desde el
+disco duro, mejor soporte para arquitecturas que no son x86, soporte universal para
+UUID (lo que facilita la identificación de discos y particiones) y mucho más.
+
+GRUB Legacy ya no está en desarrollo activo (la última versión fue 0.97, en 2005), y
+hoy la mayoría de las principales distribuciones de Linux instalan GRUB 2 como el
+gestor de arranque predeterminado. Sin embargo, aún puede encontrar sistemas que
+utilicen GRUB Legacy, por lo que es importante saber cómo usarlo y dónde es diferente
+de GRUB 2.
+
+#### ¿Dónde se ubica el cargador de arranque?
+Históricamente, los discos duros en los sistemas compatibles con PC de IBM se
+particionaron utilizando el esquema de particiones MBR, creado en 1982 para IBM
+PC-DOS (MD-DOS) 2.0.
+
+En este esquema, el primer sector de 512 bytes del disco se llama *Master Boot Record*
+y contiene una tabla que describe las particiones en el disco (la tabla de
+particiones) y también el código de arranque, llamado cargador de arranque.
+
+Cuando se enciende la computadora, este código de gestor de arranque mínimo (debido
+a restricciones de tamaño) se carga, ejecuta y pasa el control a un cargador de
+arranque secundario en el disco, generalmente ubicado en un espacio de 32 KB entre el
+MBR y la primera partición, que cargará los sistemas operativos.
+
+En un disco con particiones MBR, el código de arranque para GRUB está instalado en
+el MRB. Esto carga y pasa el control a una imagen núcleo instalada entre el MBR y la
+primera partición. Desde este punto, GRUB es capaz de cargar el resto de los recursos
+necesarios (definiciones de menú, archivos de configuración y módulos adicionales)
+desde el disco.
+
+Sin embargo, MBR tiene limitaciones en el número de particiones (originalmente un
+máximo de 4 particiones primarias, luego un máximo de 3 particiones primarias con 1
+partición extendida subdividida en un número de particiones lógicas) y tamaños de
+disco máximos de 2 TB. Para superar estas limitaciones, se creó un nuevo esquema de
+particionamiento llamado GPT (*GUID Partition Table*), parte del estándar UEFI
+(*Unifided Extensible Firmware Interface*).
+
+Los discos con particiones GPT se pueden usar con computadoras con el BIOS de PC
+tradicional o con el firmware UEFI. En máquinas con BIOS, la segunda parte de GRUB
+se almacena en una partición especial de arranque del BIOS.
+
+En los sistemas con firmware UEFI, GRUB se cargara mediante el firmware desde los
+archivos `grubia32.efi` (para sistemas de 32 bits) o `grubx64.efi` (para sistemas
+de 64 bits) desde una partición llamada ESP (*EFI System Partition*).
+
+#### La particion `/boot`
+En Linux, los archivos necesarios para el proceso de arranque generalmente se
+almacenan en una partición de arranque, montados en el sistema de archivos raíz y
+colequialmente denominados `/boot`.
+
+No se necesita una partición de arranque en los sistemas actuales, ya que los
+cargadores de arranque como GRUB generalmente pueden montar el sistema de archivos
+raíz y buscar los archivos necesarios dentro de un directorio `/boot`, pero es una
+buena práctica ya que separa los archivos necesarios para procesos de arranque desde
+el resto del sistema de archivos.
+
+Esta partición suele ser la primera en el disco. Esto se debe a que el BIOS original
+de la PC de IBM diseño los discos usando Cilindros, Cabezas y Sectores
+(*Cylinders, Heads y Sectors* (CHS)), con un máximo de 1024 cilindros, 256 cabezas y
+63 sectores, lo que resulta en un tamaño de disco máximo de 528 MB (504 MB sobre
+MS-DOS). Esto sifnifica que nada más allá de esta marca no sería accesible, a menos
+que se utilizara un esquema de direccionamiento de disco diferente (como LBA,
+*Logical Block Addressing*).
+
+Entonces, para una máxima compatibilidad, la partición `/boot` generalmente se
+encuentra al comienzo del disco y termina antes del cilindro 1024 (528 MB),
+asegurando que la máquina siempre pueda cargar el kernel. El tamaño recomendado para
+esta partición en una máquina actual es de 300 MB.
+
+Otras razones para una partición `/boot` separada son el cifrado y la compresión, ya
+que algunos métodos pueden ser no compatibles con GRUB 2 todavía, o si se necesita
+tener la partición raíz del sistema (`/`) formateada utilizando un sistema de archivos
+no compatible.
+
+#### Contenido de la partición de arranque
+El contenido de la partición `/boot` puede variar con la arquitectura del sistema o
+el cargador de arranque en uso, pero en un sistema basado en x86, generalmente
+encontrará los archivos a continuación. La mayoría de estos se nombran con un sufijo
+`-VERSION`, donde `-VERSION` es la versión del núcleo de Linux correspondiente.
+Entonces, por ejemplo, un archivo de configuración para la versión del núcleo Linux
+`4.15.0-65-generic` se llamaría `config-4.15.0-65-generic`.
+
+**Archivo de configuración**: este archivo, generalmente llamado `config-VERSION`,
+almacena los parámetros de configuración para el núcleo de Linux. Este archivo se
+genera automáticamente cuando se compila o instala un nuevo núcleo y el usuario no
+debe modificarlo directamente.
+
+**Mapa del sistema**: este archivo es una tabla de búsqueda que combina nombre de
+símbolos (como variables o funciones) con su posición correspondiente en la memoria.
+Esto es útil al depurar un tipo de falla del sistema conocida como *kernel panic*, ya
+que permite al usuario saber qué variable o función se estaba llamando cuando
+ocurrió la falla. Al igual que el archivo de configuración, el nombre suele ser
+`System.map-VERSION` (por ejemplo, `System.map-4.15.0-65-generic`).
+
+**Kernel de Linux**: este es el núcleo del sistema operativo propiamente dicho. El
+nombre suele ser `vmlinux-VERSION` (por ejemplo, `vmlinux-4.15.0-65-generic`).
+También puede encontrar el nombre `vmlinuz` en lugar de `vmlinux`, la `z` al final
+significa que el archivo ha sido comprimido.
+
+**Disco RAM inicial**: esto generalmente se llama `initrd.img-VERSION` y contiene un
+sistema de archivos raíz mínimo cargado en un disco RAM, que contiene utilidades y
+módulos necesarios para que el núcleo pueda montar el sistema de archivos raíz real.
+
+**Archivos relacionados con el cargador de arranque**: en los sistemas con GRUB
+instalado, estos generalmente se encuentran en `/boot/grub` e incluyen el archivo de
+configuración GRUB (`/boot/grub/grub.cfg`) para GRUB 2 o `/boot/grub/menu.lts` en caso
+de GRUB Legacy), módulos (en `/boot/grub/i386-pc`), archivos de traducción (en
+`/boot/grub/locale`) y fuentes (en `/boot/grub/fonts`).
+
+#### GRUB 2 - Instalando GRUB 2
+GRUB 2 se puede instalar utilizando la utilidad `grub-install`. Si tiene un sistema
+que no arranca, necesitara arrancar usando un Live CD o un disco de rescate, averiguar
+cuál es la partición de arranque de su sistema, montarlo y luego ejecutar la utilidad.
+
+El primer disco de un sistema suele ser el *boot device* y es posible que necesite
+saber si hay una *boot partition* en el disco. Esto se puede hacer con la utilidad
+`fdisk`. Para enumerar todas las particiones en el primer disco de su máquina, use:
+```bash
+fdisk -l /dev/sda
+Disk /dev/sda: 111,8 GiB, 120034123776 bytes, 234441648 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x97f8fef5
+
+Device Boot    Start End Sectors Size Id Type
+/dev/sda1 * 2048 2000895 1998848 976M 83 Linux
+/dev/sda2   2002942 234440703 232437762 110,9G
+/dev/sda5   2002944 18008063   16005120 7,6G 82 Linux swap / Solaris
+/dev/sda6   18010112 234440703 216430592 103,2G 83 Linux
+```
+La partición de arranque se identifica con el `*` debajo de la columna de arranque.
+En el ejemplo anterior, es `/dev/sda1`.
+
+Ahora, cree un directorio temporal en `/mnt` y monte la partición en él:
+```bash
+mkdir /mnt/tmp
+mount /dev/sda1 /mnt/tmp
+```
+Luego ejecute `grub-install`, apuntándolo al dispositivo de arranque (no la partición)
+y al directorio donde está montada la partición de arranque. Si su sistema tiene una
+partición de arranque dedicada, el comando es:
+
+    grub-install --boot-directory=/mnt/tmp /dev/sda
+
+Si está instalado en un sistema que no tiene una partición de arranque, sino solo un
+directorio `/boot` en el sistema de archivos raíz, utilice `grub-install`. Entonces,
+el comando es:
+
+    grub-install --boot-directory=/boot /dev/sda
+
+#### COnfigurando GRUB 2
+El archivo de configuración predeterminado para GRUB 2 es `/boot/grub/grub.cfg`. Este
+archivo se genera automáticamente y no se recomienda la edición manual. Para realizar
+cambios en la configuración de GRUB, debe editar el archivo `/etc/default/grub` y
+luego ejecutar la utilidad `update-grub` para generar un archivo compatible.
+
+Hay algunas opciones en el archivo `/etc/default/grub` que controlan el comportamiento
+de GRUB 2, como el kernel predeterminado para arrancar, el tiempo de espera, los
+parámetros adicionales de la línea de comandos, etc. Los más importantes son:
+
+**`GRUB_DEFAULT=`**: la entrade de menú predeterminada para arrancar. Puede ser un
+valor numérico (como `0`, `1`, etc.), el nombre de una entrada de menú (como `debian`)
+o `saved`, que se usa junto con `GRUB_SAVEDEFAULT=`, explicado a continuación. Tenga
+en cuenta que las entradas del menú comienzan en cero, por lo que la primera entrada
+del menú es `0`, la segunda es `1`, etc.
+
+**`GRUB_SAVEDEFAULT=`**: si esta opción se establece en `true` y `GRUB_DEFAULT=` se
+establece en `saved`, entonces la opción de inicio predeterminada siempre será la
+última seleccionada en el menú de inicio.
+
+**`GRUB_TIMEOUT=`**: el tiempo de espera, en segundos, antes de que se seleccione la
+entrada de menú predeterminada. Si se establece en `0`, el sistema iniciará la entrada
+predeterminada sin montrar un menú. Si se establece en `-1`, el sistema esperará
+hasta que el usuario seleccione una opción, sin importar cuánto tiempo tarde.
+
+**`GRUB_CMDLINE_LINUX=`**: esto enumera las opciones de línea de comandos que se
+agregarán a las entradas para el kernel de Linux.
+
+**`GRUB_CMDLINE_LINUX_DEFAULT=`**: Por defecto, se generan dos entradas de menú para
+cada núcleo de Linux, una con las opciones predeterminadas y una entrada para la
+recuperación. Con esta opción, puede agregar parámetros adicionales que se agregarán
+solo a la entrada predeterminada.
+
+**`GRUB_ENABLE_CRYPTODISK=`**: si se establece en `y`, los comandos como
+`grub-mkconfig`, `update-grub` y `grub-install` buscarán discos cifrados y agregarán
+los comandos necesarios para acceder a ellos duranete el arranque. Esto desactiva el
+arranque automático (`GRUB_TIMEOUT=` con cualquier valor que no sea `-1`) porque se
+necesita una contraseña para decifrar los discos antes de que se pueda acceder a
+ellos.
+
+#### Administrar entradas de menú
+Cuando se ejecuta `update-grub`, GRUB 2 buscará nucleo y sistema operativos en la
+máquina y generarán las entradas de menú correspondientes en el archivo
+`/boot/grub/grub.cfg`. Se pueden agregar nuevas entradas manualmente a los archivos de
+script dentro del directorio `/etc/grub.d/`.
+
+Estos archivos deben ser ejecutables y son procesados en orden numérico por
+`update-grub`. Por lo tanto, `05_debina_theme` se procesa antes que `10_linux` y así
+sucesivamente. Las entradas de menú personalizadas generalmente se agregan al archivo
+`40_custom`.
+
+Las sintaxis básica para una entrada de menú se muestra a continuación:
+```bash
+menuentry "Default OS" {
+set root=(hd0,1)
+linux /vmlinuz root=/dev/sda1 ro quiet splash
+initrd /initrd.img
+}
+```
+La primea línea siempre comenza con `menuentry` y termina con `{`. El texto entre
+comillas se mostrará como la etiqueta de entrada en el menú de arranque de GRUB 2.
+
+El parámatro `set root` define el disco y la partición donde se encuentra el sistema
+de archivos raíz para el sistema operativo. Tenga en cuenta que en GRUB 2 los discos
+están enumerados desde cero, por lo que `hd0` es el primer disco (`sda` en Linux),
+`hd1` el segundo, y así sucesivamente. Las particiones, sim embargo, están
+enumeradas a partir de uno. En el ejemplo anterior, el sistema de archivos raíz se
+encuentra en el primer disco (`hd0`), la primera partición (`,1`) o `sda1`.
+
+En lugar de especificar directamente el dispositivo y la partición, también puede
+hacer que GRUB 2 busque un sistema de archivos con una etiqueta específica o UUID
+(*Universally Unique Identifier*). Para eso, utilice el parámetro 
+`search --set=root` seguido del parámetro `--label` y la etiqueta del sistema de
+archivos para buscar, o `--fs-uuid` seguido del UUID del sistema de archivos.
+
+Puede encontrar el UUID de un sistema de archivos con el siguiente commando:
+```bash
+ls -l /dev/disk/by-uuid/
+total 0
+lrwxrwxrwx 1 root root 10 nov
+4 08:40 3e0b34e2-949c-43f2-90b0-25454ac1595d ->
+../../sda5
+lrwxrwxrwx 1 root root 10 nov
+4 08:40 428e35ee-5ad5-4dcb-adca-539aba6c2d84 ->
+../../sda6
+lrwxrwxrwx 1 root root 10 nov 5 19:10 56C11DCC5D2E1334 -> ../../sdb1
+lrwxrwxrwx 1 root root 10 nov 4 08:40 ae71b214-0aec-48e8-80b2-090b6986b625 ->
+../../sda1
+```
+
+pg 85
