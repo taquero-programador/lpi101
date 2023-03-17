@@ -1633,5 +1633,261 @@ lrwxrwxrwx 1 root root 10 nov 5 19:10 56C11DCC5D2E1334 -> ../../sdb1
 lrwxrwxrwx 1 root root 10 nov 4 08:40 ae71b214-0aec-48e8-80b2-090b6986b625 ->
 ../../sda1
 ```
+En el ejemplo anterior, el UUID para `/dev/sda1` es `ae71b214-0aec-48e8-80b2-090b6986b625`.
+Si desea establecerlo como el dispositivo raíz para el GRUB 2, el comendo sería
+`search --set=root --fs-uuid ae71b214-0aec-48e8-80b2-090b6986b625`.
 
-pg 85
+Cuando se usa el comando `search`, es común agragar el parámetro `--no-floppy` para
+que GRUB no pierda el tiempo buscando disquetes.
+
+La línea `linux` indica dónde se encuentra el núcleo del sistema operativo (en este
+caso, el archivo `vmlinuz` en la raíz del sistema de archivos). Después de eso, puede
+pasar los parámetros de la líndea de comandos al núcleo del sistema operativo.
+
+En el ejemplo anterior, especificamos la partición raíz (`root=/dev/sda1`) y pasamos
+tres parámetros del kernel: la partición raíz debe montarse como solo lectura (`ro`),
+la mayoría de los mensajes de registro deben estar deshabilitados (`quiet`) y se debe
+mostrar una pantalla de bienvenidad (`splash`).
+
+La línea `initrd` indica dónde se encuentra el disco RAM inicial. En el ejemplo
+anterior, el archivo es `initrd.img`, ubicado en la raíz del sistema de archivos.
+
+La última línea de una entrada de menú debe contener solo el carácter `}`.
+
+#### Interactuando con GRUB 2
+Al iniciar un sistema con GRUB 2, verá un menú de opciones. Use las teclas de flecha
+para seleccionar una opción y `Enter` para confirmar y arrancar la entrada
+seleccionada.
+
+> Si ve solo una cuenta regresiva, pero no un menú, presione `Shift` para que aparezca el menú.
+
+Para editar una opción, seleccionéla con las flechas y presiones `E`. Esto motrará
+una ventana del editor con el contenido del `menuentry` asociado con esa opción,
+como se define en `/boot/grub/grub.cfg`.
+
+Después de editar una opción, escriba `Ctrl + X` o `F10` para arrancar, o `Esc` para
+volver al menú.
+
+Para ingresar al shell de GRUB 2, precione `C` en la pantalla del menú (o `Ctrl + C`
+en la ventana de edición). Verá un símbolo del sistema como este: `grub>`.
+
+Escriba `help` para ver una lista de todos los comandos disponibles, o presione `Esc`
+para salir del shell y volver a la pantalla del menú.
+
+#### Arrancando desde la consola del GRUB 2
+Puede usar el shell GRUB 2 para arrancar el sistema en caso de una configuración
+incorrecta en una entrada del menú haga que falle.
+
+Lo primero que debes hacer es averiguard dónde está la partición de arranque. Puede
+hacerlo con el comando `ls`, que le mostrará una lista de particiones y discos que
+GRUB 2 ha encontrado.
+```sh
+grub> ls
+(proc) (hd0) (hd0,msdos1)
+```
+En el ejemplo anterior, las cosas son fáciles. Solo hay un disco (`hd0`) con solo una
+partición: (`hd0`, `msdos1`).
+
+Los discos y particiones enumerados serán diferentes en un sistema. En nuestro ejemplo,
+la primera partición de `hd0` se llama `msdos1` porque se particionó utilizando el
+esquema de partición MBR. Si se particionara usando GPT, el nombre sería `gpt1`.
+
+Para arrancar Linux, necesitamos un kernel y un disco RAM inicial (initrd). Veamos
+el contenido de (`hd0`, `msdos1`):
+```sh
+grub> ls (hd0,msdos1)/
+lost+found/ swapfile etc/ media/ bin/ boot/ dev/ home/ lib/ lib64/ mnt/ opt/ proc/
+root/ run/ sbin/ srv/ sys/ tmp/ usr/ var/ initrd.img initrd.img.old vmlinuz cdrom/
+```
+Puede agregar el parámetro `-l` a `ls` para obtener una lista larga, similar a lo que
+obtendría en una terminal Linux. User `Tab` para autocompletar los nombres de disco,
+partición y archivo.
+
+Tenga en cuenta que tenemos imágenes de kernel (`vmlinuz`) e initrd (`initrd.img`)
+directamente en el directorio raíz. Si no, podríamos verificar el contenido de `/boot`
+con `list (hd0,msdos1)/boot/`.
+
+Ahora, configure la partición de arranque:
+
+    grub> set root=(hd0,msdos1)
+
+Cargue el kernel de Linux con el comando `linux`, seguido de la ruta al kernel y la
+opción `root=` para decirle al kernel dónde se encuentra el sistema de archivos raíz
+para el sistema operativo.
+
+    grub> linux /vmlinuz root=/dev/sda1
+
+Cargue el disco RAM inicial con `initrd`, seguido de la ruta completa al archivo
+`initrd.img`:
+
+    grub> initrd /initrd.img
+
+Ahora, inicie el sistema con `boot`.
+
+#### Arranque desde la consola de rescate
+En caso de una falla de arranque, GRUB 2 puede cargar un shell de rescate, una
+versión simplificada del shell. Lo reconocera mediante el símbolo del sistema, que se
+muestra como `grub rescue>`.
+
+El proceso para iniciar un sistema desde esta consola es casi el mismo que se muestra
+anteriormente. Sin embargo, deberá cargar algunos módulos GRUB 2 para que todo
+funcione.
+
+Después de descubrir cuál es la partición de arranque (con `ls`), use el comando
+`set prefix=`, seguido de la ruta completa al directorio que contiene los archivos
+GRUB 2.
+
+Usualmente `/boot/grub/`:
+
+    grub rescue> set prefix=(hd0,msdos1)/boot/grub
+
+Ahora, cargue los módulos `normal` y `linux` con el comando `insmod`:
+```sh
+grub rescue> insmod normal
+grub rescue> insmod linux
+```
+Luego, cargue la partición de arranque con `set root=` como se indicó anteriormente,
+cargue el kernel de Linux (con `linux`), el disco RAM inicial (`initrd`) e intente
+arrancar con `boot`.
+
+#### GRUB Legacy
+#### Instalación de GRUB Legacy desde un sistema en ejecución
+Para instalar GRUB Legacy en un disco desde un sistema en ejecución, utilizaremos la
+utilidad `grub-install`. El comando básico es `grub-install DEVICE` donde `DEVICE` es
+el disco donde desea instalar GRUB Legacy. Un ejeplo sería `/dev/sda`.
+
+    # grub-install /dev/sda
+
+Tenga en cuenta que debe especificar el *device* donde se instalará GRUB Legacy, como
+`/dev/sda`, no la partición como en `/dev/sda1`.
+
+Por defecto GRUB copiará los archivos necesarios al directorio `/boot` en el
+dispositivo especificado. Si desea copiarlos a otro directorio, use el parámetro
+`--boot-directory=`, seguido de la ruta completa a donde se deben copiar los archivos.
+
+#### Instalación de GRUB Legacy desde un GRUB shell
+Si no puede iniciar el sistema por algún motivo y necesita reinstalar el GRUb Legacy,
+puede hacerlo desde la consola de GRUB en un disco de inicio de GRUB Legacy.
+
+Desde el shell de GRUB (escriba `C` en el menú de arranque para acceder al indicador
+`grub>`), el primer paso es configurar el dispositivo de arranque, que contiene el
+directorio `/boot`. Por ejemplo, si este directorio está en la primera partición del
+primer disco, el comando sería:
+
+    grub> root (hd0,0)
+
+Si no se sabe qué dispositivo contiene el directorio `/boot`, puede pedirle a GRUB
+que lo busque con el comando `find`, como se muestra a continuación:
+```sh
+grub> find /boot/grub/stage1
+(hd0,0)
+```
+Luego, configure la particiónd de arranque como se indicó anteriormente y use el
+comando `setup` para instalar GRUB Legacy en el MBR y copie los archivos necesarios
+en el disco:
+
+    grub> setup (hd0)
+
+Cuando termine, reinicie el sistema y debería arrancar normalmente.
+
+#### Configuración de entradas y ajustes de menú GRUB Legacy
+Las entradas y configuraciones de menú de GRUB Legacy se almacena en el archivo
+`/boot/grub/menu.lts`. Este es un archivo de texto simple con una lista de comandos
+y parámetros, que pueden editarse directamente con un editor de texto.
+
+Las líneas que comienzan con `#` se consideran comentarios y las líneas en blanco se
+ingroran.
+
+Una entrada del menú tiene al menos tres comandos. El primero, `title`, establece el
+titulo del sistema operativo en la pantalla del menú. El segundo, `root`, le dice a
+GRUB legado desde que dispositivo o partición arrancar.
+
+La tercera entrada, `kernel`, especifica la ruta completa a la imagen del núcleo del
+sistema operativo que debe cargarse cuando se selecciona la entrada correspondiente.
+Tenga en cuenta que esta ruta es relativa al dispositivo especificado en el
+parámetro `root`.
+
+A continuación, un ejemplo simple:
+```sh
+# This line is a comment
+title My Linux Distribution
+root (hd0,0)
+kernel /vmlinuz root=/dev/hda1
+```
+A diferencia de GRUB 2, en GRUB Legacy ambos discos y particiones están enumerados
+desde cero. Entonces, el comando `root (hd0, 0)` establecerá la partición de
+arranque como la primera partición (`0`) del primer disco (`hd0`).
+
+Puede omitir la instrucción `root` si especifica el dispositivo de arranque antes de
+la ruta en el comando `kernel`. La sintaxis es las misma, entonces:
+
+    kernel (hd0,0)/vmlinuz root=dev/hda1
+
+
+Es equivalente a:
+```sh
+root (hd0,0)
+kernel /vmlinuz root=/dev/hda1
+```
+
+Ambos cargarán el archivo `vmlinuz` desde el directorio raíz (`/`) de la primera
+partición del primer disco (`hd0,0`).
+
+El parámetro `root=/dev/sda1` después del comando `kernel` le dice al kernel de
+Linux qué partición debe usarse como sistema de archivos raíz. Este es un parámetro
+del núcleo de Linux, no un comando GRUB Legacy.
+
+Es posible que deba especificar la ubicación de la imagen de disco RAM inicial para
+el sistema operativo con el parámetro `initrd`. La ruta completa al archivo puede
+especificarse como el en parámetro `kernel`, y también puede especificar un
+dispositivo o un partición antes de la ruta, por ejemplo:
+```sh
+# This line is a comment
+title My Linux Distribution
+root (hd0,0)
+kernel /vmlinuz root=/dev/hda1
+initrd /initrd.img
+```
+GRUB Legacy tiene un diseño modular, donde los módulos (generlamente almacenados
+como archivos `.mod` en `/boot/grub/i386-pc`) se pueden cargar para agregar funciones
+adicionales, como soporte para hardware inusual, sistema de archivos o nuevos
+algoritmos de compresión.
+
+Los módulos se cargan utilizando el comando `module` seguido de la ruta completa al
+archivo `.mod` correspondiente. Tenga en cuenta que, al igual que los núcleos y las
+imágenes `initrd`, esta ruta es relativo al dispositivo especificado en el comando
+`root`.
+
+El siguiente ejemplo cargará el módulo `915resolution`, necesario para establecer
+correctamente la resolución de framebuffer en sistemas con conjuntos de chips de
+video Intel de las series 800 o 900.
+
+    module /boot/grub/i386-pc/915resolution.mod
+
+#### Carga en cadena de otros sistemas operativos
+GRUB Legacy se puede usar para cargar sistemas operativos no compatibles, como
+Windows, mediante un proceso llamado *chainloading*. GRUB Legacy se cargara primero,
+y cuando se selecciona la opción correspondiente, se cargara el gestor de arranque
+para el sistema deseado.
+
+Una entrada típica para cargar Windows en cadena se vería como la siguiente:
+```sh
+# Load Windows
+title Windows XP
+root (hd0,1)
+makeactive
+chainload +1
+boot
+```
+Pasemos por cada parámetro. Como antes, `root (hd0,1)` especifica el dispositivo y la
+partición donde se encuentra el cargador de arranque para el sistema operativo que
+deseamos cargar. En este ejemplo, la segunda partición del primer disco.
+
+**`makeactive`**: establecerá una bandera que indica que esta es una partición
+activa. Esto solo funciona en particiones primarias de DOS.
+
+**`chainload +1`**: le dice a GRUB que cargue el primer sector de la partición de
+arranque. Aquí es donde generalmente se encuentras los gestores de arranque.
+
+**`boot`**: ejecutará el gestor de arranque y cargará el sistema operativo
+correspondiente.
