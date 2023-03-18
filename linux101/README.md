@@ -792,7 +792,7 @@ La sintaxis del archivo `/etc/initab` usa este formato:
 
 El `id` es un nombre genérico de hasta cuatro caracteres de longitud utilizados para
 identificar la entrada. La entrada `runlevel` es una lista de números de niveles para
-los que se deben ejecutar una acción espefícica. El término `action` define cómo `init`
+los que se deben ejecutar una acción específica. El término `action` define cómo `init`
 ejecutará el proceso indicado por el término `process`. Las acciones diponibles son:
 
 **`boot`**: el proceso se ejecutará durante la inicialización del sistema. El campo
@@ -1891,3 +1891,480 @@ arranque. Aquí es donde generalmente se encuentras los gestores de arranque.
 
 **`boot`**: ejecutará el gestor de arranque y cargará el sistema operativo
 correspondiente.
+
+## Gestión de librerías compartidas
+Bibliotecas compartidas (*shared libraries*), también conocidas como objetos
+compartidos (*shared objects*): partes de código compilado y reutilizable como
+funciones o clases, que varios programas utilizan de manera recurrente.
+
+#### Concepto de bibliotecas compartidas
+Al igual que sus contrapartes físicas, las bibliotecas de software son colecciones de
+código que están destinadas a ser utilizadas por muchos programas diferentes; así
+como las bibliotecas físicas guardan libros y otros recursos para ser utilizados
+por muchas personas diferentes.
+
+Para construir un archivo ejecutable a partir del código de fuente de un programa,
+son necesarios dos pasos importantes. Primero, el compilador convierte el código
+fuente den código máquina que se almacena en los llamados *object files*. En segundo
+lugar, el *linker* combina los archivos de objetos y los vincula a las bibliotecas
+para generar el archivo ejecutable final. Este enlace puedes hacerse *statically*
+(estáticamente) o *dynamically* (dinámicamente). Dependiendo del método que
+utilicemos, hablaremos de bibliotecas estáticas o, en caso de vinculación dinámica,
+de bibliotecas compartidas. Expliquemos diferencias.
+
+**Bibliotecas estáticas**: una biblioteca estática se fusiona con el programa en el
+momento del enlace. Una copia del código de la biblioteca se incrusta en el programa
+y se convierte en parte de él. Por lo tanto, el programa no tiene dependencias de la
+biblioteca en tiempo de ejecución porque el programa ya contiene el código de la
+biblioteca. No tender dependencias puede verse como una ventaja, ya que no tiene que
+preocuparse por asegurarse que las bibliotecas utilizadas siempre estén disponibles.
+En el lado negativo, los programas vinculados estáticamente son más pesados.
+
+**Bibliotecas compartidas (o dinámicas)**: en el caso de las bibliotecas compartidas,
+el enlazador simplemente se encarga de que el programa haga referencia a las
+bibliotecas correctamente. Sin embargo, el vinculador no copia ningún código de
+biblioteca en el archivo del programa. Sin embargo, en tiempo de ejecución, la
+biblioteca compartida debe estar disponible para satisfaces las dependencias del
+programa. Este es un enfoque económico para administrar los recursos del sistema, ya
+que ayuda a reducir el tamaño de los archivos de programa y solo se carga una copia
+de la biblioteca en la memoria, incluso cuando es utilizando por varios programas.
+
+#### Convenciones de nomeclatura de archivos de objetos compartidos
+El nombre de una biblioteca compartida, también conocida como *soname*, sigue un
+patrón que se compone de tres elementos:
+- Nombre de la biblioteca (normalmente precedido por `lib`)
+- `so` (que significa "objeto compartido")
+- Número de versión de la biblioteca
+
+Por ejemplo: `libpthread.so.0`
+
+Por el contrario, los nombres de las bibliotecas estáticas terminan en `.a`, por
+ejemplo, `libpthread.a`.
+
+`glibc` (Bibliotecas GNU C) es un buen ejemplo de una biblioteca compartida. En un
+sistema Debian GNU/Linux 9.9, su archivos se llama `libc.so.6`. Tales nombres de
+archivo bastante generales son normalmente enlaces simbólicos que apuntan al archivo
+real que contiene una biblioteca, cuyo nombre contiene el número de versión exacto.
+En el caso de `glibc`, este enlace simbólico se ve así:
+```sh
+ls -l /lib/x86_64-linux-gnu/libc.so.6
+lrwxrwxrwx 1 root root 12 feb 6 22:17 /lib/x86_64-linux-gnu/libc.so.6 -> libc-2.24.so
+```
+Este patrón de hacer referencia a archivos de biblioteca compartida nombrados por una
+versión específica por nombres de archivos más generales es una práctica común.
+
+Otros objetos de bibliotecas compartidas incluyen `libreadline` (que permite a los
+usuarios editar líneas de comando a medida que se escriben e incluyen soporte para
+los modos de edición Emacs y vi), `libcrypt` (que contiene funciones relacionadas con
+el cifrado, el hash y la codificación), o `libcurl` (que es una biblioteca de
+tranferencia de archivos multiprotocolo).
+
+Las ubicaciones comunes para las bibliotecas compartidas en un sistema Linux son:
+- `/lib`
+- `/lib32`
+- `/lib64`
+- `/usr/lib`
+- `/usr/local/lib`
+
+> El concepto de bibliotecas compartidas no es exclusivo de Linux. En Windows, por ejemplo, se denominan DLL, que significa *dynamic linked libraries*.
+
+#### Configuración de rutas de bibliotecas compartidas
+Las referencias contenidas en los programas vinculados dinánamicamente se resuelve
+mediante el vinculador dinámico (`ld.so` o `ld-linux.so`) cuando se ejecuta el
+programa. El vinculador dinámico busca biblioteca en varios directorios. Estos
+directorios están especificados por la ruta de la biblioteca. La ruta de la
+biblioteca se configura en el directorio `/etc`, es decir, en el archivo
+`/etc/ld.so.conf` y, más común hoy en día, en archivos que residen en el directorio
+`/etc/ld.so.conf.d`. Normalmente, el primero incluye una línea `include` para los
+archivos `*.conf` en el segundo:
+```sh
+cat /etc/ld.so.conf
+include /etc/ld.so.conf.d/*.conf
+```
+El directorio `/etc/ld.so.conf.d/` contiene archivos `*.conf`:
+```sh
+ls /etc/ld.so.conf.d/
+libc.conf x86_64-linux-gnu.conf
+```
+Estos archivos `*.conf` deben incluir las rutas absolutas a los directorios de las
+bibliotecas compartidas:
+```sh
+cat /etc/ld.so.conf.d/x86_64-linux-gnu.conf
+# Multiarch support
+/lib/x86_64-linux-gnu
+/usr/lib/x86_64-linux-gnu
+```
+El comando `ldconfig` se encarga de leer estos archivos de configuración, creando
+el conjunto de enlaces simbólicos antes mencionados que ayudan a localizar las
+bibliotecas individuales y finalmente a actualizar el archivo de caché
+`/etc/ld.so.cache`. Por lo tanto, `ldconfig` debe ejecutarse cada vez que se agregan
+o actualizan archivos de configuración.
+
+Las opciones útiles para `ldconfig` son:
+
+**`-v, --verbose`**: muestras los números de la versión de la biblioteca, el nombre
+de cada directorio y los enlaces que se crean:
+```sh
+sudo ldconfig -v
+/usr/local/lib:
+/lib/x86_64-linux-gnu:
+libnss_myhostname.so.2 -> libnss_myhostname.so.2
+libfuse.so.2 -> libfuse.so.2.9.7
+libidn.so.11 -> libidn.so.11.6.16
+libnss_mdns4.so.2 -> libnss_mdns4.so.2
+libparted.so.2 -> libparted.so.2.0.1
+(...)
+```
+Así podemos ver, por ejemplo, cómo se vincula `libfuse.so.2` con el archivo de objeto
+compartido real `libfuse.so.2.9.7`.
+
+**`-p, --print-cache`**: imprime las listas de directorios y bibliotecas candidatas
+almacenadas en la caché actual:
+```sh
+sudo ldconfig -p
+1094 libs found in the cache `/etc/ld.so.cache'
+libzvbi.so.0 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libzvbi.so.0
+libzvbi-chains.so.0 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libzvbi-
+chains.so.0
+libzmq.so.5 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libzmq.so.5
+libzeitgeist-2.0.so.0 (libc6,x86-64) => /usr/lib/x86_64-linux-
+gnu/libzeitgeist-2.0.so.0
+(...)`
+```
+Observe como la caché usa el nombre completo del soname en el enlace:
+```sh
+sudo ldconfig -p |grep libfuse
+libfuse.so.2 (libc6,x86-64) => /lib/x86_64-linux-gnu/libfuse.so.2
+```
+Si hacemos una lista larga de `/lib/x86_64-linux-gnu/libfuse.so.2`, encontraremos la
+referencia al archivo de objeto compartido real `libfuse.so.2.9.7` que está
+almacenado en el mismo directorio:
+```sh
+ls -l /lib/x86_64-linux-gnu/libfuse.so.2
+lrwxrwxrwx 1 root root 16 Aug 21 2018 /lib/x86_64-linux-gnu/libfuse.so.2 -> libfuse.so.2.9.7
+```
+Además de los archivos de configuración, la variable de entorno `LD_LIBRARY_PATH` se
+puede usar para agregar nuevas rutas para bibliotecas compartidas temporalmente.
+Está formado por un conjunto de directorios separados por dos puntos (`:`) donde se
+buscan las bibliotecas. Para agregar, por ejemplo, `/usr/local/mylib` a la ruta de la
+biblioteca en la sesión de shell actual, puede teclear:
+
+    LD_LIBRARY_PATH=/usr/local/mylib
+
+Ahora puede verificar su valor:
+```sh
+echo $LD_LIBRARY_PATH
+/usr/local/mylib
+```
+Para agregar `/usr/local/mylib` a la ruta de la biblioteca en la sesión de shell
+actual y exportarlo a todos los procesos secundarios generados desde ese shell, debe
+usar el siguiente comando:
+
+    export LD_LIBRARY_PATH=/usr/local/mylib
+
+Para eliminar las variables de entorno `LD_LIBRARY_PATH`, simplemente utilice el
+siguiente comando:
+
+    unset LD_LIBRARY_PATH
+
+Para que los cambios sean permantentes, usar el siguiente comando:
+
+    export LD_LIBRARY_PATH=/usr/local/mylib
+
+En unos de los script de inicialización de Bash como `/etc/bash.bashrc` o `~/.bashrc`.
+
+#### Buscando las dependencias de un ejecutable en particular
+Para buscar las bibliotecas compartidas requeridas por un programa específico, use el
+comando `ldd` seguido de la ruta absoluta del programa. El resultado muestra la ruta
+del archivo de la biblioteca compartida, así como las direcciones de memoria
+hexadecimal en la que se carga:
+```sh
+ldd /usr/bin/gin
+nux-gate.so.1 (0xb7fa0000)
+libpcre2-8.so.0 => /lib/i386-linux-gnu/libpcre2-8.so.0 (0xb7ae8000)
+libz.so.1 => /lib/i386-linux-gnu/libz.so.1 (0xb7aca000)
+libpthread.so.0 => /lib/i386-linux-gnu/libpthread.so.0 (0xb7aa8000)
+libc.so.6 => /lib/i386-linux-gnu/libc.so.6 (0xb78bf000)
+/lib/ld-linux.so.2 (0xb7fa2000)
+```
+Del mismo modo, usamos `ldd` para buscar las dependencias de un objeto compartido:
+```sh
+ldd /lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2 (0x00007fbfed578000)
+linux-vdso.so.1 (0x00007fffb7bf5000)
+```
+Con la opción `-u` (o `--unused`) `ldd` imprime las dependencias directas no utilizadas
+(si existen):
+```sh
+ldd -u /usr/bin/git
+Unused direct dependencies:
+/lib/x86_64-linux-gnu/libz.so.1
+/lib/x86_64-linux-gnu/libpthread.so.0
+/lib/x86_64-linux-gnu/librt.so.1
+```
+La razón de las dependencias no utilizadas está relacionado con las opciones utilizadas
+por el vinculador al construir el binario. Aunque el programa no necesita una
+biblioteca no utilizada, todavía esta vinculado y etiquetado como `NEEDED` en la
+información sobre el archivo objeto. Puede investigar esto usando comandos como
+`readelf` u `objdump`.
+
+## Gestión de paquetes Debian
+Hace mucho tiempo, cuando Linux todavía estaba en su infancia, la forma más común de
+distribuir software era un archivo comprimidio (generalmente un archivo `.tar.gz`) con
+el código fuente, que usted mismo debía desempacar y compilar.
+
+#### La herramienta de paquetería en Debian (`dpkg`)
+La herramienta Debian Package (`dpkg`) es la utilidad esencial para instalar,
+configurar, mantener y eliminar paquetes de software en sistemas basados en Debian.
+La operación más básica es instalar un paquete `.deb`, que se puede hacer con:
+
+    dpkg -i PACKAGENAME
+
+Donde `PACKAGENAME` es el nombre del archivo `.deb` que desea instalar.
+
+Las actualizaciones de paquetes se manejan de la misma manera. Antes de instalar un
+paquete, `dpkg` verificará si ya existe una versión anterior en el sistema. Si es así,
+el paquete se actualizará a la nueva versión. Si no, se instalará una copia nueva.
+
+#### Manejo de dependencias
+La mayoría de las veces, un paquete puede depender de otro para que funcione. Por
+ejemplo, un editor de imágenes puede necesitar bibliotecas para abrir archivos JPEG, u
+otra utilidad puede necesitar un kit de herramientas como Qt o GTK para su interfaz de
+usuario.
+
+`dpkg` verificará si esas dependencias están instaladas en su sistemas y no podrá
+instalar el paquete si no lo están. En este caso, `dpkg` listará qué paquetes faltan.
+Sin embargo, no puede resolver dependencias por sí mismo. Depende del usuario
+encontrar los paquetes `.deb` con las dependencias correspondientes e instalarlos.
+
+En el siguiente ejemplo, el usuario intenra instalar el paquete de editor de video
+OpenShot, pero faltan algunas dependencias:
+```sh
+dpkg -i openshot-qt_2.4.3+dfsg1-1_all.deb
+(Reading database ... 269630 files and directories currently installed.)
+Preparing to unpack openshot-qt_2.4.3+dfsg1-1_all.deb ...
+Unpacking openshot-qt (2.4.3+dfsg1-1) over (2.4.3+dfsg1-1) ...
+dpkg: dependency problems prevent configuration of openshot-qt:
+openshot-qt depends on fonts-cantarell; however:
+Package fonts-cantarell is not installed.
+openshot-qt depends on python3-openshot; however:
+Package python3-openshot is not installed.
+openshot-qt depends on python3-pyqt5; however:
+Package python3-pyqt5 is not installed.
+openshot-qt depends on python3-pyqt5.qtsvg; however:
+Package python3-pyqt5.qtsvg is not installed.
+openshot-qt depends on python3-pyqt5.qtwebkit; however:
+Package python3-pyqt5.qtwebkit is not installed.
+openshot-qt depends on python3-zmq; however:
+Package python3-zmq is not installed.
+dpkg: error processing package openshot-qt (--install):
+dependency problems - leaving unconfigured
+Processing triggers for mime-support (3.60ubuntu1) ...
+Processing triggers for gnome-menus (3.32.0-1ubuntu1) ...
+Processing triggers for desktop-file-utils (0.23-4ubuntu1) ...
+Processing triggers for hicolor-icon-theme (0.17-2) ...
+Processing triggers for man-db (2.8.5-2) ...
+Errors were encountered while processing:
+openshot-qt
+```
+
+#### Eliminar paquetes
+Para eliminar un paquete, pase el parámetro `-r` a `dpkg`, seguido del nombre del
+paquete. por ejemplo, el siguiente comando eliminará el paquete `unrar` del sistema:
+```sh
+dpkg -r unrar
+(Reading database ... 269630 files and directories currently installed.)
+Removing unrar (1:5.6.6-2) ...
+Processing triggers for man-db (2.8.5-2) ...
+```
+La operación de eliminación también ejecuta una verificación de dependencias, y un
+paquete no se puede eliminar a menos que también se elimine cualquier otro paquete
+que dependa de él. Si intenta hacerlo, recibirá un mensaje de error como el siguiente:
+```sh
+dpkg -r p7zip
+dpkg: dependency problems prevent removal of p7zip:
+winetricks depends on p7zip; however:
+Package p7zip is to be removed.
+p7zip-full depends on p7zip (= 16.02+dfsg-6).
+dpkg: error processing package p7zip (--remove):
+dependency problems - not removing
+Errors were encountered while processing:
+p7zip
+```
+Puede pasar varios nombres de paquetes a `dpkg -r`, por lo que se eliminarán todos a la
+vez.
+
+Cuando se elimna un paquete, los archivos de configuración se dejan en el sistema. Si
+desea eliminar todo lo relacionado con el paquete, use la opción `-P` (purgar) en
+lugar de `-r`.
+
+#### Obtener información de paquetes
+Para obtener información sobre un paquete `.deb`, como su versión, arquitectura,
+mantenedor, dependencias y más, use el comando `dpkg -I`, seguido del nombre de
+paquete que desea inspeccionar:
+```sh
+dpkg -I google-chrome-stable_current_amd64.deb
+new Debian package, version 2.0.
+size 59477810 bytes: control archive=10394 bytes.
+1222 bytes, 13 lines
+control
+16906 bytes, 457 lines * postinst #!/bin/sh
+12983 bytes, 344 lines * postrm #!/bin/sh
+1385 bytes, 42 lines * prerm #!/bin/sh
+Package: google-chrome-stable
+Version: 76.0.3809.100-1
+Architecture: amd64
+Maintainer: Chrome Linux Team <chromium-dev@chromium.org>
+Installed-Size: 205436
+Pre-Depends: dpkg (>= 1.14.0)
+Depends: ca-certificates, fonts-liberation, libappindicator3-1, libasound2 (>=
+1.0.16), libatk-bridge2.0-0 (>= 2.5.3), libatk1.0-0 (>= 2.2.0), libatspi2.0-0 (>=
+2.9.90), libc6 (>= 2.16), libcairo2 (>= 1.6.0), libcups2 (>= 1.4.0), libdbus-1-3
+(>= 1.5.12), libexpat1 (>= 2.0.1), libgcc1 (>= 1:3.0), libgdk-pixbuf2.0-0 (>=
+2.22.0), libglib2.0-0 (>= 2.31.8), libgtk-3-0 (>= 3.9.10), libnspr4 (>= 2:4.9-2~),
+libnss3 (>= 2:3.22), libpango-1.0-0 (>= 1.14.0), libpangocairo-1.0-0 (>= 1.14.0),
+libuuid1 (>= 2.16), libx11-6 (>= 2:1.4.99.1), libx11-xcb1, libxcb1 (>= 1.6),
+libxcomposite1 (>= 1:0.3-1), libxcursor1 (>> 1.1.2), libxdamage1 (>= 1:1.1),
+libxext6, libxfixes3, libxi6 (>= 2:1.2.99.4), libxrandr2 (>= 2:1.2.99.3),
+libxrender1, libxss1, libxtst6, lsb-release, wget, xdg-utils (>= 1.0.2)
+Recommends: libu2f-udev
+Provides: www-browser
+Section: web
+Priority: optional
+Description: The web browser from Google
+Google Chrome is a browser that combines a minimal design with sophisticated
+technology to make the web faster, safer, and easier.
+```
+
+#### Listar paquetes instalados y contenido del paquete
+Para obtener una lista de cada paquete instalado en su sistema, use la opción
+`--get-selections`, como por ejemplo `dpkg --get-selections`. También puede obtener
+una lista de cada archivo instalado por un paquete específico pasando el parámetro
+`-l PACKAGENAME` a `dpkg`:
+```sh
+sudo dpkg -L rclone
+/usr
+/usr/bin
+/usr/bin/rclone
+/usr/share
+/usr/share/doc
+/usr/share/doc/rclone
+/usr/share/doc/rclone/README.html
+/usr/share/doc/rclone/README.txt
+/usr/share/man
+/usr/share/man/man1
+/usr/share/man/man1/rclone.1
+```
+
+#### Averiguar qué paquete posee un archivo específico
+A veces es posible que necesite averiguar qué paquete posee un archivo específico en su
+sistema. Puede hacerlo utilizando la utilidad `dpkg-query`, seguida del parámetro `-S`
+y la ruta al archivo en cuestión:
+```sh
+dpkg-query -S /usr/bin/unrar-nonfree
+unrar: /usr/bin/unrar-nonfree
+```
+
+#### Reconfigurar paquetes instalados
+Cuando instala un paquete, hay un paso de configuración llamado *post-install* donde
+se ejecuta un script para configurar todo lo necesario para que el software se ejecute,
+como permisos, ubicación de archivos de configuración, etc. Esto también puede generar
+algunas preguntas de configuración al usuario para establecer preferencias sobre cómo
+se ejecutará el software.
+
+A  veces, debido a un archivo de configuración dañado o con formato incorrecto, es
+posible que desee restaurar las configuraciones de un paquete a su estado "funcional".
+O puede que desee cambiar las respuestas que dio a las preguntas de configuración
+inicial. Para hacer esto, ejecute la utilidad `dpkg-reconfigure`, seguida del nombre
+del paquete.
+
+Este programa realizará una copia de seguridad de los archivos de configuración
+antiguos, descomprimirá los nuevos en los directorios correctos y ejecutara el script
+*post-install* proporcionado por el paquete, como si el paquete se hubiera instalado
+por primera vez. Intente reconfigurar el paquete `tzdata`:
+
+    dpkg-reconfigure tzdata
+
+#### Herramienta de paquetería anazada (`apt`)
+*Advanced Package Tool* (APT) es un sistema de adminstración de paquetes, que incluye
+un conjunto de herramientas, que simplifican enormemente la instalación, actualización,
+eliminación y administración de paquetes. APT proporciona características como
+capacidades de busqueda avanzada y resolución de dependencias automática.
+
+APT no es un sustituto de `dpkg`. Puede considerarlo como una interfaz (front end), que
+optimiza las operaciones y llena los vacíos de la funcionalidad de `dpkg`, como la
+resolución de dependencias.
+
+APT trabaja en conjunto con los repositorios de software que contienen los paquetes
+disponibles para instalar. Dichos repositorios pueden ser un servidor local o remoto
+o disco CD-ROM.
+
+Las distribuciones de Linux, como Debian y Ubuntu, mantienen sus propios repositorios,
+y los desarrolladores o grupos de usuarios pueden mantener otros repositorios para
+proporcionar software que no está disponible en los principales repositorios de
+distribuciones.
+
+Existen muchas utilidades que interactúan con APT, siendo los principales:
+
+**`apt-get`**: se utiliza para descargar, instalar, actualizar o eliminar paquetes del
+sistema.
+
+**`apt-cache`**: se utiliza para realizar operaciones, como búsquedas, en el indice de
+paquetes.
+
+**`apt-file`**: para buscar archivos dentro de los paquetes.
+
+#### Commands
+```sh
+# actualizar paquetes
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt update -y && sudo apt upgrade -y
+
+# limpiar cache /var/cache/apt/archives/ y/o /var/cache/apt/archives/partial/
+sudo apt clean
+
+# buscar paquetes
+sudo apt search PACKAGENAME
+```
+
+#### Lista de fuentes
+APT utiliza una lista de fuentes para saber de dónde obtener paquetes. Esta lista de
+almacena en el archivo `source.list`, ubicado en `/etc/apt`. Este archivo se puede
+editar directamente con un editor de texto, o con utilidades gráficas como `aptitude` o
+`synaptic`.
+
+Una línea típica dentro de `source.list` se ve así:
+
+    deb http://us.archive.ubuntu.com/ubuntu/ disco main restricted universe multiverse
+
+La sintaxis es tipo de archivo, URL, distribución y uno o más componentes:
+
+**URL**: la URL del repositorio.
+
+**Distribución**: el nombre (o nombre en clave) de la distribución para la que se
+proporcionan los paquetes. Un repositorio puede alojar paquetes para múltiples
+distribuciones. En el ejemplo anterior, `disco` es el nombre en clave de Ubuntu 19.04
+Disco Dingo.
+
+**Componentes**: cada componente representa un conjunto de paquetes. Estos componentes
+puden ser diferentes en diferentes distribuciones de Linux. Por ejemplo, en Ubuntu y
+derivados, son:
+
+**`main`**: contiene paquetes de código abierto con soporte oficial.
+
+**`restricted`**: contiene software de código cerrado con soporte oficial, como
+controladores de dispositivo para tarjetas gráficas, por ejemplo.
+
+**`universe`**: contiene software de código abierto mantenido por la comunidad.
+
+**`multiverse`**: contiene software no compatible, de código cerrado o con patente
+gravada.
+
+En Debian, los paquetes principales son:
+
+**`main`**: consiste en paquetes que cumplen con las Directrices de Software libre de
+Debian (DSFG), que no dependen de software fuera de esta área para operar. Los
+paquetes incluidos aquí se consideran parte de la distribución Debian.
+
+pg 126
