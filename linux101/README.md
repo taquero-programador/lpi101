@@ -2107,3 +2107,264 @@ por el vinculador al construir el binario. Aunque el programa no necesita una
 biblioteca no utilizada, todavía esta vinculado y etiquetado como `NEEDED` en la
 información sobre el archivo objeto. Puede investigar esto usando comandos como
 `readelf` u `objdump`.
+
+## Gestión de paquetes Debian
+Hace mucho tiempo, cuando Linux todavía estaba en su infancia, la forma más común de
+distribuir software era un archivo comprimidio (generalmente un archivo `.tar.gz`) con
+el código fuente, que usted mismo debía desempacar y compilar.
+
+#### La herramienta de paquetería en Debian (`dpkg`)
+La herramienta Debian Package (`dpkg`) es la utilidad esencial para instalar,
+configurar, mantener y eliminar paquetes de software en sistemas basados en Debian.
+La operación más básica es instalar un paquete `.deb`, que se puede hacer con:
+
+    dpkg -i PACKAGENAME
+
+Donde `PACKAGENAME` es el nombre del archivo `.deb` que desea instalar.
+
+Las actualizaciones de paquetes se manejan de la misma manera. Antes de instalar un
+paquete, `dpkg` verificará si ya existe una versión anterior en el sistema. Si es así,
+el paquete se actualizará a la nueva versión. Si no, se instalará una copia nueva.
+
+#### Manejo de dependencias
+La mayoría de las veces, un paquete puede depender de otro para que funcione. Por
+ejemplo, un editor de imágenes puede necesitar bibliotecas para abrir archivos JPEG, u
+otra utilidad puede necesitar un kit de herramientas como Qt o GTK para su interfaz de
+usuario.
+
+`dpkg` verificará si esas dependencias están instaladas en su sistemas y no podrá
+instalar el paquete si no lo están. En este caso, `dpkg` listará qué paquetes faltan.
+Sin embargo, no puede resolver dependencias por sí mismo. Depende del usuario
+encontrar los paquetes `.deb` con las dependencias correspondientes e instalarlos.
+
+En el siguiente ejemplo, el usuario intenra instalar el paquete de editor de video
+OpenShot, pero faltan algunas dependencias:
+```sh
+dpkg -i openshot-qt_2.4.3+dfsg1-1_all.deb
+(Reading database ... 269630 files and directories currently installed.)
+Preparing to unpack openshot-qt_2.4.3+dfsg1-1_all.deb ...
+Unpacking openshot-qt (2.4.3+dfsg1-1) over (2.4.3+dfsg1-1) ...
+dpkg: dependency problems prevent configuration of openshot-qt:
+openshot-qt depends on fonts-cantarell; however:
+Package fonts-cantarell is not installed.
+openshot-qt depends on python3-openshot; however:
+Package python3-openshot is not installed.
+openshot-qt depends on python3-pyqt5; however:
+Package python3-pyqt5 is not installed.
+openshot-qt depends on python3-pyqt5.qtsvg; however:
+Package python3-pyqt5.qtsvg is not installed.
+openshot-qt depends on python3-pyqt5.qtwebkit; however:
+Package python3-pyqt5.qtwebkit is not installed.
+openshot-qt depends on python3-zmq; however:
+Package python3-zmq is not installed.
+dpkg: error processing package openshot-qt (--install):
+dependency problems - leaving unconfigured
+Processing triggers for mime-support (3.60ubuntu1) ...
+Processing triggers for gnome-menus (3.32.0-1ubuntu1) ...
+Processing triggers for desktop-file-utils (0.23-4ubuntu1) ...
+Processing triggers for hicolor-icon-theme (0.17-2) ...
+Processing triggers for man-db (2.8.5-2) ...
+Errors were encountered while processing:
+openshot-qt
+```
+
+#### Eliminar paquetes
+Para eliminar un paquete, pase el parámetro `-r` a `dpkg`, seguido del nombre del
+paquete. por ejemplo, el siguiente comando eliminará el paquete `unrar` del sistema:
+```sh
+dpkg -r unrar
+(Reading database ... 269630 files and directories currently installed.)
+Removing unrar (1:5.6.6-2) ...
+Processing triggers for man-db (2.8.5-2) ...
+```
+La operación de eliminación también ejecuta una verificación de dependencias, y un
+paquete no se puede eliminar a menos que también se elimine cualquier otro paquete
+que dependa de él. Si intenta hacerlo, recibirá un mensaje de error como el siguiente:
+```sh
+dpkg -r p7zip
+dpkg: dependency problems prevent removal of p7zip:
+winetricks depends on p7zip; however:
+Package p7zip is to be removed.
+p7zip-full depends on p7zip (= 16.02+dfsg-6).
+dpkg: error processing package p7zip (--remove):
+dependency problems - not removing
+Errors were encountered while processing:
+p7zip
+```
+Puede pasar varios nombres de paquetes a `dpkg -r`, por lo que se eliminarán todos a la
+vez.
+
+Cuando se elimna un paquete, los archivos de configuración se dejan en el sistema. Si
+desea eliminar todo lo relacionado con el paquete, use la opción `-P` (purgar) en
+lugar de `-r`.
+
+#### Obtener información de paquetes
+Para obtener información sobre un paquete `.deb`, como su versión, arquitectura,
+mantenedor, dependencias y más, use el comando `dpkg -I`, seguido del nombre de
+paquete que desea inspeccionar:
+```sh
+dpkg -I google-chrome-stable_current_amd64.deb
+new Debian package, version 2.0.
+size 59477810 bytes: control archive=10394 bytes.
+1222 bytes, 13 lines
+control
+16906 bytes, 457 lines * postinst #!/bin/sh
+12983 bytes, 344 lines * postrm #!/bin/sh
+1385 bytes, 42 lines * prerm #!/bin/sh
+Package: google-chrome-stable
+Version: 76.0.3809.100-1
+Architecture: amd64
+Maintainer: Chrome Linux Team <chromium-dev@chromium.org>
+Installed-Size: 205436
+Pre-Depends: dpkg (>= 1.14.0)
+Depends: ca-certificates, fonts-liberation, libappindicator3-1, libasound2 (>=
+1.0.16), libatk-bridge2.0-0 (>= 2.5.3), libatk1.0-0 (>= 2.2.0), libatspi2.0-0 (>=
+2.9.90), libc6 (>= 2.16), libcairo2 (>= 1.6.0), libcups2 (>= 1.4.0), libdbus-1-3
+(>= 1.5.12), libexpat1 (>= 2.0.1), libgcc1 (>= 1:3.0), libgdk-pixbuf2.0-0 (>=
+2.22.0), libglib2.0-0 (>= 2.31.8), libgtk-3-0 (>= 3.9.10), libnspr4 (>= 2:4.9-2~),
+libnss3 (>= 2:3.22), libpango-1.0-0 (>= 1.14.0), libpangocairo-1.0-0 (>= 1.14.0),
+libuuid1 (>= 2.16), libx11-6 (>= 2:1.4.99.1), libx11-xcb1, libxcb1 (>= 1.6),
+libxcomposite1 (>= 1:0.3-1), libxcursor1 (>> 1.1.2), libxdamage1 (>= 1:1.1),
+libxext6, libxfixes3, libxi6 (>= 2:1.2.99.4), libxrandr2 (>= 2:1.2.99.3),
+libxrender1, libxss1, libxtst6, lsb-release, wget, xdg-utils (>= 1.0.2)
+Recommends: libu2f-udev
+Provides: www-browser
+Section: web
+Priority: optional
+Description: The web browser from Google
+Google Chrome is a browser that combines a minimal design with sophisticated
+technology to make the web faster, safer, and easier.
+```
+
+#### Listar paquetes instalados y contenido del paquete
+Para obtener una lista de cada paquete instalado en su sistema, use la opción
+`--get-selections`, como por ejemplo `dpkg --get-selections`. También puede obtener
+una lista de cada archivo instalado por un paquete específico pasando el parámetro
+`-l PACKAGENAME` a `dpkg`:
+```sh
+sudo dpkg -L rclone
+/usr
+/usr/bin
+/usr/bin/rclone
+/usr/share
+/usr/share/doc
+/usr/share/doc/rclone
+/usr/share/doc/rclone/README.html
+/usr/share/doc/rclone/README.txt
+/usr/share/man
+/usr/share/man/man1
+/usr/share/man/man1/rclone.1
+```
+
+#### Averiguar qué paquete posee un archivo específico
+A veces es posible que necesite averiguar qué paquete posee un archivo específico en su
+sistema. Puede hacerlo utilizando la utilidad `dpkg-query`, seguida del parámetro `-S`
+y la ruta al archivo en cuestión:
+```sh
+dpkg-query -S /usr/bin/unrar-nonfree
+unrar: /usr/bin/unrar-nonfree
+```
+
+#### Reconfigurar paquetes instalados
+Cuando instala un paquete, hay un paso de configuración llamado *post-install* donde
+se ejecuta un script para configurar todo lo necesario para que el software se ejecute,
+como permisos, ubicación de archivos de configuración, etc. Esto también puede generar
+algunas preguntas de configuración al usuario para establecer preferencias sobre cómo
+se ejecutará el software.
+
+A  veces, debido a un archivo de configuración dañado o con formato incorrecto, es
+posible que desee restaurar las configuraciones de un paquete a su estado "funcional".
+O puede que desee cambiar las respuestas que dio a las preguntas de configuración
+inicial. Para hacer esto, ejecute la utilidad `dpkg-reconfigure`, seguida del nombre
+del paquete.
+
+Este programa realizará una copia de seguridad de los archivos de configuración
+antiguos, descomprimirá los nuevos en los directorios correctos y ejecutara el script
+*post-install* proporcionado por el paquete, como si el paquete se hubiera instalado
+por primera vez. Intente reconfigurar el paquete `tzdata`:
+
+    dpkg-reconfigure tzdata
+
+#### Herramienta de paquetería anazada (`apt`)
+*Advanced Package Tool* (APT) es un sistema de adminstración de paquetes, que incluye
+un conjunto de herramientas, que simplifican enormemente la instalación, actualización,
+eliminación y administración de paquetes. APT proporciona características como
+capacidades de busqueda avanzada y resolución de dependencias automática.
+
+APT no es un sustituto de `dpkg`. Puede considerarlo como una interfaz (front end), que
+optimiza las operaciones y llena los vacíos de la funcionalidad de `dpkg`, como la
+resolución de dependencias.
+
+APT trabaja en conjunto con los repositorios de software que contienen los paquetes
+disponibles para instalar. Dichos repositorios pueden ser un servidor local o remoto
+o disco CD-ROM.
+
+Las distribuciones de Linux, como Debian y Ubuntu, mantienen sus propios repositorios,
+y los desarrolladores o grupos de usuarios pueden mantener otros repositorios para
+proporcionar software que no está disponible en los principales repositorios de
+distribuciones.
+
+Existen muchas utilidades que interactúan con APT, siendo los principales:
+
+**`apt-get`**: se utiliza para descargar, instalar, actualizar o eliminar paquetes del
+sistema.
+
+**`apt-cache`**: se utiliza para realizar operaciones, como búsquedas, en el indice de
+paquetes.
+
+**`apt-file`**: para buscar archivos dentro de los paquetes.
+
+#### Commands
+```sh
+# actualizar paquetes
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt update -y && sudo apt upgrade -y
+
+# limpiar cache /var/cache/apt/archives/ y/o /var/cache/apt/archives/partial/
+sudo apt clean
+
+# buscar paquetes
+sudo apt search PACKAGENAME
+```
+
+#### Lista de fuentes
+APT utiliza una lista de fuentes para saber de dónde obtener paquetes. Esta lista de
+almacena en el archivo `source.list`, ubicado en `/etc/apt`. Este archivo se puede
+editar directamente con un editor de texto, o con utilidades gráficas como `aptitude` o
+`synaptic`.
+
+Una línea típica dentro de `source.list` se ve así:
+
+    deb http://us.archive.ubuntu.com/ubuntu/ disco main restricted universe multiverse
+
+La sintaxis es tipo de archivo, URL, distribución y uno o más componentes:
+
+**URL**: la URL del repositorio.
+
+**Distribución**: el nombre (o nombre en clave) de la distribución para la que se
+proporcionan los paquetes. Un repositorio puede alojar paquetes para múltiples
+distribuciones. En el ejemplo anterior, `disco` es el nombre en clave de Ubuntu 19.04
+Disco Dingo.
+
+**Componentes**: cada componente representa un conjunto de paquetes. Estos componentes
+puden ser diferentes en diferentes distribuciones de Linux. Por ejemplo, en Ubuntu y
+derivados, son:
+
+**`main`**: contiene paquetes de código abierto con soporte oficial.
+
+**`restricted`**: contiene software de código cerrado con soporte oficial, como
+controladores de dispositivo para tarjetas gráficas, por ejemplo.
+
+**`universe`**: contiene software de código abierto mantenido por la comunidad.
+
+**`multiverse`**: contiene software no compatible, de código cerrado o con patente
+gravada.
+
+En Debian, los paquetes principales son:
+
+**`main`**: consiste en paquetes que cumplen con las Directrices de Software libre de
+Debian (DSFG), que no dependen de software fuera de esta área para operar. Los
+paquetes incluidos aquí se consideran parte de la distribución Debian.
+
+pg 126
