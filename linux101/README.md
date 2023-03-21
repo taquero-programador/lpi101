@@ -2367,4 +2367,78 @@ En Debian, los paquetes principales son:
 Debian (DSFG), que no dependen de software fuera de esta área para operar. Los
 paquetes incluidos aquí se consideran parte de la distribución Debian.
 
-pg 126
+**`contrib`**: contiene paquetes compatibles con DSFG, pero que dependen de otros
+paquetes que no están en `main`.
+
+**`non-free`**: contiene paquetes que no son compatibles con DSFG.
+
+**`security`**: contiene actualizaciones de seguridad.
+
+**`backports`**: contiene versiones más recientes de paquetes que están en `main`. El
+ciclo de desarrollo de las versiones estables en Debian es bastante largo (alrededor
+de dos años), y esto asegura que los usuarios puedan obtener los paquetes más
+actualizados sin tener que modificar el repositorio principal `main`.
+
+Para agregar nuevos repositorios de paquetes, simplemente puede agregar la línea
+correspondiente (generalmente proporcionado por el responsable del repositorrio) al
+final de `sources.list`, guarde el archivo y vuelva a cargar el índice del paquete con
+`sudo apt update`. Después de eso, los paquetes en el nuevo repositorio estarán
+disponibles para la instalación con `sudo apt install <PACKAGENAME>`.
+
+#### El directorio `/etc/apt/sources.list.d/`
+Dentro del directorio `/etc/apt/sources.list.d` puede agregar archivos con repositorios
+adicionales para ser utilizados por APT, sin la necesidad de modificar el archivo
+principal `/etc/apt/sources.list`. Estos son archivos de texto simples, con la misma
+sintaxis descrita anteriormente y la extensión de archivo `.list`.
+
+A continuación puede ver el contenido de un archivo llamado
+`/etc/apt/sources.list.d/buster-backports.list`:
+```sh
+deb http://deb.debian.org/debian buster-backports main contrib non-free
+deb-src http://deb.debian.org/debian buster-backports main contrib non-free
+```
+
+#### Listar el contenido de paquetes y búsqueda de archivos
+Una utilidad llamdad `apt-file` pueden usarse para realizar más operaciones en el
+índice de paquetes, como listar el contenido de un paquete o encontrar otro paquete
+que contenga un archivo específico. Es posible que esta utilidad no esté instalada de
+manera predeterminada en un sistema. En este caso, generalmente puede instalarlo:
+
+    sudo apt install apt-file -y
+
+Después de la instalación, deberá actualizar la caché del paquete utilizada para
+`apt-file`:
+
+    sudo apt-file update
+
+Esto generalmente toma solo unos segundos. Después de eso, `apt-file` estará listo
+para usarse.
+
+Para enumerar el contenido de un paquete, use el parámetro `list` seguido del nombre
+del paquete:
+```sh
+sudo apt-file list rclone
+rclone: /usr/bin/rclone
+rclone: /usr/share/bash-completion/completions/rclone
+rclone: /usr/share/doc-base/rclone
+rclone: /usr/share/doc/rclone/MANUAL.html
+rclone: /usr/share/doc/rclone/MANUAL.md.gz
+rclone: /usr/share/doc/rclone/changelog.Debian.gz
+rclone: /usr/share/doc/rclone/changelog.Debian.i386.gz
+rclone: /usr/share/doc/rclone/copyright
+rclone: /usr/share/doc/rclone/logo_on_light__horizontal_color.svg
+rclone: /usr/share/man/man1/rclone.1.gz
+```
+Puede buscar un archivo en todos los paquetes utilizando el parámetro `search`,
+seguido del nombre del archivo. Por ejemplo, si desea saber qué paquete porporciona
+un paquete llamado `libSDL2.so`, puede usar:
+```sh
+sudo apt-file search libSDL2.so
+libsdl2-dev: /usr/lib/i386-linux-gnu/libSDL2.so
+```
+La respuesta es el paquete `libsdl2-dev`, que proporciona el archivo
+`/usr/lib/i386-linux-gnu/libSDL2.so`.
+
+La diferencia entre `apt-file` y `dpkg-query` es que `apt-file search` también
+buscará paquetes desinstalados, mientras que `dpkg-search` solo puede monstrar
+archivos que pertenecen a un paquete instalado.
