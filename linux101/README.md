@@ -2380,7 +2380,7 @@ de dos años), y esto asegura que los usuarios puedan obtener los paquetes más
 actualizados sin tener que modificar el repositorio principal `main`.
 
 Para agregar nuevos repositorios de paquetes, simplemente puede agregar la línea
-correspondiente (generalmente proporcionado por el responsable del repositorrio) al
+correspondiente (generalmente proporcionado por el responsable del repositorio) al
 final de `sources.list`, guarde el archivo y vuelva a cargar el índice del paquete con
 `sudo apt update`. Después de eso, los paquetes en el nuevo repositorio estarán
 disponibles para la instalación con `sudo apt install <PACKAGENAME>`.
@@ -2442,3 +2442,349 @@ La respuesta es el paquete `libsdl2-dev`, que proporciona el archivo
 La diferencia entre `apt-file` y `dpkg-query` es que `apt-file search` también
 buscará paquetes desinstalados, mientras que `dpkg-search` solo puede monstrar
 archivos que pertenecen a un paquete instalado.
+
+## Gestión de paquetes RPM y YUM
+#### El gestor de paquetes RPM (`rpm`)
+El gestor de paquete RPM es la herramienta escencial para administrar paquetes de
+software en sistemas basados en Red Hat (o derivados).
+
+#### Instalar, actualizar y eliminar paquetes
+La operación más básica es instalar un paquete, que se puede hacer con:
+
+    rpm -i PACKAGENAME
+
+Donde `PACKAGENAME` es el nombre del paquete `.rpm` que desea instalar. Si hay una
+versión anterior de un paquete en el sistema, puede actualizar a una versión más
+nueva utilizando el parámetro `-U`:
+
+    rpm -U PACKAGENAME
+
+Si no hay instalada una versión anterior de `PACKAGENAME`, se instalará una copia
+nueva. Para evitar esto y solo actaulizar un paquete instalado, user la opción `-F`.
+
+En ambas operaciones, puede agregar el parámetro `-v` para obtener una salida
+detallada (se muestra más información durante la instalación) y `-h` para obtener
+signos hash (`#`) impresos como una ayuda visual para rastrear el progreso de la
+instalción. Se pueden combinar varios parámetros en uno, por lo que `rpm -i -v -h`
+es lo mismo que `rpm -ivh`.
+
+Para eliminar un paquete instalado, pase el parámetro `-e` (como en "erase") a
+`rpm`, seguido del nombre de paquete que desea eliminar:
+
+    rpm -e wget
+
+Si un paquete instalado depende del paquete que se está eliminando, recibirá un
+mensaje de error:
+```sh
+rpm -e unzip
+error: Failed dependencies:
+/usr/bin/unzip is needed by (installed) file-roller-3.28.1-2.el7.x86_64
+```
+Para completar la operación, primero deberá eliminar los paquetes que dependen del
+que desea eliminar, Puede pasar varios nombre a `rpm -e` para eliminar varios
+paquetes a la vez.
+
+#### Manejo de dependencias
+La mayoría de la veces, un paquete puede depender de otros para que funcione según lo
+previsto. Por ejemplo, un editor de imágenes puede necesitar bibliotecas para abrir
+archivos JPG, o una utilidad puede necesitar un kit de herramientas de widgets como
+Qt o GTK para su interfaz de usuario.
+
+`rpm` verificará si esas dependencias están instaladas en un sistema y no podrá
+instalar el paquete si no lo están. En este caso, `rpm` listará lo que falta. Sin
+embargo, no puede resolver dependencias por sí mismo.
+
+En el ejemplo a continuación, el usuario intentó instalar un paquete para el editor de
+imágenes GIMP, pero faltaban algunas dependencias:
+```sh
+rpm -i gimp-2.8.22-1.el7.x86_64.rpm
+error: Failed dependencies:
+babl(x86-64) >= 0.1.10 is needed by gimp-2:2.8.22-1.el7.x86_64
+gegl(x86-64) >= 0.2.0 is needed by gimp-2:2.8.22-1.el7.x86_64
+gimp-libs(x86-64) = 2:2.8.22-1.el7 is needed by gimp-2:2.8.22-1.el7.x86_64
+libbabl-0.1.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgegl-0.2.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimp-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpbase-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpcolor-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpconfig-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpmath-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpmodule-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpthumb-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpui-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpwidgets-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libmng.so.1()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libwmf-0.2.so.7()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libwmflite-0.2.so.7()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+```
+Depende del usuario encontrar los paquetes `.rpm` con la dependencias correspondientes
+e instalarlos. Los administradores de paquetes como `yum`, `zypper` y `dnf` tienen
+herramientas que pueden indicar qué paquete proporciona un archivo específico.
+
+#### Obtener información de paquetes
+```sh
+# obtener información sobre un paquete instalado
+rpm -qi unzip
+# obtener una lista de los archivos que están dentro de un paquete instalado
+rpm -ql unzip
+# lo mismo, pero de un paquete no instalado
+rpm -qip atom.x86_64.rpm
+rmp -qlp atom.x86_64.rpm
+```
+
+#### Averiguar qué paquetes posee un archivo específico
+Para averiguar qué archivo posee un paquete instalado, use `-qf` seguido de la ruta
+completa del archivo:
+```sh
+rpm -qf /usr/bin/unzip
+unzip-6.0-19.el7.x86_64
+```
+En el ejemplo anterior, el archivo `/usr/bin/unzip` pertenece al paquete
+`unzip-6.0-19.el7.x86_64`.
+
+#### YelowDog Updater modificado (YUM)
+`yum` se desarrolló originalmente como *Yelow Dog Updater* (YUP), una herramienta para
+la gestión de paquetes en la distribución de Yellow Dog Linux. Con el tiempo,
+evolucionó para administrar paquetes en otros sistemas basados en RPM, como Fedora,
+CentOS, Red Hat Enterprise Linux y Oracle Linux.
+
+Funcionalmente, es similar a la utilidad `apt` en los sistemas basados en Debian,
+pudiendo buscar, instalar, actualizar, eliminar paquetes y manejar automáticamente las
+dependencias. `yum` se puede usar para instalar un solo paquete o para actualizar un
+sistema completo a la vez.
+
+#### Buscar paquetes
+Para instalar un paquete, necesita saber su nombre. Para esto, puede realizar una
+búsqueda con `yum search PATTERN`, donde `PATTERN` es el nombre del paquete que está
+buscando. El resultado es una lista de paquetes cuyos nombres o resúmene contiene
+el patrón de búsqueda especificado. Por ejemplo, si necesita una utilidad para
+manejar archivos comprimidos 7zip (con la extensión `./z`) puede usar:
+```sh
+yum search 7zip
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+* base: mirror.ufscar.br
+* * epel: mirror.globo.com
+* * extras: mirror.ufscar.br
+* * updates: mirror.ufscar.br
+* =========================== N/S matchyutr54ed: 7zip ============================
+* p7zip-plugins.x86_64 : Additional plugins for p7zip
+* p7zip.x86_64 : Very high compression ratio file archiver
+* p7zip-doc.noarch : Manual documentation and contrib directory
+* p7zip-gui.x86_64 : 7zG - 7-Zip GUI version
+* Name and summary matches only, use "search all" for everything.
+```
+
+#### Instalar, actualizar y eliminar paquetes
+Para instalar un paquete usando `yum`, use el comando `yum install PACKAGENAME`.
+`yum` buscará el paquete y las dependencias correspondientes de un repositorio en
+línea e instalará todo en su sistema.
+```sh
+yum install p7zip
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+* base: mirror.ufscar.br
+* * epel: mirror.globo.com
+* * extras: mirror.ufscar.br
+* * updates: mirror.ufscar.br
+* Resolving Dependencies
+* --> Running transaction check
+* ---> Package p7zip.x86_64 0:16.02-10.el7 will be installed
+* --> Finished Dependency Resolution
+* Dependencies Resolved
+* ==========================================================================
+* Package
+* Arch
+* Version
+* Repository
+* Size
+* ==========================================================================
+* Installing:
+* p7zip
+* x86_64
+* 16.02-10.el7
+* epel
+* 604 k
+* Transaction Summary
+* ==========================================================================
+* Install
+* 1 Package
+* Total download size: 604 k
+* Installed size: 1.7 M
+* Is this ok [y/d/N]:
+```
+Para actualizar un paquete instalado, use `yum update PACKAGENAME`. Por ejemplo:
+
+    yum update wget
+
+Si omite el nombre del paquete, puede actualizar cada paquete en el sistema si existen
+actualizaciones disponibles.
+
+Para verificar si hay una actualización disponible para un paquete específico, use
+`yum check-update PACKAGENAME`. Si omite, `yum` buscará actualizaciones para todos
+los paquetes.
+
+Para eliminar un paquete, use `yum remove PACKAGENAME`.
+
+#### Encontrar qué paquete porporciona un archivo específico
+```sh
+yum whatprovides libgimpui-2.0.so.0
+# other
+yum whatprovides /etc/hosts
+```
+
+#### Obtener información sobre un paquete
+
+    yum info firefox
+
+#### Gestión de repositorios de software
+Para `yum`, los repos se enumeran en el directorio `/etc/yum.repos.d/`. Cada
+repositorio está representado por un archivo `.repo`, como `CentOs-Base.repo`.
+
+El usuario puede agregar repositorios adicionales agregando un archivo `.repo` en el
+directorio mencionado anteriormente, o al final de `/etc/yum.conf`. Sin embargo, la
+forma recomendada de agregar o administrar repositorios es con la herramienta
+`yum-config-manager`.
+
+Para agregar un repositorio, use el parámetro `--add-repo`, seguido de la URL a un
+archivo `.repo`:
+```sh
+yum-config-manager --add-repo https://rpms.remirepo.net/enterprise/remi.repo
+Loaded plugins: fastestmirror, langpacks
+adding repo from: https://rpms.remirepo.net/enterprise/remi.repo
+grabbing file https://rpms.remirepo.net/enterprise/remi.repo to
+/etc/yum.repos.d/remi.repo
+repo saved to /etc/yum.repos.d/remi.repo
+```
+Para obtener una lista de todos los repositorios disponibles, use `yum repolist all`.
+Obtendrá una lista similar a esta:
+```sh
+
+list all
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+* base: mirror.ufscar.br
+* * epel: mirror.globo.com
+* * extras: mirror.ufscar.br
+* * updates: mirror.ufscar.br
+* repo id repo name status
+* updates/7/x86_64 CentOS-7 - Updates enabled:
+* updates-source/7 CentOS-7 - Updates Sources disabled 2,500
+```
+Los repositorios `disable` serán ignorados al instalar o actualizar el software. Para
+habilitar o deshabilitar, use la utilidad `yum-config-manager`, seguido de la
+identificación del repositorio.
+
+En el resultado anterior, la identifiación del repositorio se muestra en la primera
+columna (`repo id`) de cada línea. Utilice solo la parte anterior a la primera `/`,
+por lo que la identificación para el repositorio `CentOS-7 - Updates` es `updates`
+y no `/updates/7/x86_64`.
+
+    yum-config-manager --disable updates
+
+El comando anterior deshabilitará el repositorio `updates`. Para vover a habailitarlo
+user:
+
+    yum-config-manager --enable updates
+
+#### DNF
+`dnf` es la herramienta de administración de paquetes utilizada en Fedora, y es una
+bifurcaricación de `yum`. Como tal, muchos de los comandos y parámetros son similares.
+```sh
+# buscar paquetes
+dnf search PATTERN
+# obtener información de un paquete
+dnf infro PACKAGENAME
+# instalar un paquete
+dnf install PACKAGENAME
+# eliminar un paquete
+dnf remove PACKAGENAME
+# actualizar un paquete
+dnf upgrade PACKAGENAME
+# encontrar qué paquete proporciona un archivo específico
+dnf provide FILENAME
+# obtener una lista de todos los paquetes instalados en el sistema
+dnf list --installed
+# listar el contenido de un paquete
+dnf repoquery -l PACKAGENAME
+```
+
+#### Gestión de repositorios de software
+Al igual que con `yum` y `zypper`, `dnf` funciona con repositorios de software
+(repos). Cada distribución tiene una lista de repositorios predeterminados, y los
+administradores pueden agregar o eliminar repositorios según sea necesario.
+
+Para obtener una lista de los repositorios disponibles, use `dnf repolist`. Para
+listar solo los repositorios habilitados, agregue la opción `-enabled`, y para
+habilitar solo los repositorios deshabilitados, agregue la opción `--disabled`:
+
+    dns repolist
+
+Para agregar una repositorio, use `dnf config-manager add-repo URL`. Para habilitar
+un repositorio, use `dnf config-manager --set-enabled REPO_ID`.
+
+Del mismo modo, para deshabilitar un repositorio user `dnf config-manager --set-disabled REPO_ID`.
+
+#### Zypper
+`zypper` es la herramienta de gestión de paquetes utilizada en SUSE Linux y OpenSUSE.
+En cuanto a las características, es similar a `apt` y `yum`, pudiendo instalar,
+actualizar, eliminar con resolución de dependencias automatizada.
+
+#### Actualización de los indices de paquetes
+Al igual que otras herramientas de administración de paquetes, `zypper` funciona con
+repositorios que contienen paquetes y metadatos. Estos metadatos deben actualizarse
+de vez en cuando, para que la utilidad conozca los últimos paquetes disponibles.
+Para hacer una actualización, simplemente utilice el siguiente comando:
+```sh
+zypper refresh
+Repository 'Non-OSS Repository' is up to date.
+Repository 'Main Repository' is up to date.
+Repository 'Main Update Repository' is up to date.
+Repository 'Update Repository (Non-Oss)' is up to date.
+All repositories have been refreshed.
+```
+`zypper` tiene una función de actualización automática que se puede habilitar por
+repositorio, lo que significa que algunos repositorios pueden actualizarse
+automáticamente antes de una consulta o instalación de paquete, y otros pueden
+necesitar actualizarse manualmente.
+```sh
+# buscar paquetes
+zypper se gnumeric
+# obtener información de un paquete o todos
+zypper se -i PACKAGENAME
+zypper se -i # obtener información de todos los paquetes del sistema
+# instalar un paquete
+zypper in unrar # install or in
+# actualizar
+zypper update
+# obtener una lista
+zypper list-update
+# elminiar
+zypper rm unrar
+# 
+zypper se --provides /usr/lib64/libgimpmodule-2.0.so.0
+# información de un paquete
+zypper info gimp
+# gestión de repos
+zypper repos
+zypper modifyrepo -d repo-non-oss
+zypper modifyrepo -e repo-non-oss
+zypper modifyrepo -F repo-non-oss
+zypper modifyrepo -f repo-non-oss
+```
+
+#### Agregar y quitar repositorios
+Para agregar un nuevo repositorio de software para `zypper`, use el operador `addrepo`
+seguido de la URL del repositorio y el nombre del repositorio:
+
+    zypper addrepo http://packman.inode.at/suse/openSUSE_Leap_15.1/ packman
+
+Al agregar un repositorio puede habilitar las actualizaciones automáticas con el
+parámetro `-f`. Los repositorios agregados están habilitados de manera predetermianda,
+pero puede agregar o deshabilitar un repositorio al mismo tiempo utilizando el
+parámetro `-d`.
+
+Para eliminar un repositorio, use el operador `removerepo`, seguido del nombrel del
+repositorio (Alias):
+
+    zypper removerepo packman
