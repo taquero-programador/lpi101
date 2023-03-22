@@ -3099,3 +3099,34 @@ vda             252:0   0   23.3G   0   disk
 Esto se debe al tipo de aprovisionamiento de disco utilizado para este invitado. Hay
 varios tipos de imágenes de disco que una máquina virtual puede usar, pero los dos
 tipos principales son:
+
+**COW**: copy-on-write (también conocido como *thin-porvisioning* o *sparse images*)
+es un método en el que se crea un archivo de disco con un límite de tamaño superior
+predefinido. El tamaño de la imagen del disco solo aumenta a medida que se escriben
+nuevos datos en el disco. Al igual que en el ejemplo anterior, sl sistema operativo
+invitado ve el límite de disco predefinido de 23,3 GB, pero solo ha escrito 5,5 GB
+de datos en el archivo de disco. El formato de disco utilizado para la máquina
+virtual de ejemplo es `qcow2`, que es un archivo de imagen QEMU COW.
+
+**RAW**: un tipo de disco *raw* o *full* es un archivo que tiene todo su espacio
+preasignado. Por ejemplo, un archivo de imagen de disco sin formato de 10 GB consume
+10 GB de espacio real en el hipervisor. Hay un beneficio de rendimiento para este
+estilo de disco, ya que todo el espacio en disco necesario ya existe, por lo que el
+hipervisor subyacente puede simplemente escribir datos en el disco sin el impacto de
+rendimiento de monitorear la imagen del disco para asegurarse de que aún no ha
+alcanzado su límite y extender el tamaño del archivo a medida que se escriben nuevos
+datos.
+
+Existen otras plataformas de administración de virtualización como Red Hat Enterprise
+Virtualization o oVirt que pueden usar discos físicos paraactuar como ubicaciones de
+almacenamiento de respaldo para el sistema operativo de una máquina virtual. Estos
+sistemas pueden utilizar la red de área de almacenamiento (SAN) o dispositivos de
+almacenamiento conectados a la red (NAS) para escribir sus datos, y el hipervisor
+realiza un seguimiento de qué ubicaciones de almacenamiento pertenecen a qué máquinas
+virtuales. Estos sistemas de almacenamiento pueden usar tecnologías como la
+administración de volumen lógico (LVM) para aumentar o reducir el tamaño de
+almacenamiento en disco de una máquina virtual según sea necesario, y para la creación
+y administración de instantáneas de almacenamiento.
+
+#### Trabajar con plantillas de máquinas virtuales
+pg 173
