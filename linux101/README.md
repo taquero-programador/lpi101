@@ -2788,3 +2788,298 @@ Para eliminar un repositorio, use el operador `removerepo`, seguido del nombrel 
 repositorio (Alias):
 
     zypper removerepo packman
+
+## Linux como sistema virtualizado
+Una de las grandes fortalezas de Linux es su versatilidad. Un aspecto de esta
+versatilidad es la capacidad de usar Linux como medio para alojar otros sistemas
+operativos, o aplicaciones individuales, en un entorno completamente aisaldo y seguro.
+
+#### Descripción general de virtualización
+La virtualización es una tecnología que permite que una plataforma de software,
+llamada hipervisor, ejecute procesos que contienen un sistema informático completamente
+emulado. El hipervisor es responsable de administrar los recursos del hardware
+físico que pueden ser utilizados por máquinas virtuales individuales. Estas máquinas
+virtuales se denomian *guests* del hipervisor. Una maquina virtual tiene muchos
+aspectos de una computadora física emulada en software, como el BIOS del sistema y 
+los controladores de disco del disco duro. Una máquina virtual a menuso usará
+imágenes de disco duro que se almacenan como archivos individuales, y tendran acceso
+a la RAM y CPU de la máquina host a través del software del hipervisor. El
+hipervisor separa los accesos a los recursos de hardware del sistema host entre los
+guests, lo que permite múltiples sistemas operativos se ejecuten en un solo
+sistema host.
+
+Los hipervisores de uso común en Linux son:
+
+**Xen**: xen es un hipervisor de código abierto de tipo 1, lo que significa que no
+depende de un sistema operativo subyacente para funcionar. Un hipervisor de este tipo
+se concoce como un hipervisor de *bare-metal hypervisor*, ya que la computadora
+puede arrancar directamente en el hipervisor.
+
+**KVM**: Kernel Virtual Machine es un módulo de kernel de Linux para virtualización.
+KMV es un hipervisor tipo 1 como del tipo 2, porque aunque necesita un sistema
+operativo Linux génerico para funcionar, puede funcionar perfectamente como hipervisor
+al integrarse con una instalación Linux en ejecución. Las máquinas virtuales
+implementadas con KVM usan el demonio `libvirt` y las utilidades de software asociadas
+para ser creadas y administradas.
+
+**VirtualBox**: una aplicación de escritorio popular que facilita la creación y
+administración de máquinas virtuales. Oracle VM VirtualBox es multiplataforma y
+funciona en Linux, macOS y Windows. Como VirtualBox requiere un sistema operativo
+subyacente para ejecutarse, es un hipervisor de tipo 2.
+
+#### Tipos de máquinas virtuales
+Hay tres tipos principales de máquinas virtuales: el *fully virtualized* guest
+(un invitado toalmente virtualizado), el *paravirtualized* guest (paravirtualizado) y
+el *hybrid* (híbrido).
+
+**Totalmente virtualizado (Fully Virtualized)**: todas las instrucciones que se
+esperan que ejecute un sistema operativo invitado deben poder ejecutarse dentro de
+una instalación de sistema operativo totalmente virtualizado. La razón de esto es
+que no se instalan controladores de software adicionales dentro de un huésped para
+traducir las instrucciones a hardware simulado o real. Un invitado totalmente
+virtualizado es aquel en el que el invitado (o HardwareVM) desconoce que es una
+instancia de máquina virtual en ejecución. Para que este tipo de virtualización tenga
+lugar en hardware basado en x86, las extensiones de CPU Intel VT-x o AMD-V deben
+estar habilitadas en el sistema que tiene instalado el hipervisor. Esto se puede
+hacer desde un menú de configuración de firmware BIOS o UEFI.
+
+**Paravirtualizado (Paravirtualized)**: un invitado paravirtualizado (o PVM) es aquel
+en el que el sistema operativo es consciente de que es una instancia de máquina
+virtual en ejecución. Este tipo de invitados utilizará un kernel modificado y
+controladores especiales (conocidos como "controladores invitados") que ayudaran al
+sistema operativo invitado a utilizar los recursos de software y hardware del
+hipervisor. El rendimiento de un huésped paravirtualizado es a menudo mejor que el
+del huésped totalmente virtualizado debido a la ventaja que poporciona estos
+controladores de software.
+
+**Híbrido (Hybrid)**: la paravirtualización y virtualización se pueden combianr para
+permitir que los sistemas operativos no modificados reciban un rendimiento de E/S casi
+nativo mediante el uso de controladores paravirtualizados en sistemas operativos
+completamente virtualizados. Los controladores paravirtualizados contiene controladores
+de almacenamiento y dispositivos de red con disco mejorado y redimiento de E/Sd de red.
+
+Las plataformas de virtualización a menudo proporcionan controladores invitados
+empaquetados para sistemas operativos virtualizados. El KVM utiliza controladores del
+proyecto *Virtio*, mientras que Oracle VM VirtualBox utiliza *Guest Extensions*
+disponibles desde un archivo de iamgen DC-ROM ISO descargable.
+
+#### Ejemplo de máquina virtual `libvirt`
+Veremos un ejemplo de máquina virtual que es administrada por `libvirt` y usa el
+hipervisor KVM. Una máquina virtual a menudo consiste en un grupo de archivos,
+principalmente un archivo XML que define la máquina virtual (como su configuración
+de hardware, conectividad de red, capacidades de visualización y más) y un archivo
+de imagen de disco duro asociado que contiene la instalación del sistema operativo
+y su software.
+
+Primero, comencemos a examinar un archivo de configuración XML de ejemplo para una
+máquina virtual y su entorno de red:
+```sh
+ls /etc/libvirt/qemu
+drwxr-xr-x 3 root root 4096 Oct 29 17:48 networks
+-rw------- 1 root root 5667 Jun 29 17:17 rhel8.0.xml
+```
+
+Tenga en cuenta que hay un directorio llamado `networks`. Este directorio contiene
+archivos de definición (también usando XML) que crean configuraciones de red que las
+máquinas virtuales pueden usar. Este hipervisor solo utiliza una red, por lo que solo
+hay un archivo de definición que contiene una configuración para un segmento de red
+virtual que utilizarán estos sistemas.
+```sh
+ls -l /etc/libvirt/qemu/networks/
+total 8
+drwxr-xr-x 2 root root 4096 Jun 29 17:15 autostart
+-rw------- 1 root root
+576 Jun 28 16:39 default.xml
+$ sudo cat /etc/libvirt/qemu/networks/default.xml
+<!--
+WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
+virsh net-edit default
+or other application using the libvirt API.
+-->
+<network>
+    <name>default</name>
+    <uuid>55ab064f-62f8-49d3-8d25-8ef36a524344</uuid>
+    <forward mode='nat'/>
+    <bridge name='virbr0' stp='on' delay='0'/>
+    <mac address='52:54:00:b8:e0:15'/>
+    <ip address='192.168.122.1' netmask='255.255.255.0'>
+        <dhcp>
+            <range start='192.168.122.2' end='192.168.122.254'/>
+        </dhcp>
+    </ip>
+</network>
+```
+Esta definición incluye una red privada de Clase C y un dispositivo de hardware
+emulado para actuar como enrutador para esta red. También hay un rango de direcciones
+IP para que el hipervisor las use con una implementación de servidor DHCP que puede
+asignarse a las máquinaas virtuales que usan esta red. Esta configuración de red
+también utiliza la traducción de direcciones de red (NAT) para reenviar paquetes a
+otras redes, como a la LAN del hipervisor.
+
+    sudo cat /etc/libvirt/qemu/rhel8.0.xml
+
+```xml
+WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
+virsh edit rhel8.0
+or other application using the libvirt API.
+-->
+<domain type='kvm'>
+    <name>rhel8.0</name>
+    <uuid>fadd8c5d-c5e1-410e-b425-30da7598d0f6</uuid>
+    <metadata>
+        <libosinfo:libosinfo
+xmlns:libosinfo="http://libosinfo.org/xmlns/libvirt/domain/1.0">
+        <libosinfo:os id="http://redhat.com/rhel/8.0"/>
+        </libosinfo:libosinfo>
+    </metadata>
+    <memory unit='KiB'>4194304</memory>
+    <currentMemory unit='KiB'>4194304</currentMemory>
+    <vcpu placement='static'>2</vcpu>
+    <os>
+        <type arch='x86_64' machine='pc-q35-3.1'>hvm</type>
+        <boot dev='hd'/>
+    </os>
+    <features>
+        <acpi/>
+        <apic/>
+        <vmport state='off'/>
+    </features>
+    <cpu mode='host-model' check='partial'>
+        <model fallback='allow'/>
+    </cpu>
+    <clock offset='utc'>
+        <timer name='rtc' tickpolicy='catchup'/>
+        <timer name='pit' tickpolicy='delay'/>
+        <timer name='hpet' present='no'/>
+    </clock>
+    <on_poweroff>destroy</on_poweroff>
+    <on_reboot>restart</on_reboot>
+    <on_crash>destroy</on_crash>
+    <pm>
+        <suspend-to-mem enabled='no'/>
+        <suspend-to-disk enabled='no'/>
+    </pm>
+    <devices>
+        <emulator>/usr/bin/qemu-system-x86_64</emulator>
+        <disk type='file' device='disk'>
+            <driver name='qemu' type='qcow2'/>
+            <source file='/var/lib/libvirt/images/rhel8'/>
+            <target dev='vda' bus='virtio'/>
+            <address type='pci' domain='0x0000' bus='0x04' slot='0x00' function='0x0'/>
+        </disk>
+        <controller type='usb' index='0' model='qemu-xhci' ports='15'>
+            <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
+        </controller>
+        <controller type='sata' index='0'>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
+        </controller>
+        <controller type='pci' index='0' model='pcie-root'/>
+        <controller type='pci' index='1' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='1' port='0x10'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'
+multifunction='on'/>
+        </controller>
+        <controller type='pci' index='2' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='2' port='0x11'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x1'/>
+        </controller>
+        <controller type='pci' index='3' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='3' port='0x12'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x2'/>
+        </controller>
+        <controller type='pci' index='4' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='4' port='0x13'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x3'/>
+        </controller>
+        <controller type='pci' index='5' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='5' port='0x14'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x4'/>
+        </controller>
+        <controller type='pci' index='6' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='6' port='0x15'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x5'/>
+        </controller>
+        <controller type='pci' index='7' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='7' port='0x16'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x6'/>
+        </controller>
+        <controller type='virtio-serial' index='0'>
+            <address type='pci' domain='0x0000' bus='0x03' slot='0x00' function='0x0'/>
+        </controller>
+        <interface type='network'>
+            <mac address='52:54:00:50:a7:18'/>
+            <source network='default'/>
+            <model type='virtio'/>
+            <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
+        </interface>
+        <serial type='pty'>
+            <target type='isa-serial' port='0'>
+                <model name='isa-serial'/>
+            </target>
+        </serial>
+        <console type='pty'>
+            <target type='serial' port='0'/>
+        </console>
+        <channel type='unix'>
+            <target type='virtio' name='org.qemu.guest_agent.0'/>
+            <address type='virtio-serial' controller='0' bus='0' port='1'/>
+        </channel>
+        <channel type='spicevmc'>
+            <target type='virtio' name='com.redhat.spice.0'/>
+            <address type='virtio-serial' controller='0' bus='0' port='2'/>
+        </channel>
+        <input type='tablet' bus='usb'>
+            <address type='usb' bus='0' port='1'/>
+        </input>
+        <input type='mouse' bus='ps2'/>
+        <input type='keyboard' bus='ps2'/>
+        <graphics type='spice' autoport='yes'>
+            <listen type='address'/>
+            <image compression='off'/>
+        </graphics>
+        <sound model='ich9'>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x1b' function='0x0'/>
+        </sound>
+        <video>
+            <model type='virtio' heads='1' primary='yes'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
+        </video>
+        <redirdev bus='usb' type='spicevmc'>
+            <address type='usb' bus='0' port='2'/>
+        </redirdev>
+        <redirdev bus='usb' type='spicevmc'>
+            <address type='usb' bus='0' port='3'/>
+        </redirdev>
+        <memballoon model='virtio'>
+            <address type='pci' domain='0x0000' bus='0x05' slot='0x00' function='0x0'/>
+        </memballoon>
+        <rng model='virtio'>
+            <backend model='random'>/dev/urandom</backend>
+            <address type='pci' domain='0x0000' bus='0x06' slot='0x00' function='0x0'/>
+        </rng>
+    </devices>
+</domain>
+```
+Este archivo define una serie de configuraciones de hardware que utiliza el sistema
+invitado (guest), como la cantidad de RAM que le habrá asignado, el número de
+núcleos de CPU del hipervisor al que tendrá acceso el invitado, el archivo de imagen
+del disco duro que está asociado (bajo la etiqueta `disk`), sus capacidades de
+visualización (a través del protocolo SPICE) y el acceso del invitado a dispositivos
+USB, así como la entrada emulada de teclado y mouse.
+
+#### Ejemplo de almacenamiento en disco de una máquina virtual
+La imagen de esta máquina virtual reside en `/var/lib/libvirt/images/rhel8`. Aquí
+está la imagen de disco en este hipervisor:
+```sh
+sudo ls -lh /var/lib/libvirt/images/rhel8
+-rw------- 1 root root 5.5G Oct 25 15:57 /var/lib/libvirt/images/rhel8
+```
