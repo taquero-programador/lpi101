@@ -3083,3 +3083,19 @@ está la imagen de disco en este hipervisor:
 sudo ls -lh /var/lib/libvirt/images/rhel8
 -rw------- 1 root root 5.5G Oct 25 15:57 /var/lib/libvirt/images/rhel8
 ```
+El tamaño actual de esta imagen de disco ocupa solo 5,5 GB de espacio en el
+hipervisor. Sin embargo, el sistema operativo dentro de este invitado ve un disco de
+23,3 GB de tamaño, como lo demuestra la salida del siguiente comando desde la
+máquina virtual en ejecución:
+```sh
+lsblk
+NAME            MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+vda             252:0   0   23.3G   0   disk
+├─vda1          252:1   0   1GB     0   part /boot
+└─vda2          252:2   0   22.3G   0   part
+    ├─rhel-root 253:0   0   20G     0   lvm /
+    └─rhel-swap 253:1   0   2.3G    0   lvm [SWAP]   
+```
+Esto se debe al tipo de aprovisionamiento de disco utilizado para este invitado. Hay
+varios tipos de imágenes de disco que una máquina virtual puede usar, pero los dos
+tipos principales son:
