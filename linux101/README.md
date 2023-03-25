@@ -1159,7 +1159,7 @@ Tradicionalmente `/mnt` era el directorio en el que se montaban todos los dispos
 externos y una cantidad de puntos de anclaje preconfigurados para dispositivos
 comunes, como unidades de CD-ROM (`/mnt/cdrmo`) y disquetes (`/mnt/floppy`).
 
-Esto ha sido reemplzado por `/media`, que ahora es el punto de montaje predeterminado
+Esto ha sido reemplazado por `/media`, que ahora es el punto de montaje predeterminado
 para cualquier medio extraíble por el usuario (por ejemplo, discos externos, unidades
 flash USB, lectores de tarjetas de memoria, discos ópticos, etc.) conectados al
 sistema.
@@ -2380,7 +2380,7 @@ de dos años), y esto asegura que los usuarios puedan obtener los paquetes más
 actualizados sin tener que modificar el repositorio principal `main`.
 
 Para agregar nuevos repositorios de paquetes, simplemente puede agregar la línea
-correspondiente (generalmente proporcionado por el responsable del repositorrio) al
+correspondiente (generalmente proporcionado por el responsable del repositorio) al
 final de `sources.list`, guarde el archivo y vuelva a cargar el índice del paquete con
 `sudo apt update`. Después de eso, los paquetes en el nuevo repositorio estarán
 disponibles para la instalación con `sudo apt install <PACKAGENAME>`.
@@ -2442,3 +2442,874 @@ La respuesta es el paquete `libsdl2-dev`, que proporciona el archivo
 La diferencia entre `apt-file` y `dpkg-query` es que `apt-file search` también
 buscará paquetes desinstalados, mientras que `dpkg-search` solo puede monstrar
 archivos que pertenecen a un paquete instalado.
+
+## Gestión de paquetes RPM y YUM
+#### El gestor de paquetes RPM (`rpm`)
+El gestor de paquete RPM es la herramienta escencial para administrar paquetes de
+software en sistemas basados en Red Hat (o derivados).
+
+#### Instalar, actualizar y eliminar paquetes
+La operación más básica es instalar un paquete, que se puede hacer con:
+
+    rpm -i PACKAGENAME
+
+Donde `PACKAGENAME` es el nombre del paquete `.rpm` que desea instalar. Si hay una
+versión anterior de un paquete en el sistema, puede actualizar a una versión más
+nueva utilizando el parámetro `-U`:
+
+    rpm -U PACKAGENAME
+
+Si no hay instalada una versión anterior de `PACKAGENAME`, se instalará una copia
+nueva. Para evitar esto y solo actaulizar un paquete instalado, user la opción `-F`.
+
+En ambas operaciones, puede agregar el parámetro `-v` para obtener una salida
+detallada (se muestra más información durante la instalación) y `-h` para obtener
+signos hash (`#`) impresos como una ayuda visual para rastrear el progreso de la
+instalción. Se pueden combinar varios parámetros en uno, por lo que `rpm -i -v -h`
+es lo mismo que `rpm -ivh`.
+
+Para eliminar un paquete instalado, pase el parámetro `-e` (como en "erase") a
+`rpm`, seguido del nombre de paquete que desea eliminar:
+
+    rpm -e wget
+
+Si un paquete instalado depende del paquete que se está eliminando, recibirá un
+mensaje de error:
+```sh
+rpm -e unzip
+error: Failed dependencies:
+/usr/bin/unzip is needed by (installed) file-roller-3.28.1-2.el7.x86_64
+```
+Para completar la operación, primero deberá eliminar los paquetes que dependen del
+que desea eliminar, Puede pasar varios nombre a `rpm -e` para eliminar varios
+paquetes a la vez.
+
+#### Manejo de dependencias
+La mayoría de la veces, un paquete puede depender de otros para que funcione según lo
+previsto. Por ejemplo, un editor de imágenes puede necesitar bibliotecas para abrir
+archivos JPG, o una utilidad puede necesitar un kit de herramientas de widgets como
+Qt o GTK para su interfaz de usuario.
+
+`rpm` verificará si esas dependencias están instaladas en un sistema y no podrá
+instalar el paquete si no lo están. En este caso, `rpm` listará lo que falta. Sin
+embargo, no puede resolver dependencias por sí mismo.
+
+En el ejemplo a continuación, el usuario intentó instalar un paquete para el editor de
+imágenes GIMP, pero faltaban algunas dependencias:
+```sh
+rpm -i gimp-2.8.22-1.el7.x86_64.rpm
+error: Failed dependencies:
+babl(x86-64) >= 0.1.10 is needed by gimp-2:2.8.22-1.el7.x86_64
+gegl(x86-64) >= 0.2.0 is needed by gimp-2:2.8.22-1.el7.x86_64
+gimp-libs(x86-64) = 2:2.8.22-1.el7 is needed by gimp-2:2.8.22-1.el7.x86_64
+libbabl-0.1.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgegl-0.2.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimp-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpbase-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpcolor-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpconfig-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpmath-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpmodule-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpthumb-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpui-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libgimpwidgets-2.0.so.0()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libmng.so.1()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libwmf-0.2.so.7()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+libwmflite-0.2.so.7()(64bit) is needed by gimp-2:2.8.22-1.el7.x86_64
+```
+Depende del usuario encontrar los paquetes `.rpm` con la dependencias correspondientes
+e instalarlos. Los administradores de paquetes como `yum`, `zypper` y `dnf` tienen
+herramientas que pueden indicar qué paquete proporciona un archivo específico.
+
+#### Obtener información de paquetes
+```sh
+# obtener información sobre un paquete instalado
+rpm -qi unzip
+# obtener una lista de los archivos que están dentro de un paquete instalado
+rpm -ql unzip
+# lo mismo, pero de un paquete no instalado
+rpm -qip atom.x86_64.rpm
+rmp -qlp atom.x86_64.rpm
+```
+
+#### Averiguar qué paquetes posee un archivo específico
+Para averiguar qué archivo posee un paquete instalado, use `-qf` seguido de la ruta
+completa del archivo:
+```sh
+rpm -qf /usr/bin/unzip
+unzip-6.0-19.el7.x86_64
+```
+En el ejemplo anterior, el archivo `/usr/bin/unzip` pertenece al paquete
+`unzip-6.0-19.el7.x86_64`.
+
+#### YelowDog Updater modificado (YUM)
+`yum` se desarrolló originalmente como *Yelow Dog Updater* (YUP), una herramienta para
+la gestión de paquetes en la distribución de Yellow Dog Linux. Con el tiempo,
+evolucionó para administrar paquetes en otros sistemas basados en RPM, como Fedora,
+CentOS, Red Hat Enterprise Linux y Oracle Linux.
+
+Funcionalmente, es similar a la utilidad `apt` en los sistemas basados en Debian,
+pudiendo buscar, instalar, actualizar, eliminar paquetes y manejar automáticamente las
+dependencias. `yum` se puede usar para instalar un solo paquete o para actualizar un
+sistema completo a la vez.
+
+#### Buscar paquetes
+Para instalar un paquete, necesita saber su nombre. Para esto, puede realizar una
+búsqueda con `yum search PATTERN`, donde `PATTERN` es el nombre del paquete que está
+buscando. El resultado es una lista de paquetes cuyos nombres o resúmene contiene
+el patrón de búsqueda especificado. Por ejemplo, si necesita una utilidad para
+manejar archivos comprimidos 7zip (con la extensión `./z`) puede usar:
+```sh
+yum search 7zip
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+* base: mirror.ufscar.br
+* * epel: mirror.globo.com
+* * extras: mirror.ufscar.br
+* * updates: mirror.ufscar.br
+* =========================== N/S matchyutr54ed: 7zip ============================
+* p7zip-plugins.x86_64 : Additional plugins for p7zip
+* p7zip.x86_64 : Very high compression ratio file archiver
+* p7zip-doc.noarch : Manual documentation and contrib directory
+* p7zip-gui.x86_64 : 7zG - 7-Zip GUI version
+* Name and summary matches only, use "search all" for everything.
+```
+
+#### Instalar, actualizar y eliminar paquetes
+Para instalar un paquete usando `yum`, use el comando `yum install PACKAGENAME`.
+`yum` buscará el paquete y las dependencias correspondientes de un repositorio en
+línea e instalará todo en su sistema.
+```sh
+yum install p7zip
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+* base: mirror.ufscar.br
+* * epel: mirror.globo.com
+* * extras: mirror.ufscar.br
+* * updates: mirror.ufscar.br
+* Resolving Dependencies
+* --> Running transaction check
+* ---> Package p7zip.x86_64 0:16.02-10.el7 will be installed
+* --> Finished Dependency Resolution
+* Dependencies Resolved
+* ==========================================================================
+* Package
+* Arch
+* Version
+* Repository
+* Size
+* ==========================================================================
+* Installing:
+* p7zip
+* x86_64
+* 16.02-10.el7
+* epel
+* 604 k
+* Transaction Summary
+* ==========================================================================
+* Install
+* 1 Package
+* Total download size: 604 k
+* Installed size: 1.7 M
+* Is this ok [y/d/N]:
+```
+Para actualizar un paquete instalado, use `yum update PACKAGENAME`. Por ejemplo:
+
+    yum update wget
+
+Si omite el nombre del paquete, puede actualizar cada paquete en el sistema si existen
+actualizaciones disponibles.
+
+Para verificar si hay una actualización disponible para un paquete específico, use
+`yum check-update PACKAGENAME`. Si omite, `yum` buscará actualizaciones para todos
+los paquetes.
+
+Para eliminar un paquete, use `yum remove PACKAGENAME`.
+
+#### Encontrar qué paquete porporciona un archivo específico
+```sh
+yum whatprovides libgimpui-2.0.so.0
+# other
+yum whatprovides /etc/hosts
+```
+
+#### Obtener información sobre un paquete
+
+    yum info firefox
+
+#### Gestión de repositorios de software
+Para `yum`, los repos se enumeran en el directorio `/etc/yum.repos.d/`. Cada
+repositorio está representado por un archivo `.repo`, como `CentOs-Base.repo`.
+
+El usuario puede agregar repositorios adicionales agregando un archivo `.repo` en el
+directorio mencionado anteriormente, o al final de `/etc/yum.conf`. Sin embargo, la
+forma recomendada de agregar o administrar repositorios es con la herramienta
+`yum-config-manager`.
+
+Para agregar un repositorio, use el parámetro `--add-repo`, seguido de la URL a un
+archivo `.repo`:
+```sh
+yum-config-manager --add-repo https://rpms.remirepo.net/enterprise/remi.repo
+Loaded plugins: fastestmirror, langpacks
+adding repo from: https://rpms.remirepo.net/enterprise/remi.repo
+grabbing file https://rpms.remirepo.net/enterprise/remi.repo to
+/etc/yum.repos.d/remi.repo
+repo saved to /etc/yum.repos.d/remi.repo
+```
+Para obtener una lista de todos los repositorios disponibles, use `yum repolist all`.
+Obtendrá una lista similar a esta:
+```sh
+
+list all
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+* base: mirror.ufscar.br
+* * epel: mirror.globo.com
+* * extras: mirror.ufscar.br
+* * updates: mirror.ufscar.br
+* repo id repo name status
+* updates/7/x86_64 CentOS-7 - Updates enabled:
+* updates-source/7 CentOS-7 - Updates Sources disabled 2,500
+```
+Los repositorios `disable` serán ignorados al instalar o actualizar el software. Para
+habilitar o deshabilitar, use la utilidad `yum-config-manager`, seguido de la
+identificación del repositorio.
+
+En el resultado anterior, la identifiación del repositorio se muestra en la primera
+columna (`repo id`) de cada línea. Utilice solo la parte anterior a la primera `/`,
+por lo que la identificación para el repositorio `CentOS-7 - Updates` es `updates`
+y no `/updates/7/x86_64`.
+
+    yum-config-manager --disable updates
+
+El comando anterior deshabilitará el repositorio `updates`. Para vover a habailitarlo
+user:
+
+    yum-config-manager --enable updates
+
+#### DNF
+`dnf` es la herramienta de administración de paquetes utilizada en Fedora, y es una
+bifurcaricación de `yum`. Como tal, muchos de los comandos y parámetros son similares.
+```sh
+# buscar paquetes
+dnf search PATTERN
+# obtener información de un paquete
+dnf info PACKAGENAME
+# instalar un paquete
+dnf install PACKAGENAME
+# eliminar un paquete
+dnf remove PACKAGENAME
+# actualizar un paquete
+dnf upgrade PACKAGENAME
+# encontrar qué paquete proporciona un archivo específico
+dnf provide FILENAME
+# obtener una lista de todos los paquetes instalados en el sistema
+dnf list --installed
+# listar el contenido de un paquete
+dnf repoquery -l PACKAGENAME
+```
+
+#### Gestión de repositorios de software
+Al igual que con `yum` y `zypper`, `dnf` funciona con repositorios de software
+(repos). Cada distribución tiene una lista de repositorios predeterminados, y los
+administradores pueden agregar o eliminar repositorios según sea necesario.
+
+Para obtener una lista de los repositorios disponibles, use `dnf repolist`. Para
+listar solo los repositorios habilitados, agregue la opción `-enabled`, y para
+habilitar solo los repositorios deshabilitados, agregue la opción `--disabled`:
+
+    dns repolist
+
+Para agregar una repositorio, use `dnf config-manager add-repo URL`. Para habilitar
+un repositorio, use `dnf config-manager --set-enabled REPO_ID`.
+
+Del mismo modo, para deshabilitar un repositorio user `dnf config-manager --set-disabled REPO_ID`.
+
+#### Zypper
+`zypper` es la herramienta de gestión de paquetes utilizada en SUSE Linux y OpenSUSE.
+En cuanto a las características, es similar a `apt` y `yum`, pudiendo instalar,
+actualizar, eliminar con resolución de dependencias automatizada.
+
+#### Actualización de los indices de paquetes
+Al igual que otras herramientas de administración de paquetes, `zypper` funciona con
+repositorios que contienen paquetes y metadatos. Estos metadatos deben actualizarse
+de vez en cuando, para que la utilidad conozca los últimos paquetes disponibles.
+Para hacer una actualización, simplemente utilice el siguiente comando:
+```sh
+zypper refresh
+Repository 'Non-OSS Repository' is up to date.
+Repository 'Main Repository' is up to date.
+Repository 'Main Update Repository' is up to date.
+Repository 'Update Repository (Non-Oss)' is up to date.
+All repositories have been refreshed.
+```
+`zypper` tiene una función de actualización automática que se puede habilitar por
+repositorio, lo que significa que algunos repositorios pueden actualizarse
+automáticamente antes de una consulta o instalación de paquete, y otros pueden
+necesitar actualizarse manualmente.
+```sh
+# buscar paquetes
+zypper se gnumeric
+# obtener información de un paquete o todos
+zypper se -i PACKAGENAME
+zypper se -i # obtener información de todos los paquetes del sistema
+# instalar un paquete
+zypper in unrar # install or in
+# actualizar
+zypper update
+# obtener una lista
+zypper list-update
+# elminiar
+zypper rm unrar
+# 
+zypper se --provides /usr/lib64/libgimpmodule-2.0.so.0
+# información de un paquete
+zypper info gimp
+# gestión de repos
+zypper repos
+zypper modifyrepo -d repo-non-oss
+zypper modifyrepo -e repo-non-oss
+zypper modifyrepo -F repo-non-oss
+zypper modifyrepo -f repo-non-oss
+```
+
+#### Agregar y quitar repositorios
+Para agregar un nuevo repositorio de software para `zypper`, use el operador `addrepo`
+seguido de la URL del repositorio y el nombre del repositorio:
+
+    zypper addrepo http://packman.inode.at/suse/openSUSE_Leap_15.1/ packman
+
+Al agregar un repositorio puede habilitar las actualizaciones automáticas con el
+parámetro `-f`. Los repositorios agregados están habilitados de manera predetermianda,
+pero puede agregar o deshabilitar un repositorio al mismo tiempo utilizando el
+parámetro `-d`.
+
+Para eliminar un repositorio, use el operador `removerepo`, seguido del nombrel del
+repositorio (Alias):
+
+    zypper removerepo packman
+
+## Linux como sistema virtualizado
+Una de las grandes fortalezas de Linux es su versatilidad. Un aspecto de esta
+versatilidad es la capacidad de usar Linux como medio para alojar otros sistemas
+operativos, o aplicaciones individuales, en un entorno completamente aisaldo y seguro.
+
+#### Descripción general de virtualización
+La virtualización es una tecnología que permite que una plataforma de software,
+llamada hipervisor, ejecute procesos que contienen un sistema informático completamente
+emulado. El hipervisor es responsable de administrar los recursos del hardware
+físico que pueden ser utilizados por máquinas virtuales individuales. Estas máquinas
+virtuales se denomian *guests* del hipervisor. Una maquina virtual tiene muchos
+aspectos de una computadora física emulada en software, como el BIOS del sistema y 
+los controladores de disco del disco duro. Una máquina virtual a menuso usará
+imágenes de disco duro que se almacenan como archivos individuales, y tendran acceso
+a la RAM y CPU de la máquina host a través del software del hipervisor. El
+hipervisor separa los accesos a los recursos de hardware del sistema host entre los
+guests, lo que permite múltiples sistemas operativos se ejecuten en un solo
+sistema host.
+
+Los hipervisores de uso común en Linux son:
+
+**Xen**: xen es un hipervisor de código abierto de tipo 1, lo que significa que no
+depende de un sistema operativo subyacente para funcionar. Un hipervisor de este tipo
+se concoce como un hipervisor de *bare-metal hypervisor*, ya que la computadora
+puede arrancar directamente en el hipervisor.
+
+**KVM**: Kernel Virtual Machine es un módulo de kernel de Linux para virtualización.
+KMV es un hipervisor tipo 1 como del tipo 2, porque aunque necesita un sistema
+operativo Linux génerico para funcionar, puede funcionar perfectamente como hipervisor
+al integrarse con una instalación Linux en ejecución. Las máquinas virtuales
+implementadas con KVM usan el demonio `libvirt` y las utilidades de software asociadas
+para ser creadas y administradas.
+
+**VirtualBox**: una aplicación de escritorio popular que facilita la creación y
+administración de máquinas virtuales. Oracle VM VirtualBox es multiplataforma y
+funciona en Linux, macOS y Windows. Como VirtualBox requiere un sistema operativo
+subyacente para ejecutarse, es un hipervisor de tipo 2.
+
+#### Tipos de máquinas virtuales
+Hay tres tipos principales de máquinas virtuales: el *fully virtualized* guest
+(un invitado toalmente virtualizado), el *paravirtualized* guest (paravirtualizado) y
+el *hybrid* (híbrido).
+
+**Totalmente virtualizado (Fully Virtualized)**: todas las instrucciones que se
+esperan que ejecute un sistema operativo invitado deben poder ejecutarse dentro de
+una instalación de sistema operativo totalmente virtualizado. La razón de esto es
+que no se instalan controladores de software adicionales dentro de un huésped para
+traducir las instrucciones a hardware simulado o real. Un invitado totalmente
+virtualizado es aquel en el que el invitado (o HardwareVM) desconoce que es una
+instancia de máquina virtual en ejecución. Para que este tipo de virtualización tenga
+lugar en hardware basado en x86, las extensiones de CPU Intel VT-x o AMD-V deben
+estar habilitadas en el sistema que tiene instalado el hipervisor. Esto se puede
+hacer desde un menú de configuración de firmware BIOS o UEFI.
+
+**Paravirtualizado (Paravirtualized)**: un invitado paravirtualizado (o PVM) es aquel
+en el que el sistema operativo es consciente de que es una instancia de máquina
+virtual en ejecución. Este tipo de invitados utilizará un kernel modificado y
+controladores especiales (conocidos como "controladores invitados") que ayudaran al
+sistema operativo invitado a utilizar los recursos de software y hardware del
+hipervisor. El rendimiento de un huésped paravirtualizado es a menudo mejor que el
+del huésped totalmente virtualizado debido a la ventaja que poporciona estos
+controladores de software.
+
+**Híbrido (Hybrid)**: la paravirtualización y virtualización se pueden combianr para
+permitir que los sistemas operativos no modificados reciban un rendimiento de E/S casi
+nativo mediante el uso de controladores paravirtualizados en sistemas operativos
+completamente virtualizados. Los controladores paravirtualizados contiene controladores
+de almacenamiento y dispositivos de red con disco mejorado y redimiento de E/Sd de red.
+
+Las plataformas de virtualización a menudo proporcionan controladores invitados
+empaquetados para sistemas operativos virtualizados. El KVM utiliza controladores del
+proyecto *Virtio*, mientras que Oracle VM VirtualBox utiliza *Guest Extensions*
+disponibles desde un archivo de iamgen DC-ROM ISO descargable.
+
+#### Ejemplo de máquina virtual `libvirt`
+Veremos un ejemplo de máquina virtual que es administrada por `libvirt` y usa el
+hipervisor KVM. Una máquina virtual a menudo consiste en un grupo de archivos,
+principalmente un archivo XML que define la máquina virtual (como su configuración
+de hardware, conectividad de red, capacidades de visualización y más) y un archivo
+de imagen de disco duro asociado que contiene la instalación del sistema operativo
+y su software.
+
+Primero, comencemos a examinar un archivo de configuración XML de ejemplo para una
+máquina virtual y su entorno de red:
+```sh
+ls /etc/libvirt/qemu
+drwxr-xr-x 3 root root 4096 Oct 29 17:48 networks
+-rw------- 1 root root 5667 Jun 29 17:17 rhel8.0.xml
+```
+
+Tenga en cuenta que hay un directorio llamado `networks`. Este directorio contiene
+archivos de definición (también usando XML) que crean configuraciones de red que las
+máquinas virtuales pueden usar. Este hipervisor solo utiliza una red, por lo que solo
+hay un archivo de definición que contiene una configuración para un segmento de red
+virtual que utilizarán estos sistemas.
+```sh
+ls -l /etc/libvirt/qemu/networks/
+total 8
+drwxr-xr-x 2 root root 4096 Jun 29 17:15 autostart
+-rw------- 1 root root
+576 Jun 28 16:39 default.xml
+$ sudo cat /etc/libvirt/qemu/networks/default.xml
+<!--
+WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
+virsh net-edit default
+or other application using the libvirt API.
+-->
+<network>
+    <name>default</name>
+    <uuid>55ab064f-62f8-49d3-8d25-8ef36a524344</uuid>
+    <forward mode='nat'/>
+    <bridge name='virbr0' stp='on' delay='0'/>
+    <mac address='52:54:00:b8:e0:15'/>
+    <ip address='192.168.122.1' netmask='255.255.255.0'>
+        <dhcp>
+            <range start='192.168.122.2' end='192.168.122.254'/>
+        </dhcp>
+    </ip>
+</network>
+```
+Esta definición incluye una red privada de Clase C y un dispositivo de hardware
+emulado para actuar como enrutador para esta red. También hay un rango de direcciones
+IP para que el hipervisor las use con una implementación de servidor DHCP que puede
+asignarse a las máquinas virtuales que usan esta red. Esta configuración de red
+también utiliza la traducción de direcciones de red (NAT) para reenviar paquetes a
+otras redes, como a la LAN del hipervisor.
+
+    sudo cat /etc/libvirt/qemu/rhel8.0.xml
+
+```xml
+WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
+virsh edit rhel8.0
+or other application using the libvirt API.
+-->
+<domain type='kvm'>
+    <name>rhel8.0</name>
+    <uuid>fadd8c5d-c5e1-410e-b425-30da7598d0f6</uuid>
+    <metadata>
+        <libosinfo:libosinfo
+xmlns:libosinfo="http://libosinfo.org/xmlns/libvirt/domain/1.0">
+        <libosinfo:os id="http://redhat.com/rhel/8.0"/>
+        </libosinfo:libosinfo>
+    </metadata>
+    <memory unit='KiB'>4194304</memory>
+    <currentMemory unit='KiB'>4194304</currentMemory>
+    <vcpu placement='static'>2</vcpu>
+    <os>
+        <type arch='x86_64' machine='pc-q35-3.1'>hvm</type>
+        <boot dev='hd'/>
+    </os>
+    <features>
+        <acpi/>
+        <apic/>
+        <vmport state='off'/>
+    </features>
+    <cpu mode='host-model' check='partial'>
+        <model fallback='allow'/>
+    </cpu>
+    <clock offset='utc'>
+        <timer name='rtc' tickpolicy='catchup'/>
+        <timer name='pit' tickpolicy='delay'/>
+        <timer name='hpet' present='no'/>
+    </clock>
+    <on_poweroff>destroy</on_poweroff>
+    <on_reboot>restart</on_reboot>
+    <on_crash>destroy</on_crash>
+    <pm>
+        <suspend-to-mem enabled='no'/>
+        <suspend-to-disk enabled='no'/>
+    </pm>
+    <devices>
+        <emulator>/usr/bin/qemu-system-x86_64</emulator>
+        <disk type='file' device='disk'>
+            <driver name='qemu' type='qcow2'/>
+            <source file='/var/lib/libvirt/images/rhel8'/>
+            <target dev='vda' bus='virtio'/>
+            <address type='pci' domain='0x0000' bus='0x04' slot='0x00' function='0x0'/>
+        </disk>
+        <controller type='usb' index='0' model='qemu-xhci' ports='15'>
+            <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
+        </controller>
+        <controller type='sata' index='0'>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x1f' function='0x2'/>
+        </controller>
+        <controller type='pci' index='0' model='pcie-root'/>
+        <controller type='pci' index='1' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='1' port='0x10'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'
+multifunction='on'/>
+        </controller>
+        <controller type='pci' index='2' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='2' port='0x11'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x1'/>
+        </controller>
+        <controller type='pci' index='3' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='3' port='0x12'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x2'/>
+        </controller>
+        <controller type='pci' index='4' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='4' port='0x13'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x3'/>
+        </controller>
+        <controller type='pci' index='5' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='5' port='0x14'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x4'/>
+        </controller>
+        <controller type='pci' index='6' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='6' port='0x15'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x5'/>
+        </controller>
+        <controller type='pci' index='7' model='pcie-root-port'>
+            <model name='pcie-root-port'/>
+            <target chassis='7' port='0x16'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x6'/>
+        </controller>
+        <controller type='virtio-serial' index='0'>
+            <address type='pci' domain='0x0000' bus='0x03' slot='0x00' function='0x0'/>
+        </controller>
+        <interface type='network'>
+            <mac address='52:54:00:50:a7:18'/>
+            <source network='default'/>
+            <model type='virtio'/>
+            <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
+        </interface>
+        <serial type='pty'>
+            <target type='isa-serial' port='0'>
+                <model name='isa-serial'/>
+            </target>
+        </serial>
+        <console type='pty'>
+            <target type='serial' port='0'/>
+        </console>
+        <channel type='unix'>
+            <target type='virtio' name='org.qemu.guest_agent.0'/>
+            <address type='virtio-serial' controller='0' bus='0' port='1'/>
+        </channel>
+        <channel type='spicevmc'>
+            <target type='virtio' name='com.redhat.spice.0'/>
+            <address type='virtio-serial' controller='0' bus='0' port='2'/>
+        </channel>
+        <input type='tablet' bus='usb'>
+            <address type='usb' bus='0' port='1'/>
+        </input>
+        <input type='mouse' bus='ps2'/>
+        <input type='keyboard' bus='ps2'/>
+        <graphics type='spice' autoport='yes'>
+            <listen type='address'/>
+            <image compression='off'/>
+        </graphics>
+        <sound model='ich9'>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x1b' function='0x0'/>
+        </sound>
+        <video>
+            <model type='virtio' heads='1' primary='yes'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
+        </video>
+        <redirdev bus='usb' type='spicevmc'>
+            <address type='usb' bus='0' port='2'/>
+        </redirdev>
+        <redirdev bus='usb' type='spicevmc'>
+            <address type='usb' bus='0' port='3'/>
+        </redirdev>
+        <memballoon model='virtio'>
+            <address type='pci' domain='0x0000' bus='0x05' slot='0x00' function='0x0'/>
+        </memballoon>
+        <rng model='virtio'>
+            <backend model='random'>/dev/urandom</backend>
+            <address type='pci' domain='0x0000' bus='0x06' slot='0x00' function='0x0'/>
+        </rng>
+    </devices>
+</domain>
+```
+Este archivo define una serie de configuraciones de hardware que utiliza el sistema
+invitado (guest), como la cantidad de RAM que le habrá asignado, el número de
+núcleos de CPU del hipervisor al que tendrá acceso el invitado, el archivo de imagen
+del disco duro que está asociado (bajo la etiqueta `disk`), sus capacidades de
+visualización (a través del protocolo SPICE) y el acceso del invitado a dispositivos
+USB, así como la entrada emulada de teclado y mouse.
+
+#### Ejemplo de almacenamiento en disco de una máquina virtual
+La imagen de esta máquina virtual reside en `/var/lib/libvirt/images/rhel8`. Aquí
+está la imagen de disco en este hipervisor:
+```sh
+sudo ls -lh /var/lib/libvirt/images/rhel8
+-rw------- 1 root root 5.5G Oct 25 15:57 /var/lib/libvirt/images/rhel8
+```
+El tamaño actual de esta imagen de disco ocupa solo 5,5 GB de espacio en el
+hipervisor. Sin embargo, el sistema operativo dentro de este invitado ve un disco de
+23,3 GB de tamaño, como lo demuestra la salida del siguiente comando desde la
+máquina virtual en ejecución:
+```sh
+lsblk
+NAME            MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+vda             252:0   0   23.3G   0   disk
+├─vda1          252:1   0   1GB     0   part /boot
+└─vda2          252:2   0   22.3G   0   part
+    ├─rhel-root 253:0   0   20G     0   lvm /
+    └─rhel-swap 253:1   0   2.3G    0   lvm [SWAP]   
+```
+Esto se debe al tipo de aprovisionamiento de disco utilizado para este invitado. Hay
+varios tipos de imágenes de disco que una máquina virtual puede usar, pero los dos
+tipos principales son:
+
+**COW**: copy-on-write (también conocido como *thin-porvisioning* o *sparse images*)
+es un método en el que se crea un archivo de disco con un límite de tamaño superior
+predefinido. El tamaño de la imagen del disco solo aumenta a medida que se escriben
+nuevos datos en el disco. Al igual que en el ejemplo anterior, sl sistema operativo
+invitado ve el límite de disco predefinido de 23,3 GB, pero solo ha escrito 5,5 GB
+de datos en el archivo de disco. El formato de disco utilizado para la máquina
+virtual de ejemplo es `qcow2`, que es un archivo de imagen QEMU COW.
+
+**RAW**: un tipo de disco *raw* o *full* es un archivo que tiene todo su espacio
+preasignado. Por ejemplo, un archivo de imagen de disco sin formato de 10 GB consume
+10 GB de espacio real en el hipervisor. Hay un beneficio de rendimiento para este
+estilo de disco, ya que todo el espacio en disco necesario ya existe, por lo que el
+hipervisor subyacente puede simplemente escribir datos en el disco sin el impacto de
+rendimiento de monitorear la imagen del disco para asegurarse de que aún no ha
+alcanzado su límite y extender el tamaño del archivo a medida que se escriben nuevos
+datos.
+
+Existen otras plataformas de administración de virtualización como Red Hat Enterprise
+Virtualization o oVirt que pueden usar discos físicos paraactuar como ubicaciones de
+almacenamiento de respaldo para el sistema operativo de una máquina virtual. Estos
+sistemas pueden utilizar la red de área de almacenamiento (SAN) o dispositivos de
+almacenamiento conectados a la red (NAS) para escribir sus datos, y el hipervisor
+realiza un seguimiento de qué ubicaciones de almacenamiento pertenecen a qué máquinas
+virtuales. Estos sistemas de almacenamiento pueden usar tecnologías como la
+administración de volumen lógico (LVM) para aumentar o reducir el tamaño de
+almacenamiento en disco de una máquina virtual según sea necesario, y para la creación
+y administración de instantáneas de almacenamiento.
+
+#### Trabajando con plantillas de máquinas virtuales
+Dado que las máquinas virtuales generalmente son solo archivos que se ejecutan en un
+hipervisor, es fácil crear plantillas que se puedan personalizar para escenarios de
+implementación particulares. A menudo, una máquina virtual tendrá una instalación
+básica del sistema operativo y algunos ajustes de configuración de autenticación
+preconfigurdos para facilitar futuros lanzamientos del sistema. Esto reduce la cantidad
+de tiempo que lleva contruir un nuevo sistema al reducir la cantidad de trabajo que a
+menudo se repite, como la instalación de paquetes base y la configuración regional.
+
+Esta plantilla de máquina virtual podría copiarse luego a un nuevo sistema invitado
+(guest). En este caso, se cambiaría el nombre del nuevo invitado, se generaría una
+nueva dirección MAC para su interfaz de red y se podría realizar otras modificaciones
+dependiendo de su uso previsto.
+
+#### El D-Bus Machine ID
+Muchas instalaciones de Linux utilizarán un númerro de identifiación de máquina
+generado en el momento de la instalación, llamado *D-Bus Machine ID*. Sin embargo, si
+una máquina virtual se clona para ser utilizada como plantilla para otras instalaciones
+de máquinas virtuales, se necesitaría crear una nueva ID de máquina D-Bus para
+garantizar que los recuros del sistema del hipervisor se dirijan al sitema invitado
+apropoiadamente.
+
+El siguiente comando se puede usar para validar que existe una ID de máquina D-Bus
+para el sistema en ejecución:
+
+    dbus-uuidgen --ensure
+
+Si no se encuentran mensajes de error, existe un ID para el sistema. Para ver la ID
+actual de la máquina D-Bus, ejecute lo siguiente:
+```sh
+dbus-uuidgen --get
+17f2e0698e844e31b12ccd3f9aa4d94a
+```
+La cadena de texto que se muestra es el número de identificación actual. No hay dos
+sistemas Linux que se ejecuten en un hipervisor que tengan la misma ID de máquina
+D-Bus.
+
+La ID de la máquina se encuentra en `/var/lib/dbus/machine-id` y está simbólicamente
+vinculado a `/etc/machine-id`. Se desaconseja cambiar este número de identificación
+en un sistema en ejecución, ya que es probable que ocurra inestabilidad y fallas
+del sistema. Si dos máquinas virtuales tienen la misma ID de máquina D-Bus, siga el
+procedimiento a continuación para generar una nueva:
+```sh
+sudo rm -f /etc/machine-id
+sudo dbus-uuidgen --ensure=/etc/machine-id
+```
+En el caso de que `/var/lib/dbus/machine-id` no sea un enlace simbólico a
+`/etc/machine-id`, entonces sería necesario eliminar `/var/lib/dbus/machine-id`.
+
+#### Implementación de máquinas virtuales en la nube
+Hay una multitud de proveedores de IaaS (*Infrastucture as a service*) disponibles que
+ejecutan sistemas de hipervisor y que pueden implementar imágenes virtuales de
+invitados para una organización. Prácticamente todos estos proveedores cuentan con
+herramientas que permiten a un administrador contruir, implementar y configurar
+máquinas virtuales personalizadas basadas en una variedad de distribuciones de Linux.
+Muchas de estas compañias también tienen sistemas que permiten el desliegue y las
+migraciones de máquinas virtuales creadas desde la organización de un cliente.
+
+Al evaluar la implementación de un sistema linux en un entorno IaaS, hay algunos
+elementos claves que un administrador debe tener en cuenta:
+
+**Instancias de computación**: muchos proveedores de la nube cobrarán tasas de uso
+basadas en "instancias de computación", o cuánto tiempo de CPU utilizará su
+infraestructura basada en la nube. Una planificación cuidadosa de cuánto tiempo de
+procesamiento requerirán realmente las aplicaciones ayudará a mantener manejables los
+costos de una solución en la nube.
+
+Las instancias de computación a menudo también se refieren a la cantidad de máquinas
+virtuales que se aprovisionan en un entorno en la nube. Una vez más, la mayor
+cantidad de instancias de sistemas que se ejecutan a la vez también influirá en la
+cantidad de tiempo total de CPU que se le cobrará a una organización.
+
+**Bloque de almacenamiento**: los proveedores en la nube también tienen varios niveles
+de almacenamiento en bloque disponibles para que una organización los use. Algunas
+ofertas están destinadas simplemente a ser un almacenamiento de red basado en la web
+para archivos, y otras ofertas se relacionan con el almacenamiento externo  para una
+máquina virtual aprovisionada en la nube para usar y alojar archivos.
+
+EL costo de tales ofertas variará segúna la cantidad de almacenamiento utilizado y la
+velocidad del almacenamiento dentro de los centros de datos del proveedor. El acceso
+al almacenamiento már rápido generalmente costará más y, por el contrario, los datos
+"en reposo" a menudo son muy económicos.
+
+**Redes**: uno de los componentes principales para trabajar con un proveedor de
+soluciones en la nube es cómo se configurará la red virtual. Muchos proveedores de
+soluciones IasS tendrán alguna forma de utilidades basadas en la web que puedan
+utilizarse para el diseño e implementación de diferentes rutas de red, subredes y
+configuraciones de firewall. Algunos incluso proporcionarán soluciones de DNS para
+que se puedan asignar FQDN de acceso público (nombres de dominio completo) a sus
+sistemas orientados a Internet. Incluso hay soluciones "híbridas" disponibles que
+pueden conectarse de una infraestructura de red existente en las instalaciones de la
+empresa a una infraestructura basada en la nube a través de una VPN, uniendo las dos
+infraestructuras.
+
+#### Acceso seguro a los invitados (guest) en la nube
+El método más frecuente para acceder a un invitado virtual remoto en una plataforma
+en la nube es mediante el uso del software OpenSSH. Un sistema Linux que reside en
+la nube tendría el servidor OpenSSH ejecutándose, mientras que un administrador usaría
+un cliente OpenSSH con claves precompartidas para acceso remoto.
+
+Un administrador ejecutaría el siguiente comando:
+```sh
+ssh-keygen
+# or
+ssh-keygen -t rsa -b 4096 -C "comentario" -f ~/.ssh/name_key
+```
+Y seguiría las instrucciones para crear un par de claves SSH públicas y privadas. La
+clave privada permanece en el sistema local del administrador (almacenado en
+`~/.ssh/`) y la clave pública se copia en el sistema remoto de la nube.
+
+El administrador ejecutaría el siguiente comando:
+
+    ssh-copy-id -i ~/.ssh/pubkey user@ip
+
+Esto copiará la clave SSH pública del par de claves recién generadas en el servidor
+remoto de la nube. La clave pública se registrará en el archivo `~/.ssh/authorized_keys`
+del servidor de la nube y establecerá los permisos apropiados en el archivo.
+
+Algunos proveedores de la nube generarán automáticamente un par de claves cuando se
+aprovisione un nuevo sistema Linux. El administrador deberá descargar la clave
+privada para el nuevo sistema desde el proveedor de la nube y almacenarla en su
+sistema local. Tenga en cuenta que los permisos para las claves SSH deben ser `0600`
+para una clave privada y `0644` para una clave pública.
+
+#### Preconfigurar un sistema en la nube
+Una herramienta útil que simplifica los desliegues de máquinas virtuales basadas en
+la nube es la utilidad `cloud-init`. Este comando, junto con los archivos de
+configuración asociados y la imagen de máquina virtual predefinida, es un método
+independiente del proveedor para implementar un invitado Linux en una gran cantidad
+de proveedores IaaS. Utilizando achivos de texto plano YAML 
+(*YAML Ain't Markup Language*), un administrador puede preconfigurar configuraciones de
+red, selecciones de paquetes de software, configuración de claves SSH, creación de
+cuentas de usuario, configuraciones regionales, junto con una miríada de otras
+opciones para construir rápidamente nuevos sistemas.
+
+Durante el arranque inicial de un nuevo sistema, `cloud-init` leerá la configuración de
+los archivos YAML y los aplicará. Este proceso solo necesita aplicarse a la
+configuración inicial de un sistema y facilita la implementación de una flota de
+nuevos sistemas en la plataforma de un proveedor en la nube.
+
+La sintaxis del archivo YAML utilizada con `cloud-init` se llama *cloud-config*. Archivo
+de ejemplo `cloud-config`:
+```yaml
+#cloud-config
+timezone: Africa/Dar_es_Salaam
+hostname: test-system
+# Update the system when it first boots up
+apt_update: true
+apt_upgrade: true
+# Install the Nginx web server
+packages:
+- nginx
+```
+Tenga en cuenta que la línea superior no hay espacio entre el símbolo hash (`#`) y el
+término `cloud-confi`.
+
+#### Contenedores
+La tecnologías de contenedores es similar en algunos aspectos a una máquina virtual,
+donde se obtiene un entorno aislado para implementar fácilmente una aplicación.
+Mientras que con una máquina virtual se emula una computadora completa, un contendor
+el software suficiente para ejecutar una aplicación. De esta manera, hay mucho menos
+gastos generales.
+
+Los contenedores permiten una mayor flexibilidad sobre la de una máquina virtual. Un
+contenedor de aplicaciones se puede migrar de un host a otro, al igual que una máquina
+virtual se puede migrar de un hipervisor a otro. Sin embargo, a veces una máquina
+virtual necesitará apagarse antes de que pueda migrarse, mientras que con un
+contenedor la aplicación siempre se está ejecutando mientras se migra. Los contenedores
+también facilitan la implementación de nuevas versiones de aplicaciones en conjunto
+con una versión existente. A medida que los usuarios cierran sus sesiones con
+contenedores en ejecución, el software de orquestación de contenedores puede eliminar
+automáticamente estos contenedores del sistema y reemplazarlos con la nueva versión,
+lo que reduce el tiempo de inactividad.
+
+Los controladores utilizan el mecanismo *control groups* (mejor conocido como cgroups)
+dentro del kernel de Linux. El cgroup es una forma de particionar los recursos del
+sistema, como la memoria, el tiempo de procesador y el ancho de banda del disco y
+la red para una aplicación individual. Un administrador puede usar cgroup directamente
+para establecer límites de recursos del sistema en una aplicación, o un grupo de
+aplicaciones que podrían existir dentro de un solo cgroup. En escencia, esto es lo que
+hace el software de contenedor para el administrador, además de proporcionar
+herramientas que facilitan la administración y la implementación de cgroups.
+
+## Comandos GNU y UNIX
+pg 184
