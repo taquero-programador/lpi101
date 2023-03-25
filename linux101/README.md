@@ -1159,7 +1159,7 @@ Tradicionalmente `/mnt` era el directorio en el que se montaban todos los dispos
 externos y una cantidad de puntos de anclaje preconfigurados para dispositivos
 comunes, como unidades de CD-ROM (`/mnt/cdrmo`) y disquetes (`/mnt/floppy`).
 
-Esto ha sido reemplzado por `/media`, que ahora es el punto de montaje predeterminado
+Esto ha sido reemplazado por `/media`, que ahora es el punto de montaje predeterminado
 para cualquier medio extraíble por el usuario (por ejemplo, discos externos, unidades
 flash USB, lectores de tarjetas de memoria, discos ópticos, etc.) conectados al
 sistema.
@@ -2694,7 +2694,7 @@ bifurcaricación de `yum`. Como tal, muchos de los comandos y parámetros son si
 # buscar paquetes
 dnf search PATTERN
 # obtener información de un paquete
-dnf infro PACKAGENAME
+dnf info PACKAGENAME
 # instalar un paquete
 dnf install PACKAGENAME
 # eliminar un paquete
@@ -2913,7 +2913,7 @@ or other application using the libvirt API.
 Esta definición incluye una red privada de Clase C y un dispositivo de hardware
 emulado para actuar como enrutador para esta red. También hay un rango de direcciones
 IP para que el hipervisor las use con una implementación de servidor DHCP que puede
-asignarse a las máquinaas virtuales que usan esta red. Esta configuración de red
+asignarse a las máquinas virtuales que usan esta red. Esta configuración de red
 también utiliza la traducción de direcciones de red (NAT) para reenviar paquetes a
 otras redes, como a la LAN del hipervisor.
 
@@ -3128,5 +3128,188 @@ administración de volumen lógico (LVM) para aumentar o reducir el tamaño de
 almacenamiento en disco de una máquina virtual según sea necesario, y para la creación
 y administración de instantáneas de almacenamiento.
 
-#### Trabajar con plantillas de máquinas virtuales
-pg 173
+#### Trabajando con plantillas de máquinas virtuales
+Dado que las máquinas virtuales generalmente son solo archivos que se ejecutan en un
+hipervisor, es fácil crear plantillas que se puedan personalizar para escenarios de
+implementación particulares. A menudo, una máquina virtual tendrá una instalación
+básica del sistema operativo y algunos ajustes de configuración de autenticación
+preconfigurdos para facilitar futuros lanzamientos del sistema. Esto reduce la cantidad
+de tiempo que lleva contruir un nuevo sistema al reducir la cantidad de trabajo que a
+menudo se repite, como la instalación de paquetes base y la configuración regional.
+
+Esta plantilla de máquina virtual podría copiarse luego a un nuevo sistema invitado
+(guest). En este caso, se cambiaría el nombre del nuevo invitado, se generaría una
+nueva dirección MAC para su interfaz de red y se podría realizar otras modificaciones
+dependiendo de su uso previsto.
+
+#### El D-Bus Machine ID
+Muchas instalaciones de Linux utilizarán un númerro de identifiación de máquina
+generado en el momento de la instalación, llamado *D-Bus Machine ID*. Sin embargo, si
+una máquina virtual se clona para ser utilizada como plantilla para otras instalaciones
+de máquinas virtuales, se necesitaría crear una nueva ID de máquina D-Bus para
+garantizar que los recuros del sistema del hipervisor se dirijan al sitema invitado
+apropoiadamente.
+
+El siguiente comando se puede usar para validar que existe una ID de máquina D-Bus
+para el sistema en ejecución:
+
+    dbus-uuidgen --ensure
+
+Si no se encuentran mensajes de error, existe un ID para el sistema. Para ver la ID
+actual de la máquina D-Bus, ejecute lo siguiente:
+```sh
+dbus-uuidgen --get
+17f2e0698e844e31b12ccd3f9aa4d94a
+```
+La cadena de texto que se muestra es el número de identificación actual. No hay dos
+sistemas Linux que se ejecuten en un hipervisor que tengan la misma ID de máquina
+D-Bus.
+
+La ID de la máquina se encuentra en `/var/lib/dbus/machine-id` y está simbólicamente
+vinculado a `/etc/machine-id`. Se desaconseja cambiar este número de identificación
+en un sistema en ejecución, ya que es probable que ocurra inestabilidad y fallas
+del sistema. Si dos máquinas virtuales tienen la misma ID de máquina D-Bus, siga el
+procedimiento a continuación para generar una nueva:
+```sh
+sudo rm -f /etc/machine-id
+sudo dbus-uuidgen --ensure=/etc/machine-id
+```
+En el caso de que `/var/lib/dbus/machine-id` no sea un enlace simbólico a
+`/etc/machine-id`, entonces sería necesario eliminar `/var/lib/dbus/machine-id`.
+
+#### Implementación de máquinas virtuales en la nube
+Hay una multitud de proveedores de IaaS (*Infrastucture as a service*) disponibles que
+ejecutan sistemas de hipervisor y que pueden implementar imágenes virtuales de
+invitados para una organización. Prácticamente todos estos proveedores cuentan con
+herramientas que permiten a un administrador contruir, implementar y configurar
+máquinas virtuales personalizadas basadas en una variedad de distribuciones de Linux.
+Muchas de estas compañias también tienen sistemas que permiten el desliegue y las
+migraciones de máquinas virtuales creadas desde la organización de un cliente.
+
+Al evaluar la implementación de un sistema linux en un entorno IaaS, hay algunos
+elementos claves que un administrador debe tener en cuenta:
+
+**Instancias de computación**: muchos proveedores de la nube cobrarán tasas de uso
+basadas en "instancias de computación", o cuánto tiempo de CPU utilizará su
+infraestructura basada en la nube. Una planificación cuidadosa de cuánto tiempo de
+procesamiento requerirán realmente las aplicaciones ayudará a mantener manejables los
+costos de una solución en la nube.
+
+Las instancias de computación a menudo también se refieren a la cantidad de máquinas
+virtuales que se aprovisionan en un entorno en la nube. Una vez más, la mayor
+cantidad de instancias de sistemas que se ejecutan a la vez también influirá en la
+cantidad de tiempo total de CPU que se le cobrará a una organización.
+
+**Bloque de almacenamiento**: los proveedores en la nube también tienen varios niveles
+de almacenamiento en bloque disponibles para que una organización los use. Algunas
+ofertas están destinadas simplemente a ser un almacenamiento de red basado en la web
+para archivos, y otras ofertas se relacionan con el almacenamiento externo  para una
+máquina virtual aprovisionada en la nube para usar y alojar archivos.
+
+EL costo de tales ofertas variará segúna la cantidad de almacenamiento utilizado y la
+velocidad del almacenamiento dentro de los centros de datos del proveedor. El acceso
+al almacenamiento már rápido generalmente costará más y, por el contrario, los datos
+"en reposo" a menudo son muy económicos.
+
+**Redes**: uno de los componentes principales para trabajar con un proveedor de
+soluciones en la nube es cómo se configurará la red virtual. Muchos proveedores de
+soluciones IasS tendrán alguna forma de utilidades basadas en la web que puedan
+utilizarse para el diseño e implementación de diferentes rutas de red, subredes y
+configuraciones de firewall. Algunos incluso proporcionarán soluciones de DNS para
+que se puedan asignar FQDN de acceso público (nombres de dominio completo) a sus
+sistemas orientados a Internet. Incluso hay soluciones "híbridas" disponibles que
+pueden conectarse de una infraestructura de red existente en las instalaciones de la
+empresa a una infraestructura basada en la nube a través de una VPN, uniendo las dos
+infraestructuras.
+
+#### Acceso seguro a los invitados (guest) en la nube
+El método más frecuente para acceder a un invitado virtual remoto en una plataforma
+en la nube es mediante el uso del software OpenSSH. Un sistema Linux que reside en
+la nube tendría el servidor OpenSSH ejecutándose, mientras que un administrador usaría
+un cliente OpenSSH con claves precompartidas para acceso remoto.
+
+Un administrador ejecutaría el siguiente comando:
+```sh
+ssh-keygen
+# or
+ssh-keygen -t rsa -b 4096 -C "comentario" -f ~/.ssh/name_key
+```
+Y seguiría las instrucciones para crear un par de claves SSH públicas y privadas. La
+clave privada permanece en el sistema local del administrador (almacenado en
+`~/.ssh/`) y la clave pública se copia en el sistema remoto de la nube.
+
+El administrador ejecutaría el siguiente comando:
+
+    ssh-copy-id -i ~/.ssh/pubkey user@ip
+
+Esto copiará la clave SSH pública del par de claves recién generadas en el servidor
+remoto de la nube. La clave pública se registrará en el archivo `~/.ssh/authorized_keys`
+del servidor de la nube y establecerá los permisos apropiados en el archivo.
+
+Algunos proveedores de la nube generarán automáticamente un par de claves cuando se
+aprovisione un nuevo sistema Linux. El administrador deberá descargar la clave
+privada para el nuevo sistema desde el proveedor de la nube y almacenarla en su
+sistema local. Tenga en cuenta que los permisos para las claves SSH deben ser `0600`
+para una clave privada y `0644` para una clave pública.
+
+#### Preconfigurar un sistema en la nube
+Una herramienta útil que simplifica los desliegues de máquinas virtuales basadas en
+la nube es la utilidad `cloud-init`. Este comando, junto con los archivos de
+configuración asociados y la imagen de máquina virtual predefinida, es un método
+independiente del proveedor para implementar un invitado Linux en una gran cantidad
+de proveedores IaaS. Utilizando achivos de texto plano YAML 
+(*YAML Ain't Markup Language*), un administrador puede preconfigurar configuraciones de
+red, selecciones de paquetes de software, configuración de claves SSH, creación de
+cuentas de usuario, configuraciones regionales, junto con una miríada de otras
+opciones para construir rápidamente nuevos sistemas.
+
+Durante el arranque inicial de un nuevo sistema, `cloud-init` leerá la configuración de
+los archivos YAML y los aplicará. Este proceso solo necesita aplicarse a la
+configuración inicial de un sistema y facilita la implementación de una flota de
+nuevos sistemas en la plataforma de un proveedor en la nube.
+
+La sintaxis del archivo YAML utilizada con `cloud-init` se llama *cloud-config*. Archivo
+de ejemplo `cloud-config`:
+```yaml
+#cloud-config
+timezone: Africa/Dar_es_Salaam
+hostname: test-system
+# Update the system when it first boots up
+apt_update: true
+apt_upgrade: true
+# Install the Nginx web server
+packages:
+- nginx
+```
+Tenga en cuenta que la línea superior no hay espacio entre el símbolo hash (`#`) y el
+término `cloud-confi`.
+
+#### Contenedores
+La tecnologías de contenedores es similar en algunos aspectos a una máquina virtual,
+donde se obtiene un entorno aislado para implementar fácilmente una aplicación.
+Mientras que con una máquina virtual se emula una computadora completa, un contendor
+el software suficiente para ejecutar una aplicación. De esta manera, hay mucho menos
+gastos generales.
+
+Los contenedores permiten una mayor flexibilidad sobre la de una máquina virtual. Un
+contenedor de aplicaciones se puede migrar de un host a otro, al igual que una máquina
+virtual se puede migrar de un hipervisor a otro. Sin embargo, a veces una máquina
+virtual necesitará apagarse antes de que pueda migrarse, mientras que con un
+contenedor la aplicación siempre se está ejecutando mientras se migra. Los contenedores
+también facilitan la implementación de nuevas versiones de aplicaciones en conjunto
+con una versión existente. A medida que los usuarios cierran sus sesiones con
+contenedores en ejecución, el software de orquestación de contenedores puede eliminar
+automáticamente estos contenedores del sistema y reemplazarlos con la nueva versión,
+lo que reduce el tiempo de inactividad.
+
+Los controladores utilizan el mecanismo *control groups* (mejor conocido como cgroups)
+dentro del kernel de Linux. El cgroup es una forma de particionar los recursos del
+sistema, como la memoria, el tiempo de procesador y el ancho de banda del disco y
+la red para una aplicación individual. Un administrador puede usar cgroup directamente
+para establecer límites de recursos del sistema en una aplicación, o un grupo de
+aplicaciones que podrían existir dentro de un solo cgroup. En escencia, esto es lo que
+hace el software de contenedor para el administrador, además de proporcionar
+herramientas que facilitan la administración y la implementación de cgroups.
+
+## Comandos GNU y UNIX
+pg 184
