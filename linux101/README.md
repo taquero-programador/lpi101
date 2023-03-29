@@ -3311,5 +3311,29 @@ aplicaciones que podrían existir dentro de un solo cgroup. En escencia, esto es
 hace el software de contenedor para el administrador, además de proporcionar
 herramientas que facilitan la administración y la implementación de cgroups.
 
-## Comandos GNU y UNIX
-pg 184
+## Uso de secuencias de texto, tuberías y redireccionamiento
+#### Here Document y Here String
+Otra forma de redirigir la entrada involucra los métodos *Here Document* y *Here String*.
+La redirección de documentos Here permite escribir texto de varias líneas que se utilizará
+como contenido redirigido. Dos símbolos menores que `<<` indican una redirección de
+Here Document:
+```sh
+wc -c <<EOF
+> How many characters
+> > in this Here document?
+> > EOF
+> 43
+```
+A la derecha de los dos símbolos menor que `<<` se encuentra el término final `EOF`. El
+modo de inserción finarlizará tan pronto como se ingrese una línea que contenga solo
+el término final. Se puede usar cualquier otro término final, pero es importante no poner
+caracteres en blanco entre el símbolo menor que que y el término final.
+
+El método *Here String* es muy similar al método de *Here Document*, pero solo para una
+línea:
+```sh
+wc -c <<<"How many characters in this Here string?"
+41
+```
+
+#### Crear, matar y supervisar procesos
