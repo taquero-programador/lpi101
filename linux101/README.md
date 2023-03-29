@@ -3336,4 +3336,43 @@ wc -c <<<"How many characters in this Here string?"
 41
 ```
 
-#### Crear, matar y supervisar procesos
+## Crear, matar y supervisar procesos
+Cada vez que invocamos un comandos, se inician uno o más procesos. Un administrador de
+sistemas bien entrenado no solo necesita crear procesos, sino también poder realizar un
+seguimiento de ellos y enviarles diferentes tipos de señales si es necesario.
+
+#### Control de trabajos
+Los trabajos (*jobs*) son procesos que se han iniciado de forma interactiva a través de
+una terminal, enviados a un segundo plano y aún no han finaliazado la ejecución. Puede
+conocer los trabajos activos (y su estado) en un sistema Linux ejecutando `jobs`:
+
+    jobs
+
+El comando `jobs` no produce ningún resultado, lo que significa que no hay trabajos
+activos en este momento. Lanzar `sleep 60` y presionar `Ctrl + z`:
+```sh
+sleep 60
+^Z
+[1]+    Stopped     sleep 60
+```
+La ejecución del comando se ha detenido (o, mejor dicho, suspendido) y el símbolo del
+sistema vuelve a estar disponible. Puede buscar trabajos por segunda vez y encontrará
+el *suspenidido*:
+```sh
+jobs
+[1]  + suspended  sleep 60
+```
+Explicación del resultado:
+- **`[i]`** : este número es el ID del trabajo y se puede utilizar, precedido por un símbolo de porcentaje (`%`), para cambiar el estado del trabajo mediante las utilidades `fg`, `bg`, y `kill`.
+- **`+`** : el signo más indica el trabajo actual predeterminado (es decir, el último suspendido o enviado al segundo plano). El trabajo anterior está marcado por un signo menos (`-`). Cualquier otro trabajo anterior no está marcado.
+- **`Stopped`** : descripción del estado del trabajo
+- **`sleep 60`** : el comando o trabajo en ejecución
+
+Con la opción `-l`, los trabajos también monstrará la ID del proceso (PID) justo antes
+del estodo:
+```sh
+jobs -l
+[1]+ 1114 Stopped sleep 60
+```
+Las opciones posibles restantes de trabajo son:
+pag 310
