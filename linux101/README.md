@@ -3375,4 +3375,380 @@ jobs -l
 [1]+ 1114 Stopped sleep 60
 ```
 Las opciones posibles restantes de trabajo son:
-pag 310
+- **`-a`**: lista solo los procesos que han cambiado de estado desde la última notificación. El estado posible incluye, `Running`, `Stopped`, `Terminated` o `Done`.
+- **`-p`**: lista los IDs deprocesos
+- **`-r`**: lista solo los procesos en ejecución
+- **`-s`**: lista solo los trabajos detenidos (o suspendidos).
+
+#### Especificaciones de trabajo
+El comando `jobs`, así como otras utilidades, como `fg`, `bg` y `kill` necesitan una
+espeficiación de trabajo (`jobspec`) para actuar sobre un trabajo en particular. Como
+acabamos de ver, esto puede ser, y normalmente es, el ID del trabajo precedido por `%`.
+Sin embargo, otras especificaciones de trabajo también son posibles.
+
+- **`%n`**: trabajo cuyo proceso de identificación es `n`:
+```sh
+jobs %1
+[1]+    Stopped     sleep 60
+```
+- **`%str`**: trabajo cuya línea de comando comienza con `str`:
+```sh
+jobs %sl
+[1]+    Stopped     sleep 60
+```
+- **`%?str`**: trabajo cuya línea contiene `str`:
+```sh
+jobs %?le
+[1]+    Stopped     sleep 60
+```
+- **`%+ o %%`**: trabajo actual (el último que se inició en segundo plano o suspendido del primero trabajo):
+```sh
+jobs %+
+[1]+    Stopped     sleep 60
+```
+- **`%-`**: trabajo anterior (el que era `%` + antes del predeterminado, el actual):
+```sh
+jobs %-
+[1]+    Stopped     sleep 60
+```
+
+#### Estado de trabajo: suspensión, primer plano y segundo plano
+Una vez que un trabajo está en segundo plano o ha sido suspendido, podemos hacer
+cualquiera de estas tres cosas:
+1. Llevarlo al primer plano con `fg`:
+```sh
+fg %1
+sleep 60
+```
+`fg` mueve el trabajo especificado al primer plano y lo convierte en el trabajo actual.
+Ahora podemos esperar hasta que termine, detenerlo nuevamente con `Ctrl + Z` o
+terminalo con `Ctrl + C`.
+2. Llevarlo a un segundo plano con `bg`:
+```sh
+bg %1
+[1]+ sleep 60 &
+```
+Una vez en segundo plano, el trabajo se puede volver a poner en primer placon con `fg` o
+matar. Tenga en cuenta que el signo `&` significa que el trabajo se ha enviado a segundo
+plano. De hecho, también puede usar el signo y comenzar un proceso directamente en 
+segundo plano:
+```sh
+sleep 100 &
+[2] 970
+```
+Junto con el ID de trabajo del nuevo trabajo `[2]`, ahora también obtenemos su ID de
+proceso (`970`). ahora ambos trabajos se ejecutan en segundo plano:
+```sh
+jobs
+[1]- Running sleep 60 &
+[2]+ Running sleep 100 &
+```
+Un poco más tarde, el primer trabajo finaliza la ejecución:
+```sh
+jobs
+[1]- Running sleep 60 &
+[2]+ Running sleep 100 &
+```
+Un poco más tarde, el primer trabajo finaliza la ejecución:
+```sh
+jobs
+[1]- Done sleep 60
+[2]+ Running sleep 100 &
+```
+3. Termine con una seña `SIGTERM` con `kill`:
+```sh
+kill %2
+```
+Para asegurarse de que el trabajo ha finalizado, ejecute `jobs` nuevamente:
+```sh
+jobs
+[2]+    Terminated      sleep 100
+```
+
+#### Trabajos separados: `nohup`
+Los trabajos que hemos visto en las secciones anteriores se adjuntan a la sesión del
+usuario que los invocó. Eso significa que si la sesión se termina, los trabajos
+desaparecen. Sin embargo, es posible separar los trabajos se las sesiones y hacer
+que se ejecuten incluso después de cerrar la sesión. Esto se logran con el comando
+`nohup`. La sintaxis es la siguiente:
+
+    nohup COMMAND &
+
+Separemos el trabajo en segundo plano `ping localhost` de la sesión actual:
+```sh
+nohup ping localhost &
+[1] 1251
+$ nohup: ignoring input and appending output to 'nohup.out'
+^C
+```
+La salida muestra la ID de trabajo `[1]` y el pid (`1251`), seguido de un mensaje que
+nos informa sobre el archivo `nohup.out`. Este es el archivo predeterminado donde se
+guarda `stdout` y `stderr`. Ahora podemos presesionar `Ctrl + C` para liberar el símbolo
+del sistema, cerrar la sesión, iniciar otro como `root` y usar `tail -f` para verificar
+si el comando se está ejecutando y la salida se está escribiendo en el archivo
+predeterminado:
+```sh
+exit
+logout
+$ tail -f /home/carol/nohup.out
+64 bytes from localhost (::1): icmp_seq=3 ttl=64 time=0.070 ms
+64 bytes from localhost (::1): icmp_seq=4 ttl=64 time=0.068 ms
+64 bytes from localhost (::1): icmp_seq=5 ttl=64 time=0.070 ms
+^C
+```
+>Se puede seleccionar cualquier ubicación para el archivo `nohup.out`
+Si queremos matar el proceso, debemos especificar su PID:
+
+    kill 1251
+
+#### Monitorear procesos
+Un proceso o tarea es una instancia de un programa en ejecución. Por lo tanto, se crean
+nuevos procesos cada vez que escribe comandos en la terminal.
+
+El comando `watch` ejecuta un comando periódicamente (2 segundo por defecto) y nos
+permite mirar el cambio de salida del programa con el tiempo. Por ejemplo, podemos
+monitorear cómo cambia el promedio de carga a medida que se ejecutan más procesos
+escribiendo `watch uptime`:
+```sh
+Every
+2.0s: uptime    debian: Tue Aug 20 23:31:27 2019
+23:31:27 up 21 min, 1 user, load average: 0.00, 0.00, 0.00
+```
+El comando se ejecuta hasta que se interrumpe, por lo que deberíamos detenerlo con
+`Ctrl + C`. Obtenemos dos líneas como salida: la primera corresponde a `watch` y nos
+dice con qué frecuencia se ejecutará el comando (`Every 2.0s: uptime`), qué
+comando/programa mirar (`uptime`) así como el comando nombre del host y fecha
+(`debian: mar 20 de agosto 23:31:27 2019`). La segunda línea es el tiempo de actividad
+e incluye la hora (`23:31:27`), cuánto tiempo ha estado activo el sistema (`up 21 min`),
+el número de usuarios activos (`1 usuario`) y carga promedio del sistema o número de
+procesos en ejecución o estado en espera durante los últimos 1, 5 y 15 minutos
+(`promedio de carga: 0.00, 0.00, 0.00`).
+
+Del mismo modo, puede verificar el uso de memoria a medida que se crean nuevos procesos
+con `watch free`:
+```sh
+Every
+2.0s: free
+debian: Tue Aug 20 23:43:37 2019
+23:43:37 up 24 min,
+1 user,
+load average: 0.00, 0.00, 0.00
+total used free shared buff/cache available
+Mem: 16274868 493984 14729396 35064 1051488 15462040
+Swap: 16777212 0 16777212
+```
+Para cambiar el intercambio de actualización para `watch` use la opción `-n` o
+`--interval` más el número de segundos como en:
+
+    watch -n 5 free
+
+Ahora el comando `free` se ejecutará cada 5 segundos.
+
+#### Envío de señales a procesos: `kill`
+Cada proceso tiene un identificador de proceso único o PID. Una forma de averiguar el
+PID de un proceso es mediante el comndoo `pgrep` seguido del nombre del proceso:
+```sh
+pgrep sleep
+1201
+```
+Similar a `pgrep`, el commando `pkill` mata un proceso basado en su nombre:
+```sh
+pkill sleep
+[1]+    Terminated      sleep 60
+```
+Para matar varias instancias del mismo proceso, se puede usar el comando `killall`:
+```sh
+$ sleep 60 &
+[1] 1246
+$ sleep 70 &
+[2] 1247
+$ killall sleep
+[1]- Terminated sleep 60
+[2]+ Terminated sleep 70
+```
+Tanto `pkill` como `killall` funcionan de la misma manera que `kill` en que envía una
+señal de terminación a procesos especificados. Si no se proporciona una señal, se
+envía el valor predeterminado de `SIGTERM`. Sin embargo, `kill` solo toma un trabajo o
+un ID de proceso como argumento.
+
+Las señales se pueden especificar por:
+- **Nombre**:
+```sh
+kill -SIGHUP 1247
+```
+- **Número**:
+```sh
+kill -1 1247
+```
+- **Opciones**:
+```sh
+kill -s SIGHUP 1247
+```
+Para que `kill` funcione de manera similar a `pkill` o `killall` podemos usar la
+sustitución de comandos:
+
+    kill -1 $(pgrep sleep)
+
+#### `top` y `ps`
+Cuando se trata de monitoreo de procesos, dos herramientas invaluables son `top` y `ps`.
+Mientras que el primero produce resultados dinámicamente, el segundo lo hace
+estáticamente. En caulquier caso, ambos son excelente utilidades para tener una visión
+integral de todos los procesos en el sistema.
+
+#### Interactuando con `top`
+
+    top
+
+`top` le permite al usuario cierta interacción. Por defecto, la salida se ordena por
+porcentaje de tiempo de CPU utilizado por cada proceso en orden descendente. Este
+comportamiento puede modificarse presionando las siguiente teclas desde `top`:
+- **`M`**: ordena por el uso de memoria
+- **`N`**: ordena por número de ID
+- **`T`**: ordena por el tiempo de ejecución
+- **`P`**: ordena por porcentaje de uso de CPU
+
+Otras teclas interesantes para interactuar con `top` son:
+- **`? o h`**: ayuda
+- **`k`**: mata un proceso. `top` solicitará que se elimine el `PID` del proceso y que se envíe la señal (por defecto, `SIGTERM` o `15`).
+- **`r`**: cambiar la prioridad de un proceso (`renice`). `top` le pedirá el valor `nice`. los valores posibles oscilan entre -20 y 19, pero solo el superusuario puede establecerlo en un valor negativo o inferior al actual.
+- **`u`**: lista de procesos de un usuario en particular (de forma predeterminada se muestran los procesos de todos los usuarios).
+- **`c`**: muestras las rutas absolutas de los programas y diferencia entre procesos de espacio de usuario y procesos de espacio de kernel (entre corchetes).
+- **`V`**: vista de bosque/jerarquía de procesos
+- **`t y m`**: guardar ajustes de configuración en `~/.toprc`.
+
+#### Una explicación de la salida `top`
+La salida `top` se divide en dos áreas: el área resumen y el área de tareas.
+
+#### El área de resumen den `top`
+El área de resumen se compone de cinco filas superiores y nos proporciona la siguiente
+información:
+- `top - 11:10:29 up 2:21, 1 user, load average: 0,11, 0,20, 0,14`
+    - Hora actual (formato 24 horas): `11:20:29`
+    - Tiempo de actividad (cantidad de tiempo que el equipo ha estado activo y funcionando): `up 2:21`.
+    - Número de usuarios conectados y promedio de carga de la CPU durante los últimos 1, 5 y 15 minutos, respectivamente: `load average: 0,11, 0,20, 0,14`.
+- `Tasks: 73 total, 1 running, 72 sleeping, 0 stoppped, 0 zombie` (información sobre procesos).
+    - Número total de procesos de modo activo: `73 total`.
+    - Ejecutándose (los ejecutados en el momento): `1 running`.
+    - Durmiendo (aquellos que esperan reanudar la ejecución): `72 sleeping`.
+    - Detenido (por una seña de control de trabajo): `0 stoppped`.
+    - Zombie (aquellos que han completado la ejecución, pero todavía están esperando que su proceso padre los elimine de la tabla de procesos): `0 zombie`.
+- `%Cpu(s): 0,0 us, 0,3 sy, 0,0 ni, 99,7 id, 0,0 wa, 0,0 hi, 0,0 si, 0,0 st` (porcentaje de tiempo de CPU empleado).
+    - Procesos de usuario: `0,0 us`
+    - Procesos de sistema/kernel: `0,4 sy`
+    - Procesos establecidos en un valor *nice*, cuanto mejor sea el valor, menor será la prioridad: `0,0 ni`.
+    - Nada - tiempo de inactividad de la CPU: `99,7 id`
+    - Procesos en espera de operaciones de E/S: `0,0 wa`
+    - Procesos que sirven interrupciones de hardware, periféricos que envían las señales del procesador que requieren atención: `0,0 hi`.
+    - Procesos que sirven interrupciones de software: `0,0 si`
+    - Los procesos que sirven las tareas de otras máquians virtuales en un entorno virtual, por lo tanto, roban tiempo: `0,0 st`.
+- `KiB Mem : 1020332 total, 909492 free, 38796 used, 72044 buff/cache` (información de memoria en kilobytes).
+    - Monto total de memoria: `1020332 total`
+    - Memoria sin utilizar: `909492 free`
+    - Memoria en usi: `38796 used`
+    - La memoria intermedia (buffer) y almacenada en caché para evitar el acceso excesivo al disco: `72044 buff/cache`.
+- `KiB Swap: 1046524 total, 1046524 free, 0 used, 873264 avail mem` (información memoria swap en kilobytes).
+    - La cantidad total de espacio de swap: `1046524 total`
+    - Espacio swap no utilizado: `1046524 free`
+    - Espacio en uso de swap: `0 used`
+    - La cantidad de memoria de intercambio que se puede asignar a los procesos sin causar más intercambio: `873264 avail mem`.
+
+#### El área de tareas en `top`: campos y columnas
+Debajo del área de resumen, aparece el área de tareas, que incluye una serie de campos
+y columnas de información sobre los procesos en ejecución:
+- **`PID`**: identificación de proceso
+- **`USER`**: usuario que emitió el comando que generó el proceso
+- **`PR`**: prioridad del proceso en el kernel
+- **`NI`**: valor nice del proceso. Los valores más bajos tienen mayor prioridad que los más altos.
+- **`VIRT`**: Cantidad total de memoria utilizada por el proceso (incluido la swap).
+- **`RES`**: memoria RAM utilizada por el proceso
+- **`SHR`**: memoria compartida del proceso con otros procesos
+- **`S`**: estado del proceso. Los valores incluyen: `S` (suspensión interrumpible - esperando que termine un evento), `R` (ejecutable - ya sea una ejecución o en la cola que se ejecutará) o `Z` (procesos secundarios terminados en zombies cuyas estructuras de datos aún no se han eliminado de la tabla de procesos).
+- **`%CPU`**: porcentaje del CPU utilizado por el proceso
+- **`%MEM`**: porcentaje de RAM utilizada por el proceso, es decir, el valor `RES` expresado como porcentaje.
+- **`TIME+`**: tiempo total de actividad del proceso
+- **`COMMAND`**: nombre del comando/programa que generó el proceso
+
+#### Visualización de procesos estáticos: `ps`
+Como se dijo anteriormente, `ps` muestra una instantánea de los procesos. Para ver todos
+los procesos con una terminal `tty`, escriba `ps a`:
+```sh
+ps a
+PID TTY STAT TIME COMMAND
+386 tty1 Ss+ 0:00 /sbin/agetty --noclear tty1 linux
+424 tty7 Ssl+ 0:00 /usr/lib/xorg/Xorg :0 -seat seat0 (...)
+655 pts/0 Ss 0:00 -bash
+1186 pts/0 R+ 0:00 ps a
+(...)
+```
+
+#### Explicación de la sintaxis y salida de la opción `ps`
+Con respecto a las opciones, `ps` puede aceptar tres estilos diferentes: BSD, UNIX y GNU.
+
+**BSD**: las opciones no siguen ningún guión inicial:
+```sh
+ps p 811
+PID TTY STAT TIME COMMAND
+811 pts/0 S 0:00 -su
+```
+
+**UNIX**: las opciones siguen un gión inicial:
+```sh
+ps -p 811
+PID TTY TIME CMD
+811 pts/0   00:00:00 bash
+```
+
+**GNU**: las opciones van seguidas de guiones dobles iniciales:
+```sh
+ps --pid 811
+PID TTY TIME CMD
+811 pts/0 00:00:00 bash
+```
+En los tres casos, `ps` informa sobre el proceso cuyo `PID` es `811`, en este caso `bash`.
+
+Del mismo modo, puede usar `ps` para buscar los procesos iniciados por un usuario en
+particular:
+- `ps U carol` (BSD)
+- `ps -u carol` (UNIX)
+- `ps --user carol` (GNU)
+
+Ver los procesos iniciados por `carol`:
+```sh
+ps U carol
+PID TTY STAT TIME COMMAND
+811 pts/0 S 0:00 -su
+898 pts/0 R+ 0:00 ps U carol
+```
+Podemos obtener lo mejor de `ps` combinando algunas de sus opciones. Un comando muy útil
+(que produce una salida similar a la de `top`) es `ps aux` (estilo BSD). En este caso, se
+muestran los procesos de todos los shells (no solo el actual). El significado de los
+interruptores es el siguiente:
+- **`a`**: mostrara procesos que están conectados a una `tty` o terminal.
+- **`u`**: mostrara formasto orientado al usuario
+- **`x`**: mostrara procesos que no están conetados a una `tty` o terminal.
+
+```sh
+ps aux
+USER    PID %CPU %MEM   VSZ RSS TTY     STAT START  TIME COMMAND
+root    1   0.0  0.1  204504 6780 ?     Ss 14:04 0:00 /sbin/init
+root    2   0.0  0.0    0   0     ?     S  14:04 0:00 [kthreadd]
+root    3   0.0  0.0    0   0     ?     S  14:04 0:00 [ksoftirqd/0]
+root    5   0.0  0.0    0   0     ?     S< 14:04 0:00 [kworker/0:0H]
+root    7   0.0  0.0    0   0     ?     S  14:04 0:00 [rcu_sched]
+root    8   0.0  0.0    0   0     ?     S   14:04 0:00 [rcu_bh]
+root    9   0.0  0.0    0   0     ?     S 14:04 0:00 [migration/0]
+```
+
+- **`USER`**: dueño del proceso
+- **`PID`**: identificador del proceso
+- **`%CPU`**: porcentaje de CPU utilizado
+- **`%MEM`**: porcentaje de memoria física utilizado
+- **`VZS`**: memoria virtual de procesos en KiB
+- **`RSS`**: memoria física no intercambiada utilizada por el proceso en KiB
+- **`TT`**: terminal (`tty`) que controla el proceso
+- **`STAT`**: código que representa el estado del proceso. Además de `S`, `R` y `Z`, otros valores posibles incluyen: `D` ( suspensión ininterrumpida, generalmente esperando E/S), `T` (detenido, normalmente por una señal de control). Algunos modificadores adicionales incluyen: `<` (alta prioridad, no agradable por otros procesos), `N` (baja prioridad, agradable para otros procesos) o `+` (en el grupo de procesos en primer plano).
+- **`STARTED`**: hora a la que comenzó el proceso
+- **`TIME`**: tiempo de CPU acumulado
+- **`COMMAND`**: comando que inició el proceso
+
+pg339
