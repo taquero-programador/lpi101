@@ -3423,6 +3423,7 @@ sleep 60
 `fg` mueve el trabajo especificado al primer plano y lo convierte en el trabajo actual.
 Ahora podemos esperar hasta que termine, detenerlo nuevamente con `Ctrl + Z` o
 terminalo con `Ctrl + C`.
+
 2. Llevarlo a un segundo plano con `bg`:
 ```sh
 bg %1
