@@ -3913,3 +3913,176 @@ Opciones importantes para volver a adjuntar la sesión:
 GNU Screen presenta un modo de copia o *scrollback*. Una vez ingresado, puede moverse el
 cursor en la ventana actual y por el contenido de su historial usando las teclas de
 flechas. Puede marcar texto y copiarlo en ventanas. Los pasos a seguir son:
+1. Ingresar al modo copia/scrollback: `Ctrl + a[`.
+
+2. Vaya al principio del texto que desea copiar usando las teclas de flecha.
+
+3. Marque el comienzo del fragmento de texto que desea copiar: Espacio.
+
+4. Vaya al final del fragmento de texto que desea copiar usando las teclas de flecha.
+
+5. Marque el final del fragmento de texto que desea cpiar: Espacio.
+
+6. Vaya a la ventana de su selección y pegue el fragmento de texto: `Ctrl + a-]`.
+
+#### Personalización de Screen
+El archivo de configuración de todo el sistema para screen es `/etc/screenrc`.
+Alternativamente, se puede usar un `~/.screenrc` a nivel de usuario. El archivo incluye
+cuatro secciones principales de configuración:
+
+**`SCREEN SETTINGS`**: puede definir la configuración general especificando la directiva
+seguida de un espacio y el valor como en `defscrollback 1024`.
+
+**`SCREEN KEYBINGINGS`**: esta sección es bastante interesante ya que permite redefinir
+combinaciones de teclas que quizás interfieran con su uso diarior del terminal. Utilice
+la palabra clave `bind` seguida de un espaco, el carácter que se utilizará después del
+prefijo del comando, otro espacio y el comando en: `bind l kill` (este configuración
+cambiará la forma predeterminada de matar una ventana a `Ctrl + a-l`).
+
+**`TERMINAL SETTINGS`**: esta sección incluye configuraciones relacionadas con el tamaño
+de la ventana de la terminal y los búferes, entre otros. para habilitar el modo sin
+bloqueo para manejar mejor las conexiones ssh inestables, por ejemplo, se utiliza la
+siguiente configuración: `defnonblock 5`.
+
+**`STARTUP SCREENS`**: puede incluir comandos para que varios programas se ejecuten en
+el inicio de la `pantalla`; por ejemplo: `screen -t top top` (`screen` abrirá una
+ventana llamada `top` con `top` adentro).
+
+#### tmux
+`tmux` fue lanzado en 2007. Aunque es muy similar a `screen`, incluye algunas
+diferencias notables:
+- Modelo cliente-servidor: el servidor suministra una serie de sesiones, cada una de las cuales puede tener varias ventanas vinculadas que, a su vez, pueden ser compartidas por varios clientes.
+- Selección interactiva de sesiones, ventanas y clientes a través de menús.
+- La misma ventana se puede vincular a varias sesiones.
+- Disponibilidad de diseños de teclas vim y Emacs.
+- Soporte para terminales UTF-8 y 256 colores.
+
+#### Ventanas
+`tmux` se puede invocar simplemente escribiendo `tmux` en el símbolo del sistema. Se le
+mostrará un indicador de shell y una barra de estado en la parte inferior de la vetana:
+```sh
+[0] 0:bash*         "debian" 18:53
+27-Aug-19
+```
+Aparte del `hostname`, la hora y la fecha, la barra de estado proporciona la siguiente
+información:
+
+- **`Session name`**: `[0]`
+- **`Window number`**: `0:`
+- **`Window name`**: `bash*`. Por defecto, este es el nombre del programa que se ejecuta dentro de la ventana y, diferencia de `screen`, `tmux` lo actualizará automáticamente para reflejar el programa en ejecución actual. Note el asterisco que indica que esta es la ventana visible actual.
+
+Puede asignar nombre se sesión y ventana al invocar `tmux`:
+
+    tmux new -s LPI - "window zero"
+
+La barra de estado cambiará en consecuencia:
+```sh
+[LPI] 0:Window zero*        "debian" 19:01
+27-Aug-19
+```
+El prefijo de comand de tmux es `Ctrl + b`. Para crear una nueva ventana, simplemente
+escriba `Ctrl + b-c`; se le llevara a un nuevo prompt y la barra de estado replejará
+la nueva ventana.
+
+Como Bash es el shell subyacente, la nueva ventana recibe ese nombre de forma
+predeterminada. Inicie `top` y vea cómo cambia el nombre a `top`.
+
+En cualquier caso, puede cambiar el nombre de una ventan con `Ctrl + b-,`. Cuando le
+solicite, proporcione el nuevo nombre y presione Enter:
+
+    (rename-window) Window one
+
+Puede mostrar todas las ventanas para su selección con `Ctrl + b-w` (use las teclas de
+flechas para moverse hacia arriba y abajo y `enter` para seleccionar).
+
+De manera similar a `screen`, podemos saltar de una ventana a otra con:
+- **`Ctrl + b-n`**: ir a la siguiente ventana
+- **`Ctrl + b-p`**: ir a la ventana anterior
+- **`Ctrl + b-número`**: ir a la ventan número
+
+Para deshacerse de una ventan, use `Ctrl + b-&`. Se le pedirá confirmación.
+
+Otros comandos de ventana interasantes incluyen:
+- **`Ctrl + b-f`**: buscar ventana por nombre
+- **`Ctrl + b-.`**: cambiar el número de indice de la ventana
+
+#### Paneles
+La función de división de ventanas de `screen` también está presente en `tmux`. Sin
+embargo, las divisiones resultantes no se llaman regiones, sino paneles. La diferencia
+más importante entre regiones y paneles es que estos últimos psuedo-terminales
+completas vinculdas a una ventan. Esto significa que matar un panel también matará
+su pseudo-terminal y cualquier programa asociado que se ejecute dentro.
+
+Para dividir una ventana horizontalmente, usamos `Ctrl + b-"`.
+
+Para dividir una ventan verticalmente, usamos `Ctrl + b-%`.
+
+Para destruir el panel actual (junto con su psuedo-terminal que se ejecuta dentro de
+él, junto con cualquier programa asociado), use `Ctr + b-x`. Se le pedirá confirmación
+en la barra de estado.
+
+Comandos de panel importantes:
+- **`Ctrl + b-↑, ↓, ←, →`**: moverse entre paneles
+- **`Ctrl + b-;`**: pasar al último panel activo
+- **`Ctrl + b-Ctrl + arrow key`**: cambiar el tamaño de panel.
+- **`Ctrl + b-Alt + arrow key`**: cambiar el tamaño del panel en cinco líneas.
+- **`Ctrl + b-{`**: intercambiar paneles (actual a anterior).
+- **`Ctrl + b-}`**: intercambiar paneles (actual a siguiente).
+- **`Ctrl + b-z`**: panel de acercar/alejar
+- **`Ctrl + b-t`**: `tmux` muestra un reloj elegante (deténgalo presionando `q`).
+- **`Ctrl + b-!`**: convertir el panel en ventana
+
+#### Sesiones
+Para listar sesiones en `tmux` puede usar `Ctrl + b-s` o usar el comando `tmux ls`.
+
+Solo hay una sesión (`LPI`) que incluye dos ventanas. Creemos una nueva sesión desde
+nuetra sesión actual. Esto se puede lograr usando `Ctrl + b`, teclee `:new` en el
+indicador, luego presione Enter. Se le enviará a la nueva sesión. Por defecto, 
+`tmux` nombró la sesión `2`. Para cambiar el nombre, use `Ctrl + b-$`. Cuando se le
+solicite, ingrese el nuevo nombre y presione Enter.
+
+Puede cambiar de sesión con `Ctrl + b-s` (use la teclas de flechas y `enter`).
+
+Para cerrar una sesión, puede usar el comando `tmux kill-session -t session-name`.
+
+#### Desvincular sesiones
+Al matar a `Second session` estamos fuera de `tmux`. Sin embargo, todavía tenemos una
+sesión activa. Pidale a `tmux` una lista de sesiones y seguramente la encontrara allí:
+
+    tmux ls
+
+Sin embargo, esta sesión está separada de su terminal. Podemos vincularla con
+`tmux a -t session-name`. Cuando solo hay una sesión, la especificación del nombre es
+opcional.
+
+Comandos importantes para vincular/desvincular sesiones:
+- **`Ctrl + b-D`**: seleccione qué cliente Desvincular
+- **`Ctrl + b-r`**: actualizar la terminal del cliente
+
+#### Copiar y pegar: modo Scrollback
+`tmux` también presenta el modo scrollback básicamenete de la misma manera que `screen`.
+La única diferencia en cuanto a los comandos es usar `Ctrl + Espacio` para marcar el
+comienzo de la selección y `Alt + w` para copiar el texto seleccionado.
+
+#### Personalización de tmux
+Los archivos de configuración para `tmux` se encuentran normalmente en `/etc/tmux.con` y
+`~/.tmux.conf`. Cuando se inicia, `tmux` utiliza estos archivos si existen. También
+existe la posibilidad de iniciar `tmux` con el parámetro `-f` para proporcionar un
+archivo de configuración alternativo. Puede encontrar un ejemplo de archivo de
+configuración `tmux` ubicado en `/usr/share/doc/tmux/example_tmux.conf`. El nivel de    personalización que se puede logar es realmente alto. Algunas de las cosas que puede
+hacer incluyen:
+- Cambiar la tecla de prefijo
+```sh
+# Change the prefix key to C-a
+set -g prefix C-a
+unbind C-b
+bind C-a send-prefix
+```
+- Establecer combinaciones de teclas adicionales para ventanas superiores a 9
+```sh
+# Some extra key bindings to select higher numbered windows
+bind F1 selectw -t:10
+bind F2 selectw -t:11
+bind F3 selectw -t:12
+```
+
