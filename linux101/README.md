@@ -3357,7 +3357,7 @@ sleep 60
 ```
 La ejecución del comando se ha detenido (o, mejor dicho, suspendido) y el símbolo del
 sistema vuelve a estar disponible. Puede buscar trabajos por segunda vez y encontrará
-el *suspenidido*:
+el *suspendido*:
 ```sh
 jobs
 [1]  + suspended  sleep 60
@@ -3751,4 +3751,164 @@ root    9   0.0  0.0    0   0     ?     S 14:04 0:00 [migration/0]
 - **`TIME`**: tiempo de CPU acumulado
 - **`COMMAND`**: comando que inició el proceso
 
-pg339
+#### Características de los multiplexores terminales
+En electrónica, un multiplexor (o mux) es un dispositivo que permite contectar
+múltiples entradas a una sola salida. Por lo tanto, un multiplexor terminal no da la
+capacidad de cambiar entre diferentes entradan según sea necesario. Aunque no son
+exactamente lo mismo, `screen` y `tmux` comparten un serie de características comunes:
+- Cualquier invocación exitosa dará como resultado al menos una sesión que, a su vez, incluirá al menos una ventana. Las ventanas contienen ventanas.
+- Las ventanas se pueden dividir en regiones o paneles, lo que ayuda a la productividad cuando se trabaja con varios programas simultáneamente.
+- Facilidad de control: para ajecutar la mayoría de los comandos, utilizan una combinación de teclas, el llamado *comando prefijo* o *comando clave*, seguido de otro carácter.
+- Las sesiones se pueden separar de su terminal actual (es decir, los programas se envían en segundo plano y continúan ejecutándose). Esto garantiza la ejecución completa de los programas sin importar si cerramos accidentalmente un terminal, experimantamos un congelamiento ocasional del terminal o incluso una pérdida de conexión remota.
+- Conexiones de socket
+- Modo de copia
+- Son altamente personalizables
+
+#### GNU Screen
+En los primeros diás de Unix (1970-1980), las computadoras consistían básicamente en
+terminales conectados a una computadora central. Eso fue todo, sin múltiples ventanas
+o pestañas. Y esa fue la razón detrás de la creación de GNU Screen en 1987: emular
+múltiples pantallas VT100 independientes en un solo terminal físico.
+
+#### Ventanas
+La pantalla GNU se invoca simplemente scribiendo `screnn` en la terminal. Primero verá
+un mensaje de bienvenida:
+```sh
+GNU Screen version 4.05.00 (GNU) 10-Dec-16
+Copyright (c) 2010 Juergen Weigert, Sadrul Habib Chowdhury
+Copyright (c) 2008, 2009 Juergen Weigert, Michael Schroeder, Micah Cowan, Sadrul
+Habib Chowdhury
+Copyright (c) 1993-2002, 2003, 2005, 2006, 2007 Juergen Weigert, Michael Schroeder
+Copyright (c) 1987 Oliver Laumann
+(...)
+```
+Presione la barra espaciadora o Enter para cerrar el mensaje y se le mostrará un
+símbolo del sistema:
+
+    $
+
+Puede parecer que no ha pasado nada, pero el hecho es que `screen` ya ha creado y
+gestionado su primera sesión y ventana. El prefijo de comando de la pantalla es
+`Ctrl + a`. Para ver todas la ventanas en la parte inferior de la pantalla de terminal
+escriba `Ctrl + w-a`:
+
+    0*$ bash
+
+¡Ahí está, nuestra única ventana hasta ahora! Sin embargo, tenga en cuenta que el
+conteo inicia en 0. Para crear otra ventana, escriba `Ctrl + a-c`. Verá un mensaje.
+Comencemos con `ps` en esa nueva ventana:
+```sh
+ps
+PID TTY
+TIME CMD
+974 pts/2 00:00:00 bash
+981 pts/2 00:00:00 ps
+```
+y escriba `Ctrl + a` nuevamente:
+
+    0-$ bash 1*$ bash
+
+Ahí tenemos nuestras dos ventanas (observe el asterisco que indica la que se está
+mostrando en este momento). Sin embargo, como comenzamos con bash, ambas reciben el
+mismo nombre. Ya que invocamos `ps` nuestra ventana actual, cambiaremos el nombre con el
+mismo nombre. Para eso, debe escribir `Ctrl + a-A` y escribir el nombre de la nueva
+ventana (`ps`) cuando se le solicite:
+
+    Set window's title to: ps
+
+Ahora, creemos otra ventana pero proporcione un nombre desde el principio:
+`yetanotherwindow`. Esto se hace invocando `screen` con el modificador `-t`:
+
+    screen -t yetanotherwindow
+
+Puede moverse entre ventanas de diferentes formas:
+- Usando `Ctrl + a-n` (ir a la ventana siguiente) y `Ctrl + a-p` (ir a la ventana anterior).
+- Usando `Ctrl + a-número` (vaya a la ventana "número").
+- Usando `Ctrl + a-"` para ver una lista de todas las ventanas. Puede moverse hacia arriba y abajo con las teclas de flecha y seleccione la que desee con Enter.
+
+Para eliminar una ventan, simplemente finalice el programa que se está ejecutando en
+ella (una vez que se elimine la última ventan, `screen` terminará). Alternativamente,
+use `Ctrl + a-k` mientras está en la ventana que desea eliminar; se le pedira
+confirmación:
+```sh
+Really kill this window [y/n]
+Window 0 (bash) killed.
+```
+
+#### Regiones
+`screen` puede dividir la pantalla en un terminal en varias regiones para acomodar las
+ventanas. Estas ventanas pueden ser horizontales (`Ctrl + a-S`) o verticales (`Ctrl +a-I`).
+
+lo único que mostrará la nueva región es simplemente -- en pa parte inferior, lo que
+significa que está vacío.
+
+Para moverse a la nueva región, escriba `Ctrl + a-Tab`. Ahora puede agregar una nueva
+ventana mediante cualquiera de los métodos, por ejemplo: `Ctrl + a-2`. Ahora el --
+debería haberse convertido en `2 yetanotherwindow`:
+
+Los aspectos importantes a tener en cuenta al trabajar con regiones son:
+- Puede moverse entre regiones escribiendo `Ctrl + a-Tab`.
+- Puede terminar todas las regiones excepto la actual con `Ctrl + a-Q`.
+- Puede terminal la región actual con `Ctrl + a-X`.
+- Terminar una región no termina su ventana asociada.
+
+#### Sesiones
+Hasta ahora hemos jugado con alguna ventanas y regiones, pero todas pertenecen a la
+misma y única sesión. Es hora de empezar a jugar con sesiones. Para ver una lista de
+todas las sesiones, teclee `screen -list` o `screen -ls`:
+```sh
+screen -list
+There is a screen on:
+    1037.pts-0.debian       (08/24/19 13:53:35)     (Attached)
+1 Socket in /run/screen/S-carol.
+```
+Esa es nuestra única sesión hasta ahora:
+- **PID**: `1037`
+- **Name**: `pts-0.debian` (indicando el terminal -en nuestro caso un psuedo terminal esclavo -y el nombre del host).
+- **Status**: `Attached`
+
+Creemos una nueva sesión dándole un nombre más descriptivo:
+
+    screen -S "second session"
+
+La patanlla de la terminal se borrará y se le dará un nuevo mensaje. Puede comprobar
+las sesiones una vez más:
+
+    screen -ls
+
+Para cerrar una sesión, salga de todas sus ventanas o simplemente escriba el comando
+`screen -S SESSION-PID -X quit` (también puede proporcionar el nombre de la sesión).
+Deshagámonos de nuestra primera sesión:
+
+    screen -S 1037 -X quit
+
+Se le enviará de nuevo al indicador de su terminal fuera de la `screen`. Pero recuerde, nuestra segunda sesión todavía está viva. Sin embargo, dado que matamos su sesión
+principal, se le asigna una nueva etiqueta: `Detached`.
+
+#### Desvincular sesiones
+Por varias razones, es posible que desee desconectar una sesión de pantalla de su
+terminal:
+- Para permitir que su computadora en el trabajo haga su trabajo y se conecte de forma remota más tarde desde casa.
+- Para compartir una sesión con otros usuarios.
+
+Desconecte una sesión con la combinación de teclas `Ctrl + a-d`. Volverá a su terminal.
+
+Para vincular nuevamente a la sesión, use el comando `screen -r SESSION-PID`.
+Alternativamente, puede usar el `SESSION-NAME`. Si solo hay una sesión desvinculada,    ninguna es obligatoria:
+
+    screen -r
+
+Opciones importantes para volver a adjuntar la sesión:
+- **`-d -r`**: vuelva a conectar una sesión y, si es necesario, desconéctela primero.
+- **`-d -R`**: igual que `-d -r` pero `screen` incluso creará la sesión primero si no existe.
+- **`-d -RR`**: igual que `-d -R`. Sin embargo, utilice la primera sesión si hay más de una disponible.
+- **`-D -r`**: vuelve a conectar una sesión. Si es necesario, desconecte y cierre la sesión de forma remota primero.
+- **`-D -R`**: si está ejecutando una sesión, vuelva a conectarla.
+- **`-D -RR`**: lo mismo que `-D -RR` solo que más fuerte.
+- **`-d -m`**: inicie `screen` en modo independiente. Esto crea una nueva sesión, pero no se vincula a ella. Esto es útil para los scripts de inicio del sistema.
+- **`-D -m`**: igual que `-d -m`, pero no bifurca un nuevo proceso. El comando sale si la sesión termina.
+
+#### Copiar y pegar: modo Scrollback
+GNU Screen presenta un modo de copia o *scrollback*. Una vez ingresado, puede moverse el
+cursor en la ventana actual y por el contenido de su historial usando las teclas de
+flechas. Puede marcar texto y copiarlo en ventanas. Los pasos a seguir son:
