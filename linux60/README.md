@@ -107,14 +107,14 @@ este software es acceder al hardware y hacerlos utilizable. Entre las principale
 ventajas de Linux sobre cualquier software embebido propietario se encuentran, la
 compatibilidad de plataformas entre vendedores, el desarrollo, el soporte y la ausencia
 de cuotas por concepto de licencia. Dos de los proyectos de software embebido más
-populares son Android, que se utiliza principalmente en télefonos móviles a través de
+populares son Android, que se utiliza principalmente en teléfonos móviles a través de
 una variadad de proveedores, y Raspbian que se utiliza principalmente en Raspberry Pi.
 
 #### Android
 Android es un sistema operativo para dispositivos móviles desarrollado principalmente
 por Google. Android Inc. fue fundado en 2003 en Palo Alto, California. La compañia
 principalmente creó un sistema operativo destinado a funcionar en cámaras digitales.
-en 2005, Google andquirió Android Inc. y lo desarrolló para convertise en uno de los
+en 2005, Google adquirió Android Inc. y lo desarrolló para convertise en uno de los
 mayores sistemas operativos para dispositivos móviles.
 
 La base de Android es una versión modificada del kernel de Linux con software adicional
@@ -775,7 +775,7 @@ disponiblidad para cierto hardware), además, la familia de sistemas operativos 
 basa directamente en Unix. Hoy, FreeBSD, NetBSD y OpenBSD junto con otros sistemas BSD
 relacionados, están disponibles como software libre.
 
-Unix se utilizó mucho en las empresas, pero hemos visto una disminuación en la suerte
+Unix se utilizó mucho en las empresas, pero hemos visto una disminución en la suerte
 de Unix con el crecimiento de Linux. A medida que Linux ha crecido y las ofertas de
 soporte también han crecido, hemos visto que Unix comienza a desaparecer lentamente.
 Solaris, originalmente de Sun antes de mudarse a Oracle, ha desaparecido recientemente.
@@ -950,7 +950,7 @@ configuración:
 
     Este enfoque es útil en aquellos casos en que diferentes aplicaciones necesitan
     configuraciones para el mismo servicio específico. Si, por ejemplo, un paquete de
-    servidor web contiene una configuración de logrotate, esta configuracón ahora se
+    servidor web contiene una configuración de logrotate, esta configuración ahora se
     puede colocar en un archivo dedicado en el directorio `logrotate.d`. Este archivo
     puede ser actualizado por el paquete del servidor web sin interferir con la
     configuración de logrotate restante. Del mismo modo, los paquetes pueden agregar
@@ -1099,7 +1099,7 @@ cuando sea necesario.
 **Swap**: también conocido como *swap space*, es la porción de memoria virtual que se
 encuentra en el disco duro y se usa cuando no hay más RAM disponible.
 
-Por otro lado, existe el concepto de memoria virtual, que es una abstracciónd e la
+Por otro lado, existe el concepto de memoria virtual, que es una abstracción de la
 cantidad total de memoria utilizable (RAM y espacio en disco).
 
 `free` analiza `/proc/meminfo` y muestra la cantidad de memoria libre y usada en el
@@ -1801,7 +1801,7 @@ longitud de hash de doce.
 
 ## Crear usuarios y grupos
 Administrar usuarios y grupos en un equipo con Linux es uno de los aspectos clave de
-la administación del sistema. De hecho, Linux es un sistema operativo multiusuario en
+la administración del sistema. De hecho, Linux es un sistema operativo multiusuario en
 el que varios de estos pueden usar la máquina al mismo tiempo.
 
 La información sobre usuarios y grupos se almacena en cuatro archivos dentro del árbol
@@ -2026,7 +2026,7 @@ Cada columna en la salida anterior tiene un significado:
 - La segunda columna indica el número de enlaces duros (hard links) que apuntan a ese archivo. Para un directorio, significa el número de subdirectorios, más un enlace a sí mismo (`.`) y al directorio padre (`..`).
 - La tercera y cuarta columna muestra información de propiedad: el usuario y el grupo que posee el archivo.
 - La quinta columna muestra el tamaño del archivo en bytes.
-- La sexta columna muestra la fecha y la hora precisa, o la marca del tiempo cuando se modificó el archivo por úlitma vez.
+- La sexta columna muestra la fecha y la hora precisa, o la marca del tiempo cuando se modificó el archivo por última vez.
 - La séptima y última columna muestran el nombre del archivo.
 
 #### Directorios
@@ -2146,7 +2146,7 @@ ls -ld Sample_Directory/
 drwxr-xr-t 2 carol carol 4096 Dec 20 18:46 Sample_Directory/
 ```
 En el modo numérico, los permisos especiales se específican usando una "notación de
-4 dígitod", con el primer dígito representando el permiso especial para actuar. Por
+4 dígitos", con el primer dígito representando el permiso especial para actuar. Por
 ejemplo, para establecer el stick bit (valor `1`) para el directorio 
 `Another_Directory` en modo numérico con permisos `755`, el comando sería:
 ```bash
@@ -2329,7 +2329,7 @@ debes definir la ruta completa. Por ejemplo, el comando:
 Creará un archivo llamado `hardlink` en el directorio `/home/carol/Documents/`,
 enlazado al archivo `target.txt` en el directorio actual.
 
-Si se omite el úlitmo parámetro (`link_name`), se creará un enlace con el mismo
+Si se omite el último parámetro (`link_name`), se creará un enlace con el mismo
 nombre del objetivo en el directorio actual.
 
 #### Administrar los enlaces duros

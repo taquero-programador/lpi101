@@ -423,7 +423,7 @@ reciben el prefíjo `nvme`, como en `/dev/nvme0n1p1` y `/dev/nvme0n1p2`.
 Para controlar una máquina, el componente principal del sistema operativo, el núcleo,
 debe cargarse mediante un programa llamado *bootloader*, que a su vez lo carga un
 firmware preinstalado como BIOS o UEFI. El gesto de arranque se puede personalizar para
-pasar párametros al núcleo, como qué partición contiene el sistema de archivos raíz o
+pasar parámetros al núcleo, como qué partición contiene el sistema de archivos raíz o
 en qué modo debe ejecutarse el sistema operativo. Una vez cargado, el núcleo continúa
 el proceso de arranque identificando y configurando el hardware. Por último, el núcleo
 del sistema operativo llama a la utilidad responsable de iniciar y administrar los
@@ -540,7 +540,7 @@ Por lo general, no es necesario cambiar los parámetros del núcleo de Linux, pe
 ser útill para detectar y resolver problemas relacionados con el sistema operativo.
 Los parámetros del núcleo del sistema operativo deben agregarse al archivo
 `/etc/default/grub` en la línea `GRUB_CMDLINE_LINUX` para que sean persistenten durante
-los reinicios. Se debe generar un nuevo archivo de conficuración para el gestor de
+los reinicios. Se debe generar un nuevo archivo de configuración para el gestor de
 arranque cada vez que `/etc/default/grub` cambie, lo cual se logra mediante el comando
 `grub-mkconfig -o /boot/grub/grub.cfg`. Una vez que el sistema operativo se está
 ejecutando, los parámetros del núcleo utilizados para cargar la sesión actual están
@@ -572,7 +572,7 @@ ejemplo, ejecutar solo un conjunto mínimo de servicios para realizar tareas de
 mantenimiento del sistema.
 
 La inicialización del sistema operativo comienza cuando el gestor de arranque carga el
-núcleo en la RAM. Luego, el núcloe se hará cargo de la CPU y comenzará a detectar y
+núcleo en la RAM. Luego, el núcleo se hará cargo de la CPU y comenzará a detectar y
 configurar los aspectos fundamentales del sistema operativo, como la configuración
 básica de los dispositivos y el direccionamiento de la memoria.
 
@@ -1234,7 +1234,7 @@ instalados.
 Esta partición está formateada en un sistema de archivos basado en FAT. En un disco
 particionado con una tabla de particiones GUID, tiene un identificador único global
 `C12A7328-F81F-11D2-BA4B-00A0C93EC93B`. Si el disco fue formateado bajo el esquema de
-particón MBR, la ID de la partición es `0xEF`.
+partición MBR, la ID de la partición es `0xEF`.
 
 En las máquinas que ejecutan Microsoft Windows, esta partición suele ser la primera en
 el disco, aunque esto no es obligatorio. El sistema opeativo crea (o completa) el ESP
@@ -1606,7 +1606,7 @@ initrd /initrd.img
 La primea línea siempre comenza con `menuentry` y termina con `{`. El texto entre
 comillas se mostrará como la etiqueta de entrada en el menú de arranque de GRUB 2.
 
-El parámatro `set root` define el disco y la partición donde se encuentra el sistema
+El parámetro `set root` define el disco y la partición donde se encuentra el sistema
 de archivos raíz para el sistema operativo. Tenga en cuenta que en GRUB 2 los discos
 están enumerados desde cero, por lo que `hd0` es el primer disco (`sda` en Linux),
 `hd1` el segundo, y así sucesivamente. Las particiones, sim embargo, están
@@ -1782,7 +1782,7 @@ que lo busque con el comando `find`, como se muestra a continuación:
 grub> find /boot/grub/stage1
 (hd0,0)
 ```
-Luego, configure la particiónd de arranque como se indicó anteriormente y use el
+Luego, configure la partición de arranque como se indicó anteriormente y use el
 comando `setup` para instalar GRUB Legacy en el MBR y copie los archivos necesarios
 en el disco:
 
@@ -1969,7 +1969,7 @@ Las ubicaciones comunes para las bibliotecas compartidas en un sistema Linux son
 > El concepto de bibliotecas compartidas no es exclusivo de Linux. En Windows, por ejemplo, se denominan DLL, que significa *dynamic linked libraries*.
 
 #### Configuración de rutas de bibliotecas compartidas
-Las referencias contenidas en los programas vinculados dinánamicamente se resuelve
+Las referencias contenidas en los programas vinculados dinámicamente se resuelve
 mediante el vinculador dinámico (`ld.so` o `ld-linux.so`) cuando se ejecuta el
 programa. El vinculador dinámico busca biblioteca en varios directorios. Estos
 directorios están especificados por la ruta de la biblioteca. La ruta de la
@@ -2286,7 +2286,7 @@ por primera vez. Intente reconfigurar el paquete `tzdata`:
     dpkg-reconfigure tzdata
 
 #### Herramienta de paquetería anazada (`apt`)
-*Advanced Package Tool* (APT) es un sistema de adminstración de paquetes, que incluye
+*Advanced Package Tool* (APT) es un sistema de administración de paquetes, que incluye
 un conjunto de herramientas, que simplifican enormemente la instalación, actualización,
 eliminación y administración de paquetes. APT proporciona características como
 capacidades de busqueda avanzada y resolución de dependencias automática.
@@ -2675,7 +2675,7 @@ Los repositorios `disable` serán ignorados al instalar o actualizar el software
 habilitar o deshabilitar, use la utilidad `yum-config-manager`, seguido de la
 identificación del repositorio.
 
-En el resultado anterior, la identifiación del repositorio se muestra en la primera
+En el resultado anterior, la identificación del repositorio se muestra en la primera
 columna (`repo id`) de cada línea. Utilice solo la parte anterior a la primera `/`,
 por lo que la identificación para el repositorio `CentOS-7 - Updates` es `updates`
 y no `/updates/7/x86_64`.
@@ -3143,7 +3143,7 @@ nueva dirección MAC para su interfaz de red y se podría realizar otras modific
 dependiendo de su uso previsto.
 
 #### El D-Bus Machine ID
-Muchas instalaciones de Linux utilizarán un númerro de identifiación de máquina
+Muchas instalaciones de Linux utilizarán un número de identifiación de máquina
 generado en el momento de la instalación, llamado *D-Bus Machine ID*. Sin embargo, si
 una máquina virtual se clona para ser utilizada como plantilla para otras instalaciones
 de máquinas virtuales, se necesitaría crear una nueva ID de máquina D-Bus para
@@ -3206,9 +3206,9 @@ ofertas están destinadas simplemente a ser un almacenamiento de red basado en l
 para archivos, y otras ofertas se relacionan con el almacenamiento externo  para una
 máquina virtual aprovisionada en la nube para usar y alojar archivos.
 
-EL costo de tales ofertas variará segúna la cantidad de almacenamiento utilizado y la
+EL costo de tales ofertas variará según la cantidad de almacenamiento utilizado y la
 velocidad del almacenamiento dentro de los centros de datos del proveedor. El acceso
-al almacenamiento már rápido generalmente costará más y, por el contrario, los datos
+al almacenamiento más rápido generalmente costará más y, por el contrario, los datos
 "en reposo" a menudo son muy económicos.
 
 **Redes**: uno de los componentes principales para trabajar con un proveedor de
@@ -3641,7 +3641,7 @@ información:
     - Procesos en espera de operaciones de E/S: `0,0 wa`
     - Procesos que sirven interrupciones de hardware, periféricos que envían las señales del procesador que requieren atención: `0,0 hi`.
     - Procesos que sirven interrupciones de software: `0,0 si`
-    - Los procesos que sirven las tareas de otras máquians virtuales en un entorno virtual, por lo tanto, roban tiempo: `0,0 st`.
+    - Los procesos que sirven las tareas de otras máquinas virtuales en un entorno virtual, por lo tanto, roban tiempo: `0,0 st`.
 - `KiB Mem : 1020332 total, 909492 free, 38796 used, 72044 buff/cache` (información de memoria en kilobytes).
     - Monto total de memoria: `1020332 total`
     - Memoria sin utilizar: `909492 free`
@@ -3913,7 +3913,7 @@ Opciones importantes para volver a adjuntar la sesión:
 GNU Screen presenta un modo de copia o *scrollback*. Una vez ingresado, puede moverse el
 cursor en la ventana actual y por el contenido de su historial usando las teclas de
 flechas. Puede marcar texto y copiarlo en ventanas. Los pasos a seguir son:
-1. Ingresar al modo copia/scrollback: `Ctrl + a[`.
+1. Ingresar al modo copia/scrollback: `Ctrl + a-[`.
 
 2. Vaya al principio del texto que desea copiar usando las teclas de flecha.
 
@@ -4060,7 +4060,7 @@ Comandos importantes para vincular/desvincular sesiones:
 - **`Ctrl + b-r`**: actualizar la terminal del cliente
 
 #### Copiar y pegar: modo Scrollback
-`tmux` también presenta el modo scrollback básicamenete de la misma manera que `screen`.
+`tmux` también presenta el modo scrollback básicamente de la misma manera que `screen`.
 La única diferencia en cuanto a los comandos es usar `Ctrl + Espacio` para marcar el
 comienzo de la selección y `Alt + w` para copiar el texto seleccionado.
 
@@ -4086,3 +4086,139 @@ bind F2 selectw -t:11
 bind F3 selectw -t:12
 ```
 
+## Modificar la prioridad de ejecución de los procesos
+Los sistemas operativos capaces de ejecutar más de un proceso al mismo tiempo se
+denominan sistemas multitarea o multiprocesamiento. Si bien la verdadera simultaniedad
+solo ocurre cuando hay más de una unidad de procesamiento disponible, incluso los
+sistemas de un solo procesador puede imitar la simueltaniedad al cambiar entre procesos
+muy rápidamente. Esta técnica también se emplea en sistemas con muchas CPU equivalentes,
+o sistemas multiprocesador simétrico (SMP), dado que el número de procesos concurrentes
+potenciales superan con creces el número de unidades procesadores disponibles.
+
+De hecho, solo un solo proceso a la vez puede controlar la CPU. Sin embargo, la
+mayoría de las actividades del proceso son llamadas el sistema, es decir, el proceso
+en ejecución transfiere el control de la CPU al proceso de un sistema operativo para
+que realice la operación solicitada. Las llamadas al sistema están a cargo de toda la
+comunicación entre dispositivos, como asignación de memoria, lectura y escritura en
+sistemas de archivos, impresión de texto en la pantalla, interacción del usuario,
+transferencias de red, etc. La tranferencia del control de CPU duraten una llamada al
+sistema permite, que el sistema operativo decida si devolver el control de la CPU al
+proceso anterior o pasarlo a otro proceso. Como las CPU modernas pueden ejecutar
+instrucciones mucho más rápido de lo que la mayoría de hardware externo puede
+comunicarse entre sí, un nuevo proceso de control puede hacer mucho trabajo de la CPU
+mientras que las respuestas de hardware solicitadas anterriormente aún no están
+disponibles. Para garantizar el máximo aprovechamiento de la CPU, los sistema operativos
+de multiprocesamiento mantiene una cola dinámica de procesos activos en espera de un
+intervalo de tiempo de la CPU.
+
+Aunque permite mejorar significativamente la utilización del tiempo de la CPU,
+depender únicamente de las llamadas del sistema para cambiar entre procesos no es
+suficiente para logar un rendimiento multitarea satisfactorio. Un proceso que no
+realiza llamadas sl sistema podría controlar la CPU de forma indefinida. Esta es la
+razón por lo que los sistemas modernos también son preferentes, es decir, un proceso
+en ejecución se puede volver a poner en la cola para que un proceso más importante
+pueda controlar la CPU, incluso si el proceso en ejecución no ha realizado una llamada
+al sistema.
+
+#### El planificador de Linux
+linux, como sistema operativo de multiprocesamiento preventivo, implementa un
+planificador que organiza la cola de procesos. Más precisamente, el planificador
+también decide qué subproceso en cola se ejecutará (un proceso puede ramificar muchos
+subprocesos independientes), pero procesos y subprocesos son términos intercambiales
+en este contexto. Cada proceso tiene dos predicados que intervienen en su programación:
+la política de programación y la prioridad de programación.
+
+Hay dos tipos principales de políticas de programación: políticas en tiempo real y
+políticas normales. Los procesos bajo una política de tiempo real se programan
+directamente por sus valores de prioridad. Si un proceso más importante está listo
+para ejecutarse, se sustituye por un proceso en ejecución menos importante y el
+proceso de mayor prioridad toma el control de la CPU. Un proceso de menor prioridad
+obtendrá el control de la CPU solo si los procesos de mayor prioridad están inactivos
+o esperando las respuestas de hardware.
+
+Cualquier proceso en tiempo real tiene mayor prioridad que un proceso normal. Como
+sistema operativo de propósito general, Linux ejecuta solo algunos procesos en tiempo
+real. La mayoría de los procesos, incluidos los programas de usuario y del sistema, se
+ejecutan según las políticas de programación normales. Los procesos normales suelen
+tener el mismo valor de prioridad, pero las políticas normales pueden definir reglas de
+prioridad de ejecución utilizando otro predicado de proceso: el valor *nice*. Para
+eviar confuciones con las prioridads dinámicas derivadas de valores agradables, las
+prioridades de programación generalmente se denomina prioridades de programación
+esáticas.
+
+El planificador de Linux se puede configurar de muchas formas diferentes y existen
+formas aún más complejas de establecer prioridades, pero estos conceptos generales
+siempre se aplican. Al inspeccionar y ajustar la programación del proceso, es
+importante tener en cuenta que solo se verán afectados los procesos bajo la política
+de programación normal.
+
+#### Prioridades de lectura
+Linux reserva prioridades estáticas que van de 0 a 99 para procesos en tiempo real y
+los procesos normales se asignan a prioridades estáticas que van de 100 a 139, lo
+que significa que hay 39 niveles de prioridad diferentes para procesos normales. Los
+valores más bajos significan una prioridad más alta. La prioridad estática de un
+proceso activo se puede encontrar en el archivo `sched`, ubicado en su directorio
+respectivo dentro del sistema de archivos `/proc`:
+```sh
+grep ^prio /proc/1/sched
+prio    :   120
+```
+Como se muestra en el ejemplo, la línea que comienza con `prio` da el valor de prioridad
+del proceso (el proceso PID 1 es el proceso init o systemd, el primer proceso que
+el kernel inicia durante la inicialización del sistema). La prioridad estándar para
+los procesos normales es 120, de modo que se puede reducir a 100 o aumentar a 139. Las
+prioridades de todos los procesos en ejecución se pueden verificar con el comando
+`ps -Al` o `ps -el`:
+
+    ps -el
+
+La columan `PRI` indica la prioridad estática asignada por el kernel. Sin embargo,
+tenga en cuenta que el valor de prioridad mostrador por `ps` difiere el obtenido en el
+ejemplo anterior. Debido a razones históricas, las prioridades mostradas por `ps`
+varían de -40 a 99 por defecto, por la que la prioridad real se obtiene agregando
+40 (en particular, 80 + 40 = 120).
+
+También es posible monitorear continuamente los procesos que actualmente administra
+el kernel de Linux con el programa `top`. Al igual que con `ps`, `top` también muestra 
+el valor de prioridad de forma diferente. Para que sea más fácil indentificar los
+procesos en tiempo real, `top` resta 100 del valor de prioridad, por lo que todas las
+prioridades en tiempo real son negativas, con un número negativo o *rt* 
+indentificandolas. Por lo tanto, las prioridades normales mostradas por `top` van de
+0 a 39.
+
+#### Niceness de procesos
+Todos los procesos normales comienzan con un valor nice predeterminado de 0 (prioridad
+120). El nombre *nice* proviene de la idea de que los procesos "más agradables"
+permiten que otros procesos se ejecuten antes que ellos en una cola de ejecución
+particular. Los números nice van desde -20 (menos agradables, alta prioridad) a 19
+(más agradables, baja prioridad). Linux también permite la capacidad de asignar
+diferentes valores *nice* a subprocesos dentro del mismo proceso. La columna `NI` en la
+salida de `ps` indica el número *nice*.
+
+Solo el usuario root puede disminuir el valor nice de un proceso por debajo de cero.Es posible iniciar un proceso con una prioridad no estándar con el comando `nice`. Por
+ejemplo, `nice` cambia el valor a 10, pero se puede especificar con la opción `-n`:
+
+    nice -n 15 tar czf home_backup.tar.gz /home
+
+En este ejemplo, el comando `tar` se ejecutara con un valor nice de 15. El comando
+`renice` puede usarse para cambiar la prioridad de un proceso en ejecución. La opción
+`-p` indica el número PID del proceso objetivo. Por ejemplo:
+```sh
+renice -10 -p 2164
+2164 (process ID) old priority 0, new priority -10
+```
+Las opciones `-g` y `-u` se utilizan para modificar todos los procesos de un grupo o
+usuario específico, respectivamente. Con `renice +5 -g users`, el valor nice de los
+procesos propiedad de los usuarios del grupo *users* se elevará en cinco.
+
+Además de `renice`, la prioridad de los procesos se pueden modificar con otros
+programas, como el programa `top`. En la pantalla principal superior, el valor nice de
+un proceso se puede modificar presionando `r` y luego el número PID del proceso.
+
+Aparece el mensaje `PID to renice [default pid = 1]` con el primer proceso listado
+seleccionado por defecto. Para cambiar la prioridad de otro proceso, escriba su PID
+y presione Enter. Luego, aparecerá el mensaje `Renice PID 1 to value` (con el
+número PID solicitado) y se puede asignar un nuevo valor nice.
+
+#### Realizar búsquedas de archivos de textos usando expresiones regulares
+pg383
