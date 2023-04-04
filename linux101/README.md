@@ -3357,7 +3357,7 @@ sleep 60
 ```
 La ejecución del comando se ha detenido (o, mejor dicho, suspendido) y el símbolo del
 sistema vuelve a estar disponible. Puede buscar trabajos por segunda vez y encontrará
-el *suspenidido*:
+el *suspendido*:
 ```sh
 jobs
 [1]  + suspended  sleep 60
@@ -3423,6 +3423,7 @@ sleep 60
 `fg` mueve el trabajo especificado al primer plano y lo convierte en el trabajo actual.
 Ahora podemos esperar hasta que termine, detenerlo nuevamente con `Ctrl + Z` o
 terminalo con `Ctrl + C`.
+
 2. Llevarlo a un segundo plano con `bg`:
 ```sh
 bg %1
@@ -3751,4 +3752,337 @@ root    9   0.0  0.0    0   0     ?     S 14:04 0:00 [migration/0]
 - **`TIME`**: tiempo de CPU acumulado
 - **`COMMAND`**: comando que inició el proceso
 
-pg339
+#### Características de los multiplexores terminales
+En electrónica, un multiplexor (o mux) es un dispositivo que permite contectar
+múltiples entradas a una sola salida. Por lo tanto, un multiplexor terminal no da la
+capacidad de cambiar entre diferentes entradan según sea necesario. Aunque no son
+exactamente lo mismo, `screen` y `tmux` comparten un serie de características comunes:
+- Cualquier invocación exitosa dará como resultado al menos una sesión que, a su vez, incluirá al menos una ventana. Las ventanas contienen ventanas.
+- Las ventanas se pueden dividir en regiones o paneles, lo que ayuda a la productividad cuando se trabaja con varios programas simultáneamente.
+- Facilidad de control: para ajecutar la mayoría de los comandos, utilizan una combinación de teclas, el llamado *comando prefijo* o *comando clave*, seguido de otro carácter.
+- Las sesiones se pueden separar de su terminal actual (es decir, los programas se envían en segundo plano y continúan ejecutándose). Esto garantiza la ejecución completa de los programas sin importar si cerramos accidentalmente un terminal, experimantamos un congelamiento ocasional del terminal o incluso una pérdida de conexión remota.
+- Conexiones de socket
+- Modo de copia
+- Son altamente personalizables
+
+#### GNU Screen
+En los primeros diás de Unix (1970-1980), las computadoras consistían básicamente en
+terminales conectados a una computadora central. Eso fue todo, sin múltiples ventanas
+o pestañas. Y esa fue la razón detrás de la creación de GNU Screen en 1987: emular
+múltiples pantallas VT100 independientes en un solo terminal físico.
+
+#### Ventanas
+La pantalla GNU se invoca simplemente scribiendo `screnn` en la terminal. Primero verá
+un mensaje de bienvenida:
+```sh
+GNU Screen version 4.05.00 (GNU) 10-Dec-16
+Copyright (c) 2010 Juergen Weigert, Sadrul Habib Chowdhury
+Copyright (c) 2008, 2009 Juergen Weigert, Michael Schroeder, Micah Cowan, Sadrul
+Habib Chowdhury
+Copyright (c) 1993-2002, 2003, 2005, 2006, 2007 Juergen Weigert, Michael Schroeder
+Copyright (c) 1987 Oliver Laumann
+(...)
+```
+Presione la barra espaciadora o Enter para cerrar el mensaje y se le mostrará un
+símbolo del sistema:
+
+    $
+
+Puede parecer que no ha pasado nada, pero el hecho es que `screen` ya ha creado y
+gestionado su primera sesión y ventana. El prefijo de comando de la pantalla es
+`Ctrl + a`. Para ver todas la ventanas en la parte inferior de la pantalla de terminal
+escriba `Ctrl + w-a`:
+
+    0*$ bash
+
+¡Ahí está, nuestra única ventana hasta ahora! Sin embargo, tenga en cuenta que el
+conteo inicia en 0. Para crear otra ventana, escriba `Ctrl + a-c`. Verá un mensaje.
+Comencemos con `ps` en esa nueva ventana:
+```sh
+ps
+PID TTY
+TIME CMD
+974 pts/2 00:00:00 bash
+981 pts/2 00:00:00 ps
+```
+y escriba `Ctrl + a` nuevamente:
+
+    0-$ bash 1*$ bash
+
+Ahí tenemos nuestras dos ventanas (observe el asterisco que indica la que se está
+mostrando en este momento). Sin embargo, como comenzamos con bash, ambas reciben el
+mismo nombre. Ya que invocamos `ps` nuestra ventana actual, cambiaremos el nombre con el
+mismo nombre. Para eso, debe escribir `Ctrl + a-A` y escribir el nombre de la nueva
+ventana (`ps`) cuando se le solicite:
+
+    Set window's title to: ps
+
+Ahora, creemos otra ventana pero proporcione un nombre desde el principio:
+`yetanotherwindow`. Esto se hace invocando `screen` con el modificador `-t`:
+
+    screen -t yetanotherwindow
+
+Puede moverse entre ventanas de diferentes formas:
+- Usando `Ctrl + a-n` (ir a la ventana siguiente) y `Ctrl + a-p` (ir a la ventana anterior).
+- Usando `Ctrl + a-número` (vaya a la ventana "número").
+- Usando `Ctrl + a-"` para ver una lista de todas las ventanas. Puede moverse hacia arriba y abajo con las teclas de flecha y seleccione la que desee con Enter.
+
+Para eliminar una ventan, simplemente finalice el programa que se está ejecutando en
+ella (una vez que se elimine la última ventan, `screen` terminará). Alternativamente,
+use `Ctrl + a-k` mientras está en la ventana que desea eliminar; se le pedira
+confirmación:
+```sh
+Really kill this window [y/n]
+Window 0 (bash) killed.
+```
+
+#### Regiones
+`screen` puede dividir la pantalla en un terminal en varias regiones para acomodar las
+ventanas. Estas ventanas pueden ser horizontales (`Ctrl + a-S`) o verticales (`Ctrl +a-I`).
+
+lo único que mostrará la nueva región es simplemente -- en pa parte inferior, lo que
+significa que está vacío.
+
+Para moverse a la nueva región, escriba `Ctrl + a-Tab`. Ahora puede agregar una nueva
+ventana mediante cualquiera de los métodos, por ejemplo: `Ctrl + a-2`. Ahora el --
+debería haberse convertido en `2 yetanotherwindow`:
+
+Los aspectos importantes a tener en cuenta al trabajar con regiones son:
+- Puede moverse entre regiones escribiendo `Ctrl + a-Tab`.
+- Puede terminar todas las regiones excepto la actual con `Ctrl + a-Q`.
+- Puede terminal la región actual con `Ctrl + a-X`.
+- Terminar una región no termina su ventana asociada.
+
+#### Sesiones
+Hasta ahora hemos jugado con alguna ventanas y regiones, pero todas pertenecen a la
+misma y única sesión. Es hora de empezar a jugar con sesiones. Para ver una lista de
+todas las sesiones, teclee `screen -list` o `screen -ls`:
+```sh
+screen -list
+There is a screen on:
+    1037.pts-0.debian       (08/24/19 13:53:35)     (Attached)
+1 Socket in /run/screen/S-carol.
+```
+Esa es nuestra única sesión hasta ahora:
+- **PID**: `1037`
+- **Name**: `pts-0.debian` (indicando el terminal -en nuestro caso un psuedo terminal esclavo -y el nombre del host).
+- **Status**: `Attached`
+
+Creemos una nueva sesión dándole un nombre más descriptivo:
+
+    screen -S "second session"
+
+La patanlla de la terminal se borrará y se le dará un nuevo mensaje. Puede comprobar
+las sesiones una vez más:
+
+    screen -ls
+
+Para cerrar una sesión, salga de todas sus ventanas o simplemente escriba el comando
+`screen -S SESSION-PID -X quit` (también puede proporcionar el nombre de la sesión).
+Deshagámonos de nuestra primera sesión:
+
+    screen -S 1037 -X quit
+
+Se le enviará de nuevo al indicador de su terminal fuera de la `screen`. Pero recuerde, nuestra segunda sesión todavía está viva. Sin embargo, dado que matamos su sesión
+principal, se le asigna una nueva etiqueta: `Detached`.
+
+#### Desvincular sesiones
+Por varias razones, es posible que desee desconectar una sesión de pantalla de su
+terminal:
+- Para permitir que su computadora en el trabajo haga su trabajo y se conecte de forma remota más tarde desde casa.
+- Para compartir una sesión con otros usuarios.
+
+Desconecte una sesión con la combinación de teclas `Ctrl + a-d`. Volverá a su terminal.
+
+Para vincular nuevamente a la sesión, use el comando `screen -r SESSION-PID`.
+Alternativamente, puede usar el `SESSION-NAME`. Si solo hay una sesión desvinculada,    ninguna es obligatoria:
+
+    screen -r
+
+Opciones importantes para volver a adjuntar la sesión:
+- **`-d -r`**: vuelva a conectar una sesión y, si es necesario, desconéctela primero.
+- **`-d -R`**: igual que `-d -r` pero `screen` incluso creará la sesión primero si no existe.
+- **`-d -RR`**: igual que `-d -R`. Sin embargo, utilice la primera sesión si hay más de una disponible.
+- **`-D -r`**: vuelve a conectar una sesión. Si es necesario, desconecte y cierre la sesión de forma remota primero.
+- **`-D -R`**: si está ejecutando una sesión, vuelva a conectarla.
+- **`-D -RR`**: lo mismo que `-D -RR` solo que más fuerte.
+- **`-d -m`**: inicie `screen` en modo independiente. Esto crea una nueva sesión, pero no se vincula a ella. Esto es útil para los scripts de inicio del sistema.
+- **`-D -m`**: igual que `-d -m`, pero no bifurca un nuevo proceso. El comando sale si la sesión termina.
+
+#### Copiar y pegar: modo Scrollback
+GNU Screen presenta un modo de copia o *scrollback*. Una vez ingresado, puede moverse el
+cursor en la ventana actual y por el contenido de su historial usando las teclas de
+flechas. Puede marcar texto y copiarlo en ventanas. Los pasos a seguir son:
+1. Ingresar al modo copia/scrollback: `Ctrl + a[`.
+
+2. Vaya al principio del texto que desea copiar usando las teclas de flecha.
+
+3. Marque el comienzo del fragmento de texto que desea copiar: Espacio.
+
+4. Vaya al final del fragmento de texto que desea copiar usando las teclas de flecha.
+
+5. Marque el final del fragmento de texto que desea cpiar: Espacio.
+
+6. Vaya a la ventana de su selección y pegue el fragmento de texto: `Ctrl + a-]`.
+
+#### Personalización de Screen
+El archivo de configuración de todo el sistema para screen es `/etc/screenrc`.
+Alternativamente, se puede usar un `~/.screenrc` a nivel de usuario. El archivo incluye
+cuatro secciones principales de configuración:
+
+**`SCREEN SETTINGS`**: puede definir la configuración general especificando la directiva
+seguida de un espacio y el valor como en `defscrollback 1024`.
+
+**`SCREEN KEYBINGINGS`**: esta sección es bastante interesante ya que permite redefinir
+combinaciones de teclas que quizás interfieran con su uso diarior del terminal. Utilice
+la palabra clave `bind` seguida de un espaco, el carácter que se utilizará después del
+prefijo del comando, otro espacio y el comando en: `bind l kill` (este configuración
+cambiará la forma predeterminada de matar una ventana a `Ctrl + a-l`).
+
+**`TERMINAL SETTINGS`**: esta sección incluye configuraciones relacionadas con el tamaño
+de la ventana de la terminal y los búferes, entre otros. para habilitar el modo sin
+bloqueo para manejar mejor las conexiones ssh inestables, por ejemplo, se utiliza la
+siguiente configuración: `defnonblock 5`.
+
+**`STARTUP SCREENS`**: puede incluir comandos para que varios programas se ejecuten en
+el inicio de la `pantalla`; por ejemplo: `screen -t top top` (`screen` abrirá una
+ventana llamada `top` con `top` adentro).
+
+#### tmux
+`tmux` fue lanzado en 2007. Aunque es muy similar a `screen`, incluye algunas
+diferencias notables:
+- Modelo cliente-servidor: el servidor suministra una serie de sesiones, cada una de las cuales puede tener varias ventanas vinculadas que, a su vez, pueden ser compartidas por varios clientes.
+- Selección interactiva de sesiones, ventanas y clientes a través de menús.
+- La misma ventana se puede vincular a varias sesiones.
+- Disponibilidad de diseños de teclas vim y Emacs.
+- Soporte para terminales UTF-8 y 256 colores.
+
+#### Ventanas
+`tmux` se puede invocar simplemente escribiendo `tmux` en el símbolo del sistema. Se le
+mostrará un indicador de shell y una barra de estado en la parte inferior de la vetana:
+```sh
+[0] 0:bash*         "debian" 18:53
+27-Aug-19
+```
+Aparte del `hostname`, la hora y la fecha, la barra de estado proporciona la siguiente
+información:
+
+- **`Session name`**: `[0]`
+- **`Window number`**: `0:`
+- **`Window name`**: `bash*`. Por defecto, este es el nombre del programa que se ejecuta dentro de la ventana y, diferencia de `screen`, `tmux` lo actualizará automáticamente para reflejar el programa en ejecución actual. Note el asterisco que indica que esta es la ventana visible actual.
+
+Puede asignar nombre se sesión y ventana al invocar `tmux`:
+
+    tmux new -s LPI - "window zero"
+
+La barra de estado cambiará en consecuencia:
+```sh
+[LPI] 0:Window zero*        "debian" 19:01
+27-Aug-19
+```
+El prefijo de comand de tmux es `Ctrl + b`. Para crear una nueva ventana, simplemente
+escriba `Ctrl + b-c`; se le llevara a un nuevo prompt y la barra de estado replejará
+la nueva ventana.
+
+Como Bash es el shell subyacente, la nueva ventana recibe ese nombre de forma
+predeterminada. Inicie `top` y vea cómo cambia el nombre a `top`.
+
+En cualquier caso, puede cambiar el nombre de una ventan con `Ctrl + b-,`. Cuando le
+solicite, proporcione el nuevo nombre y presione Enter:
+
+    (rename-window) Window one
+
+Puede mostrar todas las ventanas para su selección con `Ctrl + b-w` (use las teclas de
+flechas para moverse hacia arriba y abajo y `enter` para seleccionar).
+
+De manera similar a `screen`, podemos saltar de una ventana a otra con:
+- **`Ctrl + b-n`**: ir a la siguiente ventana
+- **`Ctrl + b-p`**: ir a la ventana anterior
+- **`Ctrl + b-número`**: ir a la ventan número
+
+Para deshacerse de una ventan, use `Ctrl + b-&`. Se le pedirá confirmación.
+
+Otros comandos de ventana interasantes incluyen:
+- **`Ctrl + b-f`**: buscar ventana por nombre
+- **`Ctrl + b-.`**: cambiar el número de indice de la ventana
+
+#### Paneles
+La función de división de ventanas de `screen` también está presente en `tmux`. Sin
+embargo, las divisiones resultantes no se llaman regiones, sino paneles. La diferencia
+más importante entre regiones y paneles es que estos últimos psuedo-terminales
+completas vinculdas a una ventan. Esto significa que matar un panel también matará
+su pseudo-terminal y cualquier programa asociado que se ejecute dentro.
+
+Para dividir una ventana horizontalmente, usamos `Ctrl + b-"`.
+
+Para dividir una ventan verticalmente, usamos `Ctrl + b-%`.
+
+Para destruir el panel actual (junto con su psuedo-terminal que se ejecuta dentro de
+él, junto con cualquier programa asociado), use `Ctr + b-x`. Se le pedirá confirmación
+en la barra de estado.
+
+Comandos de panel importantes:
+- **`Ctrl + b-↑, ↓, ←, →`**: moverse entre paneles
+- **`Ctrl + b-;`**: pasar al último panel activo
+- **`Ctrl + b-Ctrl + arrow key`**: cambiar el tamaño de panel.
+- **`Ctrl + b-Alt + arrow key`**: cambiar el tamaño del panel en cinco líneas.
+- **`Ctrl + b-{`**: intercambiar paneles (actual a anterior).
+- **`Ctrl + b-}`**: intercambiar paneles (actual a siguiente).
+- **`Ctrl + b-z`**: panel de acercar/alejar
+- **`Ctrl + b-t`**: `tmux` muestra un reloj elegante (deténgalo presionando `q`).
+- **`Ctrl + b-!`**: convertir el panel en ventana
+
+#### Sesiones
+Para listar sesiones en `tmux` puede usar `Ctrl + b-s` o usar el comando `tmux ls`.
+
+Solo hay una sesión (`LPI`) que incluye dos ventanas. Creemos una nueva sesión desde
+nuetra sesión actual. Esto se puede lograr usando `Ctrl + b`, teclee `:new` en el
+indicador, luego presione Enter. Se le enviará a la nueva sesión. Por defecto, 
+`tmux` nombró la sesión `2`. Para cambiar el nombre, use `Ctrl + b-$`. Cuando se le
+solicite, ingrese el nuevo nombre y presione Enter.
+
+Puede cambiar de sesión con `Ctrl + b-s` (use la teclas de flechas y `enter`).
+
+Para cerrar una sesión, puede usar el comando `tmux kill-session -t session-name`.
+
+#### Desvincular sesiones
+Al matar a `Second session` estamos fuera de `tmux`. Sin embargo, todavía tenemos una
+sesión activa. Pidale a `tmux` una lista de sesiones y seguramente la encontrara allí:
+
+    tmux ls
+
+Sin embargo, esta sesión está separada de su terminal. Podemos vincularla con
+`tmux a -t session-name`. Cuando solo hay una sesión, la especificación del nombre es
+opcional.
+
+Comandos importantes para vincular/desvincular sesiones:
+- **`Ctrl + b-D`**: seleccione qué cliente Desvincular
+- **`Ctrl + b-r`**: actualizar la terminal del cliente
+
+#### Copiar y pegar: modo Scrollback
+`tmux` también presenta el modo scrollback básicamenete de la misma manera que `screen`.
+La única diferencia en cuanto a los comandos es usar `Ctrl + Espacio` para marcar el
+comienzo de la selección y `Alt + w` para copiar el texto seleccionado.
+
+#### Personalización de tmux
+Los archivos de configuración para `tmux` se encuentran normalmente en `/etc/tmux.con` y
+`~/.tmux.conf`. Cuando se inicia, `tmux` utiliza estos archivos si existen. También
+existe la posibilidad de iniciar `tmux` con el parámetro `-f` para proporcionar un
+archivo de configuración alternativo. Puede encontrar un ejemplo de archivo de
+configuración `tmux` ubicado en `/usr/share/doc/tmux/example_tmux.conf`. El nivel de    personalización que se puede logar es realmente alto. Algunas de las cosas que puede
+hacer incluyen:
+- Cambiar la tecla de prefijo
+```sh
+# Change the prefix key to C-a
+set -g prefix C-a
+unbind C-b
+bind C-a send-prefix
+```
+- Establecer combinaciones de teclas adicionales para ventanas superiores a 9
+```sh
+# Some extra key bindings to select higher numbered windows
+bind F1 selectw -t:10
+bind F2 selectw -t:11
+bind F3 selectw -t:12
+```
+
