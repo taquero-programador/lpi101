@@ -4221,4 +4221,60 @@ y presione Enter. Luego, aparecerá el mensaje `Renice PID 1 to value` (con el
 número PID solicitado) y se puede asignar un nuevo valor nice.
 
 #### Realizar búsquedas de archivos de textos usando expresiones regulares
-pg383
+Los argoritmos de búsqueda de cadenas son ampliamente utilizados por varias tareas de   procesamiento de datos, tanto que los sistemas operativos similares a Unix tiene su
+propia implementación ubicua: *Expresiones regulares (Regular expression)*, a menudo
+abreviadas como *REs*. Las expresiones regulas consisten en secuencias de caracteres
+que forman un patrón genérico que se utilizar para localizar y, a veces, modificar
+una secuecia correspondiente en una cadena de caracteres más grande. Las expresiones
+regulares amplían enormemente la capacidad de:
+- Escribir reglas de análisis para solicitudes en servidor HTTP, nginx en particular.
+- Escribir scripts que conviertan conjuntos de datos basados en texto a otro formato.
+- Buscar ocurrencias de interés en entradas de diario o documentos. 
+- Filtrar docuentos de marcado, manteniendo el contenido semático.
+
+Las expresiones regulares más simples contienen al menos un átomo. Un átomo, llamado
+así porque es el elemento básico de una expresión regular, es solo un carácter que
+puede tener o no un significado especial. la mayoría de los caracteres ordianarios
+son inequívocos, conservan su significado literal, mientras que otros tienen un 
+siguiendo especial:
+- **`. (punto)`**: átomo coincide con cualquier carácter
+- **`^ (signo de intercalación)`**: átomo coincide con el comienzo de una línea.
+- **`$ (signo de dólar)`**: átomo coincide con el final de una línea.
+
+Por ejemplo, la expresión regular `bc`, compuesta por los átomos literales b y c, se
+pueden encontrar en la cadena `abcd`, pero no en la cadena `a1cd`. Por otro lado, la
+expresión regular `.c` puede encontrarse en ambas cadenas de caracteres `abcd` y `a1cd`,
+ya que el punto `.` coincide con cualquier carácter.
+
+Los átomos del signo de intercalación y dólar se utilizan cuando solo son de interés
+la concidencias al principio o al final de la cadeana. Po eso también se le llama
+*anchors* (anclas). Por ejemplo, `cd` se puede encontrar en `abcd`, pero `^cd` no. De
+manera simiilar, `ab` se puede encontrar en `abcd`, pero `ab$` no. El signo de
+intercalación `^` es un carácter literal excepto cuando está al principio y `$` es un
+carácter literal excepto cuando está al final de la expresión regular.
+
+#### Expresión de corchetes
+Hay otro tipo de átomo llamado *bracket expression* (expresión de corchetes). Aunque
+no es un solo carácter, los corchetes `[]` (incluido su contenido) se consideran un
+solo átomo. Una expresión entre corchetes suele ser solo una lista de caracteres
+literales encerrados por `[]`, haciendo que el átomo coincida con cualquier carácter de
+la lista. Por ejemplo, la expresión `[1b]` se puede encontrar en ambas cadenas `abcd` y
+`a1cd`. Para especificar los caracteres a lo que no debe corresponder el átomo, la lista
+debe comenzar cpm `^`, como en `[^1b]`. También es posible especificar rangos de 
+caracteres en expresiones entre corchetes. Por ejemplo, `[0-9]` concide con los dígitos
+del 0 al 9 y `[a-z]` coincide con cualquier letra minúscula. Los rangos deben usarse
+con precaución, ya que pueden no ser consistentes en distintas configuraciones
+regionales.
+
+Las listas de expresiones entre corchetes también aceptan clases en lugar de solo
+caracteres y rangos individuales. Las clases de caracteres tradicionale son:
+- **`[:ascii:]`**: representa un carácter que encaja en el juego de caracteres ASCII.
+- **`[:blank:]`**: representa un carácter en blanco, es decir, un espacio o una tabulación.
+- **`[:cntrl:]`**: representa un carácter de control.
+- **`[:digit:]`**: representa un dígito (0 a 9).
+- **`[:graph:]`**: representa cualquier caŕacter imprimible excepto el espacio.
+- **`[:lower:]`**: representa un carácter en minúscula.
+- **`[:print:]`**: representa cualquier carácter imprimible, incluido el espacio.
+- **`[:punct:]`**: representa cualquier carácter imprimible que no sea un espacio ni un carácter alfanumérico.
+- **`[:space:]`**: representa caracteres de espacio en blanco: espacio, avance de formulario (`\f`), nueva línea (`\n`), retorno de carro (`\r`), tabulación horizontal (`\t`) y tabulación veritcal (`\v`).
+- **`[:upper:]`**: representa una letra en mayúscula.
