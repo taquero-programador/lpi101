@@ -4221,4 +4221,185 @@ y presione Enter. Luego, aparecerá el mensaje `Renice PID 1 to value` (con el
 número PID solicitado) y se puede asignar un nuevo valor nice.
 
 #### Realizar búsquedas de archivos de textos usando expresiones regulares
-pg383
+Los argoritmos de búsqueda de cadenas son ampliamente utilizados por varias tareas de   procesamiento de datos, tanto que los sistemas operativos similares a Unix tiene su
+propia implementación ubicua: *Expresiones regulares (Regular expression)*, a menudo
+abreviadas como *REs*. Las expresiones regulas consisten en secuencias de caracteres
+que forman un patrón genérico que se utilizar para localizar y, a veces, modificar
+una secuecia correspondiente en una cadena de caracteres más grande. Las expresiones
+regulares amplían enormemente la capacidad de:
+- Escribir reglas de análisis para solicitudes en servidor HTTP, nginx en particular.
+- Escribir scripts que conviertan conjuntos de datos basados en texto a otro formato.
+- Buscar ocurrencias de interés en entradas de diario o documentos. 
+- Filtrar docuentos de marcado, manteniendo el contenido semático.
+
+Las expresiones regulares más simples contienen al menos un átomo. Un átomo, llamado
+así porque es el elemento básico de una expresión regular, es solo un carácter que
+puede tener o no un significado especial. la mayoría de los caracteres ordianarios
+son inequívocos, conservan su significado literal, mientras que otros tienen un 
+siguiendo especial:
+- **`. (punto)`**: átomo coincide con cualquier carácter
+- **`^ (signo de intercalación)`**: átomo coincide con el comienzo de una línea.
+- **`$ (signo de dólar)`**: átomo coincide con el final de una línea.
+
+Por ejemplo, la expresión regular `bc`, compuesta por los átomos literales b y c, se
+pueden encontrar en la cadena `abcd`, pero no en la cadena `a1cd`. Por otro lado, la
+expresión regular `.c` puede encontrarse en ambas cadenas de caracteres `abcd` y `a1cd`,
+ya que el punto `.` coincide con cualquier carácter.
+
+Los átomos del signo de intercalación y dólar se utilizan cuando solo son de interés
+la concidencias al principio o al final de la cadeana. Po eso también se le llama
+*anchors* (anclas). Por ejemplo, `cd` se puede encontrar en `abcd`, pero `^cd` no. De
+manera simiilar, `ab` se puede encontrar en `abcd`, pero `ab$` no. El signo de
+intercalación `^` es un carácter literal excepto cuando está al principio y `$` es un
+carácter literal excepto cuando está al final de la expresión regular.
+
+#### Expresión de corchetes
+Hay otro tipo de átomo llamado *bracket expression* (expresión de corchetes). Aunque
+no es un solo carácter, los corchetes `[]` (incluido su contenido) se consideran un
+solo átomo. Una expresión entre corchetes suele ser solo una lista de caracteres
+literales encerrados por `[]`, haciendo que el átomo coincida con cualquier carácter de
+la lista. Por ejemplo, la expresión `[1b]` se puede encontrar en ambas cadenas `abcd` y
+`a1cd`. Para especificar los caracteres a lo que no debe corresponder el átomo, la lista
+debe comenzar cpm `^`, como en `[^1b]`. También es posible especificar rangos de 
+caracteres en expresiones entre corchetes. Por ejemplo, `[0-9]` concide con los dígitos
+del 0 al 9 y `[a-z]` coincide con cualquier letra minúscula. Los rangos deben usarse
+con precaución, ya que pueden no ser consistentes en distintas configuraciones
+regionales.
+
+Las listas de expresiones entre corchetes también aceptan clases en lugar de solo
+caracteres y rangos individuales. Las clases de caracteres tradicionale son:
+- **`[:ascii:]`**: representa un carácter que encaja en el juego de caracteres ASCII.
+- **`[:blank:]`**: representa un carácter en blanco, es decir, un espacio o una tabulación.
+- **`[:cntrl:]`**: representa un carácter de control.
+- **`[:digit:]`**: representa un dígito (0 a 9).
+- **`[:graph:]`**: representa cualquier caŕacter imprimible excepto el espacio.
+- **`[:lower:]`**: representa un carácter en minúscula.
+- **`[:print:]`**: representa cualquier carácter imprimible, incluido el espacio.
+- **`[:punct:]`**: representa cualquier carácter imprimible que no sea un espacio ni un carácter alfanumérico.
+- **`[:space:]`**: representa caracteres de espacio en blanco: espacio, avance de formulario (`\f`), nueva línea (`\n`), retorno de carro (`\r`), tabulación horizontal (`\t`) y tabulación veritcal (`\v`).
+- **`[:upper:]`**: representa una letra en mayúscula.
+- **`[:xdigit:]`**: representa dígitos hexadecimales (de 0 a F).
+
+Las clases de caracteres se pueden combinar con caracteres y rangos individuales,
+pero no se pueden como punto final de un rango. Además, las clases de caracteres pueden
+usarse solo en expresiones de corchetes, no como un átomo independiente fuera de los
+corchetes.
+
+#### Cuantificadores
+El ancance de un átomo, ya sea de un átomo de un solo carácter o un átomo de corchete,
+se puede ajustar utilizando un cantificador de átomos. Los cuantificadores de átomos
+definen secuencias de átomos, es decir, las coincidencias ocurren cuando se encuentra
+una repetición contigua para el átomo de la cadena. Las subcadena correspondiente a la
+coincidencia se llama pieza. No obstante, los cuantificadores y otras características
+de las expresiones regulares se tratan de manera diferente según el estándar que se
+utilice.
+
+Según lo define POSIX, hay dos tipos de expresiones regulares: expresiones regulares
+"básicas" y expresiones regulares "extendidas". la mayoría de los programas
+relacionados con el texto en cualquier distribución convencional de Linux admite ambas
+formas, por lo que es importante conocer sus diferencias para evitar problemas de
+compatibilidad y elegir la implementación más adecuada para la tarea prevista.
+
+El cuantificador `*` tiene la misma función tanto en los RE básicos como en los
+extendidos (el átomo aparece cero o más veces) y es un carácter literal si aparece al
+principio de la expresión regular o si está precedido por una barra invertida `\`.
+El cuantificador de signo más `+` seleccionará piezas que contengan una o más
+coincidencias de átomos de secuencia. Con el cuantificador de signo de interrogación
+`?`, se producira una coincidencia si el átomo correspondiente aparece una vez o si no
+aparece en absoluto. Si está precedido por una barra invertida `\`, se obvia su
+significado especial. Las expresiones regulares básicas también adminten cuantificadores
+`+` y `?`, pero deben ser precedidas de una barra invertida. A diferencia de las
+expresiones regulares extenidadas, `+` y `?` por sí mismo son caracteres literales en
+expresiones regulares básicas.
+
+#### Límites
+Un *bound* (límite) es un cuantificador de átomos que, como su nombre lo indica, permite
+al usuario especificar límites cuantitativos precisos para un átomo. En las expresiones
+regulares extendidas, un límite puede aparecer de tres formas:
+- **`{i}`**: el átomo debe aparecer exactamente `i` veces (`i` un número entero). Por ejemplo, `[[:blank:]]{2}` coincide con exactamente dos caracteres en blanco.
+- **`{i,}`**: el átomo debe aparecer al menos `i` veces (`i` un número entero). Por ejemplo, `[[:blank:]]{2,}` coincide con cualquier secuencia de dos o más caracteres en blanco.
+- **`{i,j}`**: el átomo debe aparecer al menos `i` veces y como máximo `j` veces (`i` y `j` números enteros, `j` mayor que `i`). Por ejemplo, `xyz{2,4}` coincide con la cadena `xy` seguida entre dos y cuatro caracteres `z`.
+
+En cualquier caso, si una subcadena coincide con una expresión regular y una subcadena
+más larga que comienza en el mismo punto también coincide, se considerará la subcadena
+más larga.
+
+Las expresiones regulares básicas también admiten límites, pero los delimitadores deben
+estar precedidos por `\:\{ y \}`. Por sí mismo, `{ y }` se interpretan como caracteres
+literales. Un `\{` seguido de un carácter que no sea un dígito es un carácter literal,
+no el comienzo de un límite.
+
+#### Ramas y referencias posteriores
+Las expresiones regulares básicas también difieren de las expresiones regulares
+extendidas en otro aspecto importante: una expresión regular extendida se puede dividir
+en ramas, cada una de las cuales es una expresión regular independiente. Las ramas
+están separadas por `|` y la expresión regular combinada coincidirá con cualquier cosa
+que corresponda a cualquiera de las ramas. Por ejemplo, `he|him` coincidirá si la
+subcadena `he` o `him` se encuentran en la cadena que se está examinando. Las
+expresiones regulares básicas interpretan `|` como un carácter literal. Sin embargo,
+la mayoría de los programas que soportan expresiones regulares básicas permitirán
+ramificaciones con `\|`.
+
+Una expresión regular extendida encerrada entre `()` se puede usar en una referencia
+posterior. Por ejemplo, `([[:digit]])\1` coincidirá con cualquier expresión regular
+que se repita al menos una vez, porque el `\1` en la expresión es la referencia
+posterior a la pieza que coincide con la primera subexpresión entre paréntesis. Si
+existe más de una subexpresión entre paréntesis en la expresión regular, se puede
+hacer referencia a ellas con `\2`, `\3`, etc.
+
+Para REs básicas, las subexpresiones deben estar delimitadas por `\( y )`, con `( y )`
+por sí mismos caracteres ordinarios. El índice de referencia inversa se usa del
+mismo modo que en las expresiones regulares extendidas.
+
+#### Búsqueda con expresiones regulares
+El beneficio inmediato que ofrece las expresiones regulares es mejorar las búsquedas
+en sistemas de archivos y documentos de texto. La opción `-regex` del comando `find`
+permiten probar cada ruta en una jerarquía de directorios contra una expresión regular.
+Por ejemplo:
+
+    find $HOME -regex '.*/\..*' -size +100M
+
+Busca archivos de más de 100 megabytes, pero solo en rutas dentro del directorio de
+inicio del usuario que contiene una coincidencia con `.*/\..*`, es decir, un `/.`
+rodeado por cualquier otro número de caracteres. En otras palabras, solo se
+enumerarán los archivos ocultos o los archivos dentro de los directorios ocultos,
+independientemente de las posiciones de `/.` en la ruta correspondiente. Para
+expresiones regulares que no distinguen entre mayúsculas y minúsculas, se usará en
+su lugar de la opción `-iregex`:
+```sh
+find /usr/share/fonts -regextype posix-extended -iregex
+'.*(dejavu|liberation).*sans.*(italic|oblique).*'
+/usr/share/fonts/dejavu/DejaVuSansCondensed-BoldOblique.ttf
+/usr/share/fonts/dejavu/DejaVuSansCondensed-Oblique.ttf
+/usr/share/fonts/dejavu/DejaVuSans-BoldOblique.ttf
+/usr/share/fonts/dejavu/DejaVuSans-Oblique.ttf
+/usr/share/fonts/dejavu/DejaVuSansMono-BoldOblique.ttf
+/usr/share/fonts/dejavu/DejaVuSansMono-Oblique.ttf
+/usr/share/fonts/liberation/LiberationSans-BoldItalic.ttf
+/usr/share/fonts/liberation/LiberationSans-Italic.ttf
+```
+En este ejemplo, la expresión regular contien ramas (escritad en modo extendido) para
+listar solo archivos de fuentes específicos bajo la jerarquía de directorios
+`/usr/share/fonts`. Las expresiones regulares extendidas no son compatibles de forma
+predeterminada, pero `find` permite habilitarlas con `-regextype posix-extended` o
+`-regextype egrep`. El estándar RE predeterminado para `find` es *findutils-default*,
+que es prácticamente un clon básico de expresión regular.
+
+A menudos es necesario pasar la salida de un programa al comando `less` cuando no
+cabe en la pantalla. El comando `less` divide su entrada en páginas, una pantalla
+completa a la vez, lo que permite al usuario navegar fácilmente por el texto hacia
+arriba y abajo. Además, `less` también permite al usuario realizar búsquedas basadas
+en expresiones regulares. Esta característica es notablemente importante porque
+`less` es el paginador predeterminado que se usa para muchas tareas diarias, como
+inspeccionar entradas de diarior o consultar páginas de manul. Al leer una página de
+manual, por ejemplo, al presionar la tecla `/` se abrirá un mensaje de búsqueda.
+Este es un escenario típico en el que las expresiones regulares son útiles, ya que
+las opciones de comando se enumaran justo después de un margen de página. Sin embargo,
+la misma opción puede aparecer muchas veces en el texto, lo que hace que las
+búsquedas literales sean inviables. Independientemente de eso, al escribir
+`^[[:blank:]]-o` o de manera más simple: `^-o` (en el indicador de búsqueda y presionar
+Enter se saltará inmediatamente a la sección `-o`, permitiendo consultar la descripción
+de una opción de manera más rápida).
+
+#### El buscador de patrones: `grep`
+
