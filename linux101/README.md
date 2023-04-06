@@ -4402,4 +4402,421 @@ Enter se saltará inmediatamente a la sección `-o`, permitiendo consultar la de
 de una opción de manera más rápida).
 
 #### El buscador de patrones: `grep`
+Uno de los usos más comunes de `grep` es facilitar la inspección de archivos largos,
+utilizando la expresión regular con filtro aplicado a cada linea. Se puede usar para
+mostrar solo las líneas que comienzan con un término determinado. Por ejemplo,
+`grep` se puede usar para inspeccionar un archivo de configuración con módulos del
+kernel, mostrando solo las líneas de opciones:
+```sh
+grep '^options' /etc/modprobe.d/alsa-base.conf
+options snd-pcsp index=-2
+options snd-usb-audio index=-2
+options bt87x index=-2
+options cx88_alsa index=-2
+options snd-atiixp-modem index=-2
+options snd-intel8x0m index=-2
+options snd-via82xx-modem index=-2
+```
+El carácter de barra vertical `|` se puede usar para redirigir la salida de un comando
+directamente a la entrada de `grep`. El siguiente ejemplo usa una expresión entre
+corchetes para seleccionar las líneas de la salida de `fdisk -l`, comenzando con
+`Disk /dev/sda` o `Disk /dev/sda`:
+```sh
+fdisk -l | grep '^Disk /dev/sd[ab]'
+Disk /dev/sda: 320.1 GB, 320072933376 bytes, 625142448 sectors
+Disk /dev/sdb: 7998 MB, 7998537728 bytes, 15622144 sectors
+```
+La mera selección de línas con coincidencias puede no ser apropiada para una tarea
+en particular, requiriendo ajustes en el comportamiento de `grep` a través de sus
+opciones. Por ejemplo, la opción `-c` o `--count` le dice a `grep` que muestre cuántas
+líneas tenían coincidencias:
+```sh
+fdisk -l | grep '^Disk /dev/sd[ab]' -c
+2
+```
+La opción se puede colocar antes o después de la expresión regular. Otrad opciones
+importantes de grep son:
+- **`-c o --count`**: en lugar los resultados de la búsqueda, solo muestra el recuento total e cuántas veces se produce una coincidencia en un archivo determinado.
+- **`i o --ingore-case`**: hace que la búsqueda no distinga entre mayúscula y minúsculas.
+- **`-f FILE o --file=FILE`**: indica un archivo que contenga la expresión regular a utilizar.
+- **`-n o --line-number`**: muestra el número de la línea.
+- **`-v o --invert-match`**: selecciona todas las línas, excepto las que contengan coincidencias.
+- **`-H o --with-filename`**: imprime también el nombre del archivo que contiene la línea.
+- **`-z o --null-data`**: en lugar de que `grep` trate los datos de flujo de entrada y salida como líneas separadas (usando newline por defecto), toma la entrada o salida como una secuencia de líneas. Cuando se combina la salida del comando `find` usando la opción `-print0` con el comando `grep`, la opción `-z` o `--null-data` deben usarse para procesar el flujo de la misma manera.
 
+Aunque se activa de forma predeterminada cuando se porporcionan varias rutas de archivo
+como entrada, la opción `-H` no está activada para archivos individuales. Eso puede ser
+crítico en situaciones especiales, como cuando `grep` es llamado directamente por   `find`, por ejemplo:
+```sh
+find /usr/share/doc -type f -exec grep -i '3d modeling' "{}" \; | cut -c -100
+artistic aspects of 3D modeling. Thus this might be the application you are
+This major approach of 3D modeling has not been supported
+oce is a C++ 3D modeling library. It can be used to develop CAD/CAM softwares, for
+instance [FreeCad]
+```
+En este ejemplo, `find` lista todos los archivos en `/usr/share/doc` y luego pasa cada
+uno a `grep`, que a su vez realiza una búsqueda que no distingue entre mayúsculas y
+minúsculas de `3d modeling` dentro del archivo. La tuberia está ahí solo para limitar
+la longitud de salida a 100 columnas. Sin embargo, tenga en cuenta que no hay forma
+de saber de que archivo provienen las líneas. Este problema se resuelve agregando
+`-H` a `grep`:
+```sh
+find /usr/share/doc -type f -exec grep -i -H '3d modeling' "{}" \; | cut -c -100
+/usr/share/doc/openscad/README.md:artistic aspects of 3D modeling. Thus this might
+be the applicatio
+/usr/share/doc/opencsg/doc/publications.html:This major approach of 3D modeling has
+not been support
+```
+Ahora es posible identificar los archivos donde se encontró cada coincidencia. Para
+que la lista sea aún más informativo, se puede agregar líneas iniciales y finales
+a las líneas con coincidencias:
+```sh
+find /usr/share/doc -type f -exec grep -i -H -1 '3d modeling' "{}" \; | cut -c -100
+/usr/share/doc/openscad/README.md-application Blender), OpenSCAD focuses on the CAD
+aspects rather t
+/usr/share/doc/openscad/README.md:artistic aspects of 3D modeling. Thus this might
+be the applicatio
+/usr/share/doc/openscad/README.md-looking for when you are planning to create 3D
+models of machine p
+/usr/share/doc/opencsg/doc/publications.html-3D graphics library for Constructive
+Solid Geometry (CS
+/usr/share/doc/opencsg/doc/publications.html:This major approach of 3D modeling has
+not been support
+/usr/share/doc/opencsg/doc/publications.html-by real-time computer graphics until
+recently.)
+```
+La opción `-1` le indica a `grep` que incluya una lína antes y una línea después cuando
+encuentre una línea con una coincidencia. Estas líneas adicionales se denominan
+líneas de contexto y se identifican en la salida con un signo menos después del
+nombre del archivo. Se puede obtener el mismo resultado con `-C` o `--context=1` y se
+pueden indicar otras cantidades de líneas de contexto.
+
+Hay dos programas complementarios a grep: `egrep` y `fgrep`. El programa `egrep` es
+equivalente al comando `grep -E`, que incorpora características adicionales además de
+las expresiones regulares básicas. Por ejemplo, con `egrep` es posible usar
+características extendidas de expresión regular, como ramificaciones:
+```sh
+find /usr/share/doc -type f -exec egrep -i -H -1 '3d (modeling|printing)' "{}" \;
+| cut -c -100
+/usr/share/doc/openscad/README.md-application Blender), OpenSCAD focuses on the CAD
+aspects rather t
+/usr/share/doc/openscad/README.md:artistic aspects of 3D modeling. Thus this might
+be the applicatio
+/usr/share/doc/openscad/README.md-looking for when you are planning to create 3D
+models of machine p
+/usr/share/doc/openscad/RELEASE_NOTES.md-* Support for using 3D-Mouse / Joystick /
+Gamepad input dev
+/usr/share/doc/openscad/RELEASE_NOTES.md:* 3D Printing support: Purchase from a
+print service partne
+/usr/share/doc/openscad/RELEASE_NOTES.md-* New export file formats: SVG, 3MF, AMF
+/usr/share/doc/opencsg/doc/publications.html-3D graphics library for Constructive
+Solid Geometry (CS
+/usr/share/doc/opencsg/doc/publications.html:This major approach of 3D modeling has
+not been support
+/usr/share/doc/opencsg/doc/publications.html-by real-time computer graphics until
+recently.)
+```
+En este ejemplo, `3D modeling` o `3D printing` coincidirán con la expresión, no
+dinstingue entre mayúsculas y minúsculas. Para mostrar solo las partes de un flujo
+de texto que coinciden con la expresión utilizada por `egrep`, use la opción `-o`.
+
+El programa `fgrep` es equivalente a `grep -F`, es decir, no analiza expresiones
+regulares. Es útitl en búsquedas simples donde el objetivo es hacer coincidir una
+expresión literal. Por lo tanto, los caracteres especiales como el signo de dólar y
+el punto se tomarán literalmente y no por su significado en una expresión regular.
+
+#### El editor de trasmisiones: `sed`
+El propósito del programa `sed` es modificar datos basados en texto de una manera no
+interactiva. Significa que toda le edición se realiza mediante instrucciones
+predefinidas, no escribiendo arbitrariamente directamente en un texto que muestra en
+pantalla. En términos modernos, `sed` puede entenderse como un analizador de plantillas:
+dando un texto como entrada, coloca contenido personalizado en posiciones predefinidas
+o cuando encuentra una coincidencia para una expresión regular.
+
+Sed, como su nombre lo indica, es muy adecuado para texto transmitido a través de
+tuberías. Su sintaxis básica es `sed -f SCRIPT` cuando las instrucciones de edición
+se almacenan en el archivo `SCRIPT` o `sed -e COMMANDS` para ejecutar `COMMANDS`
+directamente desde la línea de comandos. Si no hay `-f` ni `-e`, `sed` utiliza el
+primer parámetro que no es una opción como archivo de script. También es posible
+usar un archivo como entrada simplemente dando su ruta como argumento a `sed`.
+
+Las instrucciones `sed` se componen de un solo carácter, posiblemente precedidas por
+una dirección o seguidas de una o más opciones, y se aplican a cada línea a la vez.
+Las direcciones pueden ser un número de una sola línea, una expresión regular o un
+rango de líneas. Por ejemplo, la primera línea de una secuencia de texto se puede
+eliminar con `1d`, donde `1` especifica la línea donde se aplicará el comando de    eliminación `d`.
+```sh
+factor `seq 12`
+1:
+2: 2
+3: 3
+4: 2 2
+5: 5
+6: 2 3
+7: 7
+8: 2 2 2
+9: 3 3
+10: 2 5
+```
+La eliminación de la primera línea con `sed` se logra mediante `1d`:
+```sh
+factor `seq 12` | sed 1d
+2: 2
+3: 3
+4: 2 2
+5: 5
+6: 2 3
+7: 7
+8: 2 2 2
+9: 3 3
+10: 2 5
+11: 11
+12: 2 2 3
+```
+Se puede especificar un rango de líneas separadas por coma:
+```sh
+factor `seq 12` | sed 1,7d
+8: 2 2 2
+9: 3 3
+10: 2 5
+11: 11
+12: 2 2 3
+```
+Se puede utilizar más de una instrucción en la misma ejecución, separadas por punto
+y coma. En este caso, sin embargo, es importante encerrarlos entre paréntesis para
+que el punto y coma no sea interpretado por el shell:
+```sh
+factor `seq 12` | sed "1,7d;11d"
+8: 2 2 2
+9: 3 3
+10: 2 5
+12: 2 2 3
+```
+En este ejemplo, se ejecutaron dos instrucciones de eliminación, primero en las líneas
+que van de 1 al 7 y luego en la línea 11. Una dirección también puede ser una
+expresión regular, por lo que solo las líneas con coincidencias se verán afectadas por
+la instrucción:
+```sh
+factor `seq 12` | sed "1d;/:.*2.*/d"
+3: 3
+5: 5
+7: 7
+9: 3 3
+11: 11
+```
+La expresión regular `:.*2.*` coinciden con cualquier aparición del número 2 en
+cualquier lugar después de dos puntos, lo que provoca la eliminación de las líneas
+correspondientes a los números con 2 como factor. Con `sed`, cualquier cosa colocada
+entre barras (`/`) se consideran una expresión regular y. pordefecto, se admiten todos
+los REs básicos. Por ejemplo, `sed -e "/^#/d" /etc/services` muestra el contenido del
+archivo `/etc/service` sin las líneas que comienzan con `#`.
+
+La instrucción de eliminación `d` es solo una de las muchas instrucciones de edición
+proporcionadas por `sed`. En lugar de eliminar una línea, `sed` puede reemplazarla con
+un texto dado:
+```sh
+factor `seq 12` | sed "1d;/:.*2.*/c REMOVED"
+REMOVED
+3: 3
+REMOVED
+5: 5
+REMOVED
+7: 7
+REMOVED
+9: 3 3
+REMOVED
+11: 11
+REMOVED
+```
+La instrucción `c REMOVED` simplemente reemplaza una lína con el texto `REMOVED`. En
+el caso del ejemplo, cada línea con una subcadena que coincida con la expresión
+regular `:.*2.*` se ve afectada por la instrucción `c REMOVED`. La instrucción `a TEXT`
+copia el texto indicado por `TEXT` en una nueva línea después de la línea con una
+coincidencia. La instrucción `r FILES` hace los mismo, pero copia el contenido del
+archivo indicado por `FILE`. La instrucción `w` hace lo contrario de `r`, es decir, la
+línea se agregará al archivo indicado.
+
+Con mucho, la instrucción `sed` más utilizada es `s/FIND/REPLACE/`, que se utiliza
+para reemplazar una coincidencia de la expresión regular `FIND` con el texto indicado
+por `REPLACE`. Por ejemplo, la instrucción `s/hda/sda` reemplazara una subcadena que
+coincide con el literal RE `hda` con `sda`. Solo se reemplazara la primera coincidencia
+que se encuentra en la línea, a menos que la opción `g` se coloque después de la
+instrucción, como en `s/hda/sda/g`.
+
+Un estudio de caso más realista ayudará a ilustrar las características de `sed`.
+Suponga que una clínica médica desea enviar mensajes de texto a sus clientes,
+recondándoles sus citas programadas para el día siguiente. Un escenario de
+implementación típico se basa en un servicio de mensajería instantánea profesional,
+que proporciona una API para acceder al sistema responsable de entregar los mensajes.
+Estos mensajes generalmente se originan en el mismo sistema que ejecuta la aplicación
+que controla las citas del cliente, activados a una específica del día o algún
+otro evento. En esta situación hipotética, la aplicación podría generar un archivo
+llamado `citas.csv` que contengan los datos tabulados con todas las citas para el día
+siguiente, luego usando por `sed` para procesar los mensajes de texto de un archivo de
+platilla llamado `template.txt`. Los archivos CSV son una forma estándar de exportar
+datos de consultas de base de datos, por lo que las citas de muestras se pueden
+proporcionar de la siguiente manera:
+```sh
+cat appointments.csv
+"NAME","TIME","PHONE"
+"Carol","11am","55557777"
+"Dave","2pm","33334444"
+```
+La primera línea contiene las etiquetas de cada columna, que se utilizarán para hacer
+coincidir las etiquetas dentro del archivo de plantilla de muestra:
+```sh
+cat template.txt
+Hey <NAME>, don't forget your appointment tomorrow at <TIME>.
+```
+Los signos de menos de `<` y de mayor que `>` se colocaron alrededor de las etiquetas
+solo para ayudar a indetificarlas como etiquetas. El siguiente script de Bash
+analiza todas las citas en una cola usando `template.txt` como plantilla de mensaje:
+```sh
+#! /bin/bash
+TEMPLATE=`cat template.txt`
+TAGS=(`sed -ne '1s/^"//;1s/","/\n/g;1s/"$//p' appointments.csv`)
+mapfile -t -s 1 ROWS < appointments.csv
+for (( r = 0; r < ${#ROWS[*]}; r++  ))
+    do
+    MSG=$TEMPLATE
+    VALS=(`sed -e 's/^"//;s/","/\n/g;s/"$//' <<<${ROWS[$r]}`)
+    for (( c = 0; c < ${#TAGS[*]}; c++  ))
+    do
+        MSG=`sed -e "s/<${TAGS[$c]}>/${VALS[$c]}/g" <<<"$MSG"`
+    done
+    echo curl --data message=\"$MSG\" --data phone=\"${VALS[2]}\"
+https://mysmsprovider/api
+done
+```
+Un script de producción real también controlaría la autenticación, la verificación de
+errores y el registro. Las primeras instrucciones ejecutadas por `sed` se aplican solo
+a la primera línea -the address `1` in `1s/^"//;1s/","/\n/g;1s/"$//p`- para eliminar
+las comillas iniciales y finales -`1s/^"//"` y `1s/"$//"`- y reemplazara los separadores
+de campo con un carácter de nueva línea: `1s/","/\n/g`. Solo se necesita la primera
+línea para cargar los nombres de las columnas, por lo que las líneas que no coincidan
+se suprimirán con la opción `-n`, lo que requiere que la marca `p` se coloque después
+del último comando `sed` para imprimir la línea coincidente. Luego, las etiquetas
+se almacenan en la variable `TAG` como una matriz Bash. Otra variable de tipo matriz
+es creada por el comando `mapfile` para almacenar las líneas que contienen las citas
+en la variable de matriz `ROWS`.
+
+Se emplea un bucle `for` para procesar cada línea de cita que se encuentra en `ROWS`.
+Luego, las comillas y los separadores en la cita - la cita está en la variable
+`${ROWS[$r]}` usada como un here string - se reemplazara por `sed`, de manera similar
+a los comandos usados para cargar las etiquetas. Los valores separados para la cita
+se almacenan en la variable de matriz `VALS`, donde los subíndices de matriz 0, 1 y 2
+corresponden a los valores `NAME`, `TIME` y `PHONE`.
+
+Finalmente, un bucle anidado `for` recorre la matriz `TAGS` y reemplaza cada etiqueta
+que se encuentra en la plantilla con su valor correspondiente en `VALS`. La variable
+`MSG` contiene una copia de la plantilla renderizada, actualizada por el comando de
+sustitución `s/<${TAGS[$c]}>/${VALS[$c]}/g` en cada iteración de bucle a través de
+`TAGS`.
+
+Esto da como resultado un mensaje como: `"Hey Carol, don’t forget your appointment tomorrow at 11am."`. El mensaje se puede enviar como un parámetro a través de una
+solicitud HTTP con `curl`, como un mensaje de correo o cualquier otro método similar.
+
+#### Combinando `grep` y `sed`
+Los comandos `grep` y `sed` pueden usarse juntos cuando se requieren procedimientos de
+minería de texto más complejos. Como administrador del sistema, es posible que desee
+inspeccionar todos los intentos de inicio de sesión en un servidor, por ejemplo. El
+archivo `/var/log/wtmp` registra todos los inicios y cierres de seesión, mientras que
+el archivo `/var/log/btmp` registra los intentos fallidos de inicio de sesión. Están
+escritos en formato binario, que se pueden leer con los comandos `last` y `lastb`,
+respectivamente.
+
+La salida de `lastb` muestra no solo el nombre de usuario utilizado en el intento de
+inicio de sesión incorrecto, sino tambien su dirección IP:
+```sh
+lastb -d -a -n 10 --time-format notime
+user
+ssh:notty (00:00) 81.161.63.251
+nrostagn ssh:notty (00:00) vmd60532.contaboserver.net
+pi ssh:notty (00:00) 132.red-88-20-39.staticip.rima-tde.net
+pi ssh:notty (00:00) 132.red-88-20-39.staticip.rima-tde.net
+pi ssh:notty (00:00) 46.6.11.56
+pi ssh:notty (00:00) 46.6.11.56
+nps ssh:notty (00:00) vmd60532.contaboserver.net
+narmadan ssh:notty (00:00) vmd60532.contaboserver.net
+nominati ssh:notty (00:00) vmd60532.contaboserver.net
+nominati ssh:notty (00:00) vmd60532.contaboserver.net
+```
+La opción `-d` traduce el número IP al nombre de host correspondiente. El nombre de host
+puede proporcionar pistas sobre el ISP o el servicio de alojamiento utilizado para
+realizar estos intentos de inicio de sesión incorrectos. La opción `-a` coloca
+el nombre de host en la última columna, lo que facilita el filtrado aún por aplicar.
+La opción `--time-format notime` suprime la hora en que se produjo el intento de inicio
+de sesión. El comando `lastb` puede tardar algún tiempo en completarse si hubo 
+demasiados intentos de inicio de sesión incorrectos, por lo que la salida se limitó
+a diez con la opción `-n 10`.
+
+No todas las direcciones IP remotas tienen un nombre de host asociado, por lo que el
+DNS inverso no se aplica a ellas y se pueden descartat. Aunque se podría escribir
+una expresión regular para que coincida con el formato esperado para un nombre de
+host al final de la línea, probablemente sea más sencillo escribir una expresión
+regular para que coincida con una letra del alfabeto o con un solo dígito al final de
+la línea. El siguiente ejemplo muestra cómo el comanndo `grep` toma el listado en
+su entrada estándar y elimina las líneas sin nombre de host:
+```sh
+lastb -d -a --time-format notime | grep -v '[0-9]$' | head -n 10
+nvidia
+ssh:notty (00:00) vmd60532.contaboserver.net
+n_tonson ssh:notty (00:00) vmd60532.contaboserver.net
+nrostagn ssh:notty (00:00) vmd60532.contaboserver.net
+pi ssh:notty (00:00) 132.red-88-20-39.staticip.rima-tde.net
+pi ssh:notty (00:00) 132.red-88-20-39.staticip.rima-tde.net
+nps ssh:notty (00:00) vmd60532.contaboserver.net
+narmadan ssh:notty (00:00) vmd60532.contaboserver.net
+nominati ssh:notty (00:00) vmd60532.contaboserver.net
+nominati ssh:notty (00:00) vmd60532.contaboserver.net
+nominati ssh:notty (00:00) vmd60532.contaboserver.net
+```
+El comando `grep` con la opción `-v`, muestra solo las líneas que no coincidan con la
+expresión regular dada. Una expresión regular que coincida con cualquier línea que
+termine con un número (es decir, `[0-9]$`) capturará solo las entradas sin un nombre
+de host. Por lo tanto, `grep -v [0-9]$` monstrará solo las líneas que terminen con un
+nombre de host.
+
+La salida se puede filtrar aún más, manteniendo solo el nombre de dominio y eliminando
+las otras partes de cada línea. El comando `sed` puede hacerlo con un comando se
+sustitución para reemplazar todas las líneas con una referencia al nomre de dominio
+con ella:
+```sh
+lastb -d -a --time-format notime | grep -v '[0-9]$' | sed -e 's/.* \(.*\)$/\1/' | head -n 10
+vmd60532.contaboserver.net
+vmd60532.contaboserver.net
+vmd60532.contaboserver.net
+132.red-88-20-39.staticip.rima-tde.net
+132.red-88-20-39.staticip.rima-tde.net
+vmd60532.contaboserver.net
+vmd60532.contaboserver.net
+vmd60532.contaboserver.net
+vmd60532.contaboserver.net
+vmd60532.contaboserver.net
+```
+El parámetro de escape en `.* \(.*\)$` indica a `sed` que recuerde esa parte de la
+línea, es decir, la parte entre el último carácter de espacio y el final de la línea.
+En el ejemplo, se hace referencia a esta parte con `\1` y se usa para reemplazar la
+línea completa.
+
+Está claro que la mayoría de los host remotos intentan iniciar sesión más de una vez,
+por lo que el mismo nombre de dominio se repite. Para suprimir las entradas repetidas,
+primero se deben ordenar (con el comando `sort`) y luego pasar el comando `uniq`:
+```sh
+lastb -d -a --time-format notime | grep -v '[0-9]$' | sed -e 's/.* \(.*\)$/\1/' | sort | uniq | head -n 10
+116-25-254-113-on-nets.com
+132.red-88-20-39.staticip.rima-tde.net
+145-40-33-205.power-speed.at
+tor.laquadrature.net
+tor.momx.site
+ua-83-226-233-154.bbcust.telenor.se
+vmd38161.contaboserver.net
+vmd60532.contaboserver.net
+vmi488063.contaboserver.net
+```
+Esto muestra cómo se pueden combinar diferentes comandos para producir el resultado
+deseado. La lista de nombres de host se pueden utilizar para escribir reglas de
+bloqueo de firewall o para tomar otras medidas para hacer cumplir la seguirdad del
+servidor.
+
+pg414
