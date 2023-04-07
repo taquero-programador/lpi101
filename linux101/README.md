@@ -5620,3 +5620,317 @@ disponible, pero no se cargará automáticamente. Puede automzatizar eso agregan
 el nuevo archivo de intercambio a `/etc/fstab`.
 
 ## Mantener la integridad de los sistemas de archivos
+Los sistemas de archivos modernos de Linux utilizan journalig. Esto significa que cada
+operación se refleja en un registro interno (el journal) antes de ejecutarse. Si
+la operación se interrumpe debido a un error del sistema, se puede recontruir
+revisando el diario, evitando la corrumpción del sistema de archivo y la pérdida de
+datos.
+
+Esto reduce en gran medida la necesida de verificaciones manuales del sistema de
+archivos, pero es posible que aún sean necesarias. Conocer las herramientas utilizadas
+para esto puede representar la diferencia entre cenar en casa o con tu familia o
+pasar la noche en la sala de servidores del trabajo.
+
+#### Comprobación del uso del disco
+Hay dos comando que se pueden usar para verificar cuáto espacio se está usando y cuánto
+queda en un sistema de archivos. El primero es `du`, que significa "uso de disco".
+
+`du` es de natulareza recursiva. En su forma más básica, el comando simplemente
+monstará cuántos bloques de 1 kilobyte están siendo utilizados por el directorio actual
+y todos sus subdirectorios:
+
+    du
+
+Esto no es muy útil, por lo que podemos solicitar una salida legible por humanos
+agregando el parámetro `-h`:
+
+    du -h
+
+Por defecto, `du` solo muestra el recuent de uso de los directorios. Para mostrar un
+recuento individual de todos los archivos en el directorio, user el parámetro `-a`:
+
+    du -ah
+
+El comportamiento predeterminado es mostrar el uso de cada subdirectorio, luego el
+uso total del directorio actual, incluyendo subdirectorios.
+
+En el ejemplo anterior, podemos ver que el subdirectorio `Temp` ocupa 4.8 MB y el
+directorio actual incluyendo `Temp`, ocupan 6.0 MB. Pero ¿cuánto espacio ocupan los
+archivos en el directorio actual, excluyendo los subdirectorios? Para eso tenemos el
+parámetro `-S`:
+```sh
+du -Sh
+4.8M ./Temp
+1.3M .
+```
+Si desea mantener esta distinción entre el espacio usado por los archivos en el
+directorio actual y el espacio usado por los subdirectorios, pero también quiere un
+gran total al final, puede agregar el parámetro `-c`:
+```sh
+du -Shc
+4.8M ./Temp
+1.3M .
+6.0M total
+```
+Puede controlar qué tan profundo debe ir la salida de `du` con el parámetro `-d N`,
+donde `N` describe los niveles. Por ejemplo, si usa el parámetro `-d 1`, mostrará el
+directorio actual y sus subdirectorios, pero no los subdirectorios de esos.
+
+Vea la diferencia a continuación. Sin `-d`:
+```sh
+du -h
+216K ./somedir/anotherdir
+224K ./somedir
+232K .
+```
+Y limitando la profundidad a un nivel con `-d 1`:
+```sh
+du -h -d1
+224K ./somedir
+232K .
+```
+Tenga en cuenta que incluso si no se muestra `anotherdir`, su tamaño se siguie teniendo
+en cuenta.
+
+Es posible que desee excluir algunos tipos de archivos del recuento, lo que puede hacer
+con `--exclude="PATTERN"`, donde `PATTERN` es el patrón con el que desea comparar.
+Considere este directorio:
+```sh
+du -ah
+124K ./ASM68K.EXE
+2.0M ./Contra.bin
+36K ./fixheadr.exe
+4.0K ./README.txt
+2.1M ./Contra_NEW.bin
+4.0K ./Built.bat
+8.0K ./Contra_Main.asm
+4.2M .
+```
+Ahora, usaremos `--exclude` para filtar todos los archivos con la extension `.bin`:
+```sh
+du -ah --exclude="*.bin"
+124K
+./ASM68K.EXE
+36K ./fixheadr.exe
+4.0K ./README.txt
+4.0K ./Built.bat
+8.0K ./Contra_Main.asm
+180K .
+```
+Tenga en cuenta que el total ya no refleja el tamaño de los archivos excluidos.
+
+#### Comprobación de espacio libre
+`du` funciona a nivel de archivos. Hay otro comando que puede monstrarle el uso del
+disco y la cantidad de espacio disponible a nivel del sistema de archivos. Este
+comando es `df`.
+
+El comando `df` proporcionará una lista de todos los sistemas de archivos disponibles
+(ya montados) en un sistema, incluido su tamaño total, cuánto espacio se ha utilizado,
+cuánto espacio está disponible, el procentaje de uso y dónde está montado:
+
+    df
+
+Sin embargo, mostrarar el tamaño en bloques de 1 KB no es muy fácil de usar. Como
+en `du`, puede agregar los árámetros `-h` para obtener un resultado más legible por
+humanos:
+
+    df -h
+
+También puede usar el parámetro `-i` para mostrar indos usados/disponible en lugar de
+bloques:
+
+    df -i
+
+Un parámetro útil es `-T`, que también imprimirá el tipo de cada sistema de archivos:
+
+    df -hT
+
+Conociendo el tipo de sistemas de archivos, puede filtrar la salida. Puede monstrar
+solo sistemas de archivos de un tipo dado con `-t TYPE`, o excluir sistemas de archivos
+de un tipo dado con `-x TYPE`, como en los ejemplos siguientes.
+
+Excluyendo los sistemas de archivos `tmpfs`:
+
+    df -hx tmpfs
+
+Mostrando solo los sistemas de archivos `ext4`:
+
+    df -ht ext4
+
+También puede personalizar la salida de `df`, seleccionando lo que debe mostrarse y en
+qué orden, usando el parámetro `--output=` seguido de una lista de campos separados
+por comas que desee monstrar. Algunos de los campos disponibles son:
+- **`source`**: el dispositivo correspondiente al sistema de archivos.
+- **`fstype`**: el tipo de sistema de archivos.
+- **`size`**: el tamaño total del sistema de archivos.
+- **`used`**: cuánto espacio se está utilizando.
+- **`avail`**: cuánto espacio hay disponible.
+- **`pcent`**: el porcentaje de uso.
+- **`target`**: dónde está montado el sistema de archivos (punto de montaje).
+
+Si desea una salida que muestre el destino, fuente, el tipo y el uso, puede usar:
+
+    df -h --output=target,source,fstype
+
+`df` también se puede usar para verificar la información de inodos, pasando los
+siguientes campos a `--output=`:
+- **`itotal`**: el número total de inodos en el sistema de archivos.
+- **`iused`**: el número de inodos usados en el sistema de archivos.
+- **`iavail`**: el número de inodos disponibles en el sistema de archivos.
+- **`ipcent`**: el porcentaje de inodos usados en el sistema de archivos.
+
+Por ejemplo:
+
+    df --output=source,fstype,itotal,iused,ipcent
+
+#### Mantenimiento de los sistemas de archivos ext2/3/4
+Para comprobar un sistema de archivos en busca de errores, Linux proporciona la
+utilidad `fsck` (filesystem check). En su forma más básica, puede invovarlo con `fsck`
+seguido de la ubicación del sistema de archivos que desee verificar:
+
+    fsch /dev/sdb1
+
+> NUNCA ejecute `fssch` en un sistema de archivos montado. Si lo hace de todos modos, es posible que pierda los datos.
+
+`fsck` por sí mismo no verificará el sistemas de archivos, simplemente llamará a la
+utilidad aporpiada para el tipo de sistema de archivos para hacerlo. En el ejemplo
+anterior, dado que no se especificó un tipo de sistema de archivos, `fsck` asumió
+un sistema de archivos ext2/3/4 por defecto y se llamó `e2fsck`.
+
+Para especificar un sistema de archivos, user la opción `-t`, seguida del nombre del
+sistema de archivos, como en `fsck -t vfat /dev/sdc`. Alternativamente, puede llamar
+directamente a una utilidad específica del sistema de archivos, como `fsck.msdos`
+para sistema de archivos FAT.
+
+`fsck` puede tomar argumentos de línea de comandos. Estos son algunos de los más
+comunes:
+- **`-A`**: esto comprobará todos los sistemas de archivos listado en `/etc/fstab`.
+- **`-C`**: muestra una barra de porgreso al comprobar un sistema de archivos. Actualmente solo funciona en sistemas de archivos ext2/3/4.
+- **`-N`**: esto imprimirá lo que ser haría y sadrá, sin realmente verificar el sistema de archivos.
+- **`-R`**: cuando se usa junto con `-A`, esto omitirá la verificación del sistema de archivos raíz.
+- **`-V`**: modo detalaldo, imprime más información de lo habitual durante el funcionamiento. Esto es útil para depurar.
+
+La utilidad específica para los sistemas de archivos ext2/3/4 es `e2fsck`, también
+llamado `fsck.ext2`, `fsck.ext3` y `fsck.ext4`. De forma predeterminada, se ejecuta en
+modo interactivo: cuando se encuentra un error en el sistema de archivos, se detiene y
+le preguna al usuario qué hacer. El usuario debe escribir `y` para solucionar el
+problema, `n` para dejarlo sin arreglar o `a` para solucionar el problema actual y
+todos los posteriores.
+
+Por supueesto, setrase frente a una terminal esperando a que `e2fsck` pregunte qué
+hacer no es un uso productivo de su tiempo, especialmente si se trata de un sistema
+de archivos grande. Entonces, hay opciones que hacen que `e2fsck` se ejecuten en modo
+no interactivo:
+- **`-p`**: esto intentara coregir automáticamente cualquier error encontrado. Si se encuentra uun error que requiere intervención del administrador del sistema, `e2fsck` proporcionará una descripción del problema y saldrá
+- **`-y`**: esto responderá `y` (sí) a todas las preguntas.
+- **`-n`**: lo contrario de `-y`. Además de responder `n` a todas las preguntas, esto hará que el sistema de archivo se monte como de solo lectura, por lo que no se puede modificar.
+- **`-f`**: obliga a `e2fsck` a comprobar un sistema de archivos incluso si está marcando como "clean", es decir, se ha desmontado correctamente.
+
+#### Ajustes de un sistema de archivos ext
+Los sistemas de archivos ext2/3/4 tienen una serie de parámetros que el administrador
+del sistema puede ajustar o afinar para adaptarse mejor a las necesidades del sistema.
+La utilidad utilizada para mostrar o modificar estos parámetros se llamada `tune2fs`.
+
+Para ver los parámetros actuales para cualquier sistema de archivos dado, user el
+parámetro `-l` seguido del dispositivo que representa la partición. El siguiente
+ejemplo muestra el resultado de este comando en la primera partición del primer disco
+(`/dev/sda1`) de una máquina:
+
+    tune2fs -l /dev/sda1
+
+Los sistemas de archivso ext tienen conteos de montaje. El recuento aumenta en 1 cada
+vez que se monta el sistema de archivos, y cuando se alcanza un valor de umbral (el
+recuento máximo de montaje), el sistema se comprobará automáticamente con `e2fsck`
+en el próximo arranque.
+
+El número máximo de montajes se puede establecer con el parámetro `-c N`, donde `-N`
+es el número de veces que se puede montar el sistema de archivos sin comprobarlo.
+El parámetro `-C N` establece el número de veces que se ha montado el sistema en el
+valor de `N`. Tenga en cuenta que los parámetros de la línea de comandos dinstingue
+entre mayúsculas y minúsculas, por lo que `-c` es diferente de `-C`.
+
+También es posible un intervalo de timpo entre comprobaciones, con el parámetro `-i`,
+seguido de un número y las letras `d` para días, `m` para meses e `y` para años. Por
+ejemplo, `-i 10d` comprobaría el sistema de archivo en el próximo reinicio cada 10 días.
+Utilice cero como valo para
+desactivar esta función.
+
+`-L` se puede usar para establecer una etiqueta para el sistema de archivos. Esta
+etiqueta puede tener hasta 16 caracteres. El parámetro `-U` establece el UUID para el
+sistema de archivos, que es un número hexadecimal de 128 bits. En el ejemplo anterior,
+el UUID es `6e2c12e3-472d-4bac-a257-c49ac07f3761`. Tanto la etiqueta como el UUID pueden
+usarse en lugar del nombre del dispositivo (como `/dev/sda1`) para mostrar el sistema
+de archivos.
+
+La opción `-e BEHAVIOUR` define el comportamiento del kernel cuando se encuentra un
+error en el sistema de arhivos. Hay tres posibles comportamientos:
+- **`continue`**: continuará la ejecución normalmente.
+- **`remount-re`**: volverá a montar el sistema de archivos como de solo lectura.
+- **`panic`**: causará kernel panic.
+
+El comportamiento predeterminado es `continue`. `remount-ro` podría ser útil en
+aplicaciones sensibles a los datos, ya que detendrá inmediatamente las escrituras en
+el disco, evitando más errores potenciales.
+
+Los sistemas de archivos ext3 son básicamente sistemas de archivos ext2 con un journal.
+Usando `tune2fs` puede agreagar un journal en sus sistema de archivos ext2,
+convirtiéndolo así en ext3. El procedimiento es simple, simplemente pase el parámetro
+`-j` a `tune2fs`, seguido del dispositivo que contienen el sistema de archivos:
+
+    tune2fs -j /dev/sda1
+
+Luego, cuando monte el sistema de archivos convertido, no olvide establecer el tipo
+en `ext3` para que se pueda usar el journal.
+
+Cuando se trata de sistemas de archivos registrados por journal, el parámetro `-J` le
+permite usar parámetros adicionales para establecer algunas opciones de journal,
+como `-J size=` para establecer el tamaño del journal (en megabytes), `-J location=`
+para especificar dónde el journal debe almacenarse e incluso poner el journal en un
+dispositivo externo con `-j device=`.
+
+Puede especificar varios parámetros a la vez separándolos con una coma. Por ejemplo:
+`-J size=10,location=100M,device=/dev/sdb1` creará un journal de 10 MB en la posición
+de 100 MB en el dispositivo `/dev/sdb1`.
+
+#### Mantenimiento de sistemas de archivos XFS
+Para los sistemas de archivos XFS, el equivalente de `fsck` es `xfs_repair`. Si
+sospecha que algo anda mal con el sistema de archivos, lo primero que debe hacer es
+escanearlo en busca de daños.
+
+Esto se puede hacer pasando el parámetros `-n` a `xfs_repair`, seguido del dispositivo
+que contiene el sistema de archivos. El parámetros `-n` significa "no modificar": se
+comprobará el sistema de archivos, se informarán los errores pero no se realizarán
+reparaciones:
+
+    xfs_repair -n /dev/sdb1
+
+Si se encuentran errores, puede proceder a hacer las preparaciones sin el parámetro
+`-n`, así: `xfs_repair /dev/sdb1`.
+
+`xfs_repair` acepta varias opciones de la línea de comandos. Entre ellos:
+- **`-l LOGDEV y -r RTDEV`**: estos son necesarios si el sistema de archivos tiene un riesgo externo y secciones en tiempo real. En este caso, reemplace `LOGDEV` y `RTDEV` con los dispositivos correspondientes.
+- **`-m N`**: se utiliza para limitar el uso de memoria de `xfs_repair` a `N`, algo que puede ser útil en la configuración del servidor. Según la página del manual, de forma predeterminada, `xfs_repair` escalará su uso de memoria según sea necesario, hasta el 75% de la RAM física del sistema.
+- **`-d`**: el modo "dangerous" permitirá la reparación del sistema de archivos que estén montados como de solo lectura.
+- **`-v`**: modo detalladoo. Cada vez que se usa este parámetro, la verbosidad aumenta.
+
+Tenga en cuenta que `xfs_repair` no puede reparar sistemas de archivos con un registro
+"sucio". Puede "poner a cero" un registro corrupto con el parámetro `-L`, pero tenga
+en cuenta que este es un último recurso ya que puede provocar la corrupción delsiste    ma de archivos y la pérdida de datos.
+
+Para depurar un sistema de archivos XFS, se puede usar la utilidad `xfs_db`, como
+en `xfs_db /dev/sdb1`. Esto se usa principalmente para inspeccionar varios elementos y
+parámetros del sistema de archivos.
+
+Esta utilidad tiene un indicador interactivo, como `parted`, con muchos comandos
+internos. También hay disponible un sistema de ayuda: teclee `help` para ver una lista
+de todos los comandos, y `help` seguido del nombre del comando para ver más información
+sobre el comando.
+
+Otra utilidad interesante es `xfs_fsr`, que se puede utilizar para reorganizar un
+sistema de archivos XFS. Cuando se ejecuta sin ningún argumento adicional, se ejecutará
+durante dos horas e intentará desfragmentar todos los sistemas de archivos XFS
+monstados y escribibles enumerados en el archivo `/etc/mtab`. Es posible que deba
+instalar esta utilidad utilizando el administrador de paquetes para su distribución
+de Linux, ya que es probale que no sea parte de una instalación predeterminada.
+
+## Controlar el montaje y desmontaje de los sistemas de archivos
