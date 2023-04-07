@@ -5243,3 +5243,380 @@ Linux. Y algunos de ellos, como SUSE, lo utilizan como sistema de archivos
 predeterminado.
 
 #### Creación de un sistemas de archivos Btrfs
+La utilidad `mkfs.btrfs` se utiliza para crear un sistema de archivos Btrfs. Usar el
+comando sin ninguna opción crear un sistema de archivos Btrfs en un dispositivo dado,
+así:
+
+    mkfs.btrfs /dev/sdb1
+
+Puede usar la `-L` para establecer una etiqueta (o nombre) para su sistema de archivos.
+Las etiquetas Btrfs pueden tener hasta 256 caracteres, excepto para las nuevas líneas:
+
+    mkfs.btrfs /dev/sdb1 -L "New Disk"
+
+Tenga en cuenta este aspecto pecular de Btrfs: puede pasar múltiples dispositivos al
+comando `mkfs.btrfs`. Pasar más de un dispositivo abarcará el sistema de archivos sobre
+todos los dipositivos, lo que es similar a una configuración RAID o LVM. Para
+especificar cómo se distribuirán los metadatos en la matriz de discos, use el parámetros `-m`. Los parámetros válidos son `raid0`, `raid1`, `raid5`, `raid6`,
+`raid10`, `single` y `dump`.
+
+Por ejemplo, para crear un sistema de archivos que abarque `/dev/sda1` y `/dev/sdc1`,
+concatenando las dos particiones en una gran partición, user:
+
+    mkfs.btrfs -d single -m single /dev/sdb /dev/sdc
+
+#### Gestión de subvolúmenes
+Los subvolúmenes son como sistemas de archivos dentro de sistemas de archivos. Piense
+en ellos como un directorio que se puede montar (y tratar como) un sistema de archivos
+separado. Los subvolúmenes facilitan la organnización y la administración del sistema,
+ya que cada uno de ellos puede tener cuotas o reglas instantáneas independientes.
+
+Suponga que tiene un sistema de archivos Btrfs montado `/mnt/disk`, y desea crear un
+subvolumen dentro de él para almacenar sus copias de seguirdad. Llamémoslo `BKP`:
+
+    btrfs subvolume create /mnt/disk/BKP
+
+A continuación, enumeramos el contenido del sistema de archivos `/mnt/disk`. Verá
+que tenemos un nuevo directorio, llamado así por nuestro subvolumen.
+```sh
+ls -lh /mnt/disk/
+total 0
+drwxr-xr-x 1 root
+root
+0 jul 13 17:35 BKP
+drwxrwxr-x 1 carol carol 988 jul 13 17:30 Images
+```
+Podemos comprobar que el subvolumen está activo, con el comando:
+```sh
+btrfs subvolume show /mnt/disk/BKP/
+Name: BKP
+UUID: e90a1afe-69fa-da4f-9764-3384f66fa32e
+Parent UUID: -
+Received UUID: -
+Creation time: 2019-07-13 17:35:40 -0300
+Subvolume ID: 260
+Generation: 23
+Gen at creation: 22
+Parent ID: 5
+Top level ID: 5
+Flags: -
+Snapshot(s):
+```
+Puede montar el subvolumen en `/mnt/BKP` pasando el parámetro `-t btrfs -o subvol=NAME`
+al comando `mount`:
+
+    mount -t btrfs -o subvol=BKP /dev/sdb1 /mnt/bkp
+
+#### Trabajando con instantáneas
+Las instantáneas son como subvolúmenes, pero rellenadas previamente con el contenido
+del volumen desde el que se tomó la instantánea.
+
+Cuando se crea, una instantánea y el volumen original tiene exactamente el mismo
+contenid. Pero a partir de ese momento, divergirán. Los cambios realizados en el
+volumen original (como archivos agregados, renombrados o eliminados) no se reflejarán
+en la instantánea y viceversa.
+
+Tenga en cuenta que una instantánea no duplica los archivos e inicialmente casi no
+ocupa espacio en el disco. Simplemente duplica el árbol del sistema de archivos,
+mientras apunta a los datos originales.
+
+El comando para crear una instantánea es el mismo que se usa para crear un subvolumen,
+simplemente agregue el parámetro `snapshot` después de `btrfs subvolume`. El siguiente
+comando creará una instantánea del sistema de archivo Btrfs montado en `/mnt/disk` en
+`/mnt/disk/snap`:
+
+    btrfs subvolume snpashot /mnt/disk /mnt/disk/snap
+
+Ahora, imagine que tiene el siguiente contenido en `/mnt/disk`:
+```sh
+ls -lh
+total 2,8M
+-rw-rw-r-- 1 carol carol 109K jul 10 16:22 Galaxy_Note_10.png
+-rw-rw-r-- 1 carol carol 484K jul 5 15:01 geminoid2.jpg
+-rw-rw-r-- 1 carol carol 429K jul 5 14:52 geminoid.jpg
+-rw-rw-r-- 1 carol carol 467K jul 2 11:48 LG-G8S-ThinQ-Mirror-White.jpg
+-rw-rw-r-- 1 carol carol 654K jul 2 11:39 LG-G8S-ThinQ-Range.jpg
+-rw-rw-r-- 1 carol carol 2 15:43 Mimoji_Comparativo.jpg
+94K jul
+-rw-rw-r-- 1 carol carol 112K jul 10 16:20 Note10Plus.jpg
+drwx------ 1 carol carol
+366 jul 13 17:56 snap
+-rw-rw-r-- 1 carol carol 118K jul 11 16:36 Twitter_Down_20190711.jpg
+-rw-rw-r-- 1 carol carol 324K jul
+2 15:22 Xiaomi_Mimoji.png
+```
+Observe el directorio de instantáneas, que contiene la instantánea. Ahora elimines
+algunos archivos y verifiquemos el contenido del directorio:
+```sh
+$ rm LG-G8S-ThinQ-*
+$ ls -lh
+total 1,7M
+-rw-rw-r-- 1 carol carol 109K jul 10 16:22 Galaxy_Note_10.png
+-rw-rw-r-- 1 carol carol 484K jul 5 15:01 geminoid2.jpg
+-rw-rw-r-- 1 carol carol 429K jul 5 14:52 geminoid.jpg
+-rw-rw-r-- 1 carol carol 2 15:43 Mimoji_Comparativo.jpg
+94K jul
+-rw-rw-r-- 1 carol carol 112K jul 10 16:20 Note10Plus.jpg
+drwx------ 1 carol carol
+366 jul 13 17:56 snap
+-rw-rw-r-- 1 carol carol 118K jul 11 16:36 Twitter_Down_20190711.jpg
+-rw-rw-r-- 1 carol carol 324K jul
+2 15:22 Xiaomi_Mimoji.png
+```
+Sin embargo, si revias dentro del directorio snap, los archivos que eliminó todavía
+están allí y se pueden restauran si es necesario.
+```sh
+ls -lh snap/
+total 2,8M
+-rw-rw-r-- 1 carol carol 109K jul 10 16:22 Galaxy_Note_10.png
+-rw-rw-r-- 1 carol carol 484K jul 5 15:01 geminoid2.jpg
+-rw-rw-r-- 1 carol carol 429K jul 5 14:52 geminoid.jpg
+-rw-rw-r-- 1 carol carol 467K jul 2 11:48 LG-G8S-ThinQ-Mirror-White.jpg
+-rw-rw-r-- 1 carol carol 654K jul 2 11:39 LG-G8S-ThinQ-Range.jpg
+-rw-rw-r-- 1 carol carol 2 15:43 Mimoji_Comparativo.jpg
+94K jul
+-rw-rw-r-- 1 carol carol 112K jul 10 16:20 Note10Plus.jpg
+-rw-rw-r-- 1 carol carol 118K jul 11 16:36 Twitter_Down_20190711.jpg
+-rw-rw-r-- 1 carol carol 324K jul
+2 15:22 Xiaomi_Mimoji.png
+```
+También es posible crear instantáneas de solo lectura. Funcionan exactamente como
+instantáneas en las que se puede escribir, con la diferencia de que el contenido de la
+instantánea no se puede cambiar, se "congela" en el tiempo. Simplemente agregue el
+parámetro `-r` al crear la instantánea:
+
+    btrfs subvolume snapshot -r /mnt/disk /mnt/disk/snap
+
+#### Algunas palabras sobre compresión
+Btrfs adminte la compresión de archivos transparente, con tres algoritmos diferentes
+disponibles para el usuario. Esto se hace automáticamente por el archivo, siempre que
+el sistema de archivo esté montado con la opción `-o compress`. Los algoritmos son lo
+suficientemente inteligentes como para detectar archivos que no se pueden comprimir y
+no intentará comprimirlos, ahorrando recursos del sistema. Entonces, en un solo
+directorio puede tener archivos comprimidos y descomprimidos juntos. El algoritmo decompresión predeterminado es ZLIB, pero están disponibles LZO (más rápido, pero
+relación de compresión) o ZSTD (más rápido que ZLIB, compresión comparable), con
+múltiples niveles de compresión.
+
+#### Administrar particiones con GNU Parted
+GNU Parted es un editor de particiones muy poderoso que se puede usar para crear,
+eliminar, mover, redimensionar, rescatar y copiar particiones. Puedefuncionar con
+discos GPT y MBR y cubir casi todas la nnecesidades de administración de discos.
+
+Hay muchas interfaces gráficas que facilitan mucho el trabajo con `parted`, como
+GParted para entornos de escritorio basados en GNOME y el KDE Partition Manager para
+escritorios KDE. Sin embargo, debe aprender a usar `parted` en la línea de comandos,
+ya que en una configuración de servidor nunca puede contar con un entorno de
+escritorio gráfico disponible.
+
+Las forma más sencilla de comenzar a usar partes es escribiendo `parted DEVICE`,
+donde `DEVICE` es el dispositivo que desea administrar (`parted /dev/sdb`). El programa
+inicia una interfaz de línea de comandos interactiva como `fdisk` y `gdisk` con
+un mensaje para que ingrese los comandos:
+```sh
+parted /dev/sdb
+GNU Parted 3.2
+Using /dev/sdb
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted)
+```
+#### Seleccionar discos
+Par cambiar a un disco diferente al especificado en la línea de comando, puede usar el
+comando `select`, seguido del nombre del dispositivo:
+```sh
+(parted) select /dev/sdb
+Using /dev/sdb
+```
+
+#### Obtener información
+El comando `print` se puede utilizar para obtener más información sobre una partición
+específica o incluso todos los dispositivos de bloque (discos) conectados a su sistema.
+
+Para obtener información sobre la partición seleccionada actualmente, `print`.
+
+Puede obtener una lista de todos los dispositivos de bloque conectados a su sistema
+usando `print devices`.
+
+Para obtener información sobre todos los dispositivos conectados a la vez, puede usar
+`print all`. Si desea saber cuánto espacio libre hay en cada uno de ellos, puede usar
+`print free`.
+
+#### Crear una tabla de particiones en un disco vacío
+Para crear una tabla de particiones en un disco vacío, use el comando `mklabel`,
+seguido del tipo de tabla de articiones que desea usar.
+
+Hay muchos tipos de tablas de particiones admitidas, pero los tipos principales que
+debe concer son `msdos` que se usa aquí par referirse a una tabla de particiones MBR,
+y `gpt` para referirse a una tabla de particiones GPT. Para crear una tabla de
+particiones MBR, teclee:
+
+    mklabel msdos
+
+Y para crear una tabla de particiones GPT, el comando es:
+
+    mklabel gpt
+
+#### Crear una partición
+Para crear una partición se usa el comando `mkpart`, usando la sintaxis
+`mkparte PARTYPE FSTYPE START END`, donde:
+- **`PARTYPE`**: es el tipo de partición, que puede ser primaria, lógica o extenida en caso de que se utilice una tabla de particiones MBR.
+- **`FSTYPE`**: especifica qué sistema de archivos se utilizará en esta partición. Tenga en cuenta que `parted` no creará el sistema de archivos. Simplemente establece una marca en la partición que le dice al sistema de archivos qué tipo de datos esperar de ella.
+- **`START`**: especifica el punto exacto en el dispositivo donde comienza la partición. Puede utilizar diferentes unidades para especificar este punto. `2s` se puede usar para referirse al segundo sector del disco, mientras que `1m` se refiere al comienzo del primer megabyte del disco. Otras unidades son `B` (bytes) y `%` (porcentaje del disco).
+- **`END`**: especifica el final de la partición. Tenga en cuenta que este no es el tamaño dela particiónm es el punto del disco donde termina. Por ejemplo, si especifica `100 m`, la partición finalizará en 100 MB después del inicio del disco. Puede utilizar las misma unidades que en el parámetro `START`.
+
+Entonces, el comando:
+
+    mkpart primary ext4 1m 100m
+
+Crear una partición primari de tipo `ext4`, comenzando en el primer megabyte del disco y
+terminando después del megabyte 100.
+
+#### Eliminar una partición
+Para eliminar una partición, use el comando `rm` seguido del número de particón, que
+puede mostrar usando el comando `print`. Entonces, `rm 2` eliminaría la segunda
+partición en el disco seleccionado actualmente.
+
+#### Recuperando particiones
+`partes` puede recuperar una partición eliminada. Considere que tiene la siguiente
+estructura de partición:
+```sh
+Number
+Start End Size File system Name
+1 1049kB 99.6MB 98.6MB ext4 primary
+2 99.6MB 200MB 100MB ext4 primary
+3 200MB 300MB 99.6MB ext4 primary
+```
+Por accidente, eliminó la partición 2 usando `rm 2`. Para recuperarlo, puede utilizar
+el comando `rescue`, con la sintaxis `rescue START END`, donde `START` es la ubicación
+aproximada donde comenzí la partición y `END` la ubicación aproximada donde terminó.
+
+`parted` escaneará el disco en busca de particiones y ofrecerá restaurar las que
+encuentre. En el ejemplo anterior, la partición 2 coemnzó en 99,6 MB y terminó en
+200 MB. entonces puede usar el siguiente comenado para recuperar la partición:
+```sh
+(parted) rescue 90m 210m
+Information: A ext4 primary partition was found at 99.6MB -> 200MB.
+Do you want to add it to the partition table?
+Yes/No/Cancel? y
+```
+Esto recuperará la partición y su contenido. Tenga en cuenta que `rescue` solo puede
+recuperar particiones que tengan un sistema de archivos instalado. No se detectan
+particiones vacías.
+
+#### Cambiar el tamaño de las particiones ext2/3/4
+`parted` se puede usar para cambiar el tamaño de las particiones y hacerlas más grandes
+o más pequeñas. Sin embargo, hay algunas advertencias:
+- Durante el cambio de tamaño, la partición debe estar sin usar y sin montar.
+- Necesita suficiente espacio libre después de la partición para hacerla crecer al tamaño que desee.
+
+El comando es `resizepart`, seguido del número de partición y dónde debería terminar.
+Por ejemplo, si tiene la siguiente tabla de particiones:
+```sh
+Number
+Start End Size File system Name
+1 1049kB 99.6MB 98.6MB ext4 primary
+2 99.6MB 200MB 100MB ext4 3 200MB 300MB 99.6MB ext4
+```
+Intentar hacer crecer la partición `1` usando `resizepart` generaría un mensaje de
+error, porque con el nuevo tamaño, la partición `1` se superpondría con la partición `2`.
+Sin embargo, la partición `3` se puede cambiar de tamaño ya que hay espacio libre
+después de ella, lo que se puede verificar con el comando `print free`.
+
+Entonces puede usar el siguiente comando para cambiar el tamaño de la partición
+3 a 350 MB:
+
+    resizepart 3 350m
+
+Recuerde que el nuevo punto final se especifica contando desde el inicio del disco.
+Entonces, debido a que la partición `3` terminó en 300 MB, ahora debe terminar en 350 MB.
+
+Pero cambiar el tamaño de la partición es solo una parte de la tarea. También necesita
+cambiar el tamaño del sistema de archivos que reside en ella. Para sistemas de
+archivos ext2/3/4 esto se hace con el comando `resize2fs`. En el caso del ejemplo
+anterior, la paritción 3 todavía muestra el tamaño "antiguo" cuando se monta:
+
+    df -h /dev/sdb3
+
+Para ajustar el tamaño, se puede usar el comando `resize2fs DEVICE SIZE`, donde
+`DEVICE` corresponde a la partición que desea cambiar de tamaño y `SIZE` es el nuevo
+tamaño. Si omite el parámetro de tamaño utilizará todo el espacio disponible de la
+partición. Antes de cambiar el tamaño, se recomienda desmontar la partición.
+
+En el ejemplo anterior:
+```sh
+sudo resize2fs /dev/sdb3
+
+df -h /dev/sdb3
+```
+Para encoger una partición, el proceso debe realizarse en orden inverso. Primero cambie
+el tamaño del sistema de archivos al nuevo tamaño más pequeño, luego cambie el tamaño
+de la partición usando `parted`.
+
+En nuestro ejemplo:
+```sh
+resize2fs /dev/sdb3 88m
+
+parted /dev/sdb3
+```
+
+#### Creación de particiones de intercambio
+En Linux, el sistema puede intercambiar páginas de memoria de RAM a disco según sea
+necesario, almacenándolas en un espacio separado generlamente implementado como una
+partición separada en un disco, llamada partición de intercambio o simplemente
+intercambio. Esta partición debe ser de un tipo especifico y configurarse con una
+utilidad adecuada (`mkswap`) antes de que pueda usarse.
+
+Para crear la partición de intercambio usando `fdisk` o `gdisk`, simplemente como si
+estuviera creando una partición normal. la única diferencia es que necesitará cambiar
+el tipo de paritción a Linux swap.
+- En `fdisk` use el comando `t`. Seleccione la partición que deasea utilizar y cambie su tipo a `82`.
+- En `gdisk` el comando para cambiar el ripo de patición tambien es `t`, pero el código es `8200`. Escriba los cambios en el disco y salga con `w`.
+
+Si está usando `parted`, la partición debe identificarse como una partición de
+intercambio durante la creación, simplemente use `linux-swap` como tipo de sistema de
+archivos. Por ejemplo, el comando para crear una partición de intercambio de 500 a
+partir de 300 MB en el disco es:
+
+    mkpart primary linux-swap 301m 800m
+
+Una vez que la partición está creada e identificada, simplemente user `mkswap` seguido
+del dispositivo que representa la partición que desea usar, como:
+
+    mkswap /dev/sda2
+
+Para habilitar el intercambio en esta partición, user `swapon` seguido del nombre del
+dispositivo:
+
+    swapon /dev/sda2
+
+Del mismo modo, `swapoff`, seguido del nombre del dispositivo, desactivará el
+intercambio en ese dipositivo.
+
+Linux también admite el uso de swap files en lugar de particiones. Simplemente cree un
+archivo vacío del tamaño que desee usando `dd` y luego user `mkswap` y `swapon` con este
+archivo como destino.
+
+Los siguientes comandos crearán un archivo de 1 GB llamado `myswap` en el directorio
+actual, lleno de ceros, y luego lo configurarán y habilitarán como un archivo de
+intercambio.
+
+Cree el archivo de intercambio:
+
+    sudo dd if=/dev/zero of=myswap bs=1M count=1024
+
+`if=` es el archivo de entrada, el origen de los datos que se escribirán en el archivo.
+En este caso es el dispositivo `/dev/zero`, que proporciona tantos caracteres `NULL`
+como se soliciten. `of=` es el archivo de salida, el archivo que se creará. `bs=`
+es el tamaño de los bloques de datos, aquí especificado en Megabytes, y `count=`
+es la cantidad de bloques que se escribirán en la salida, 1024 bloques de 1 MB cada
+uno equivalente a 1 GB.
+```sh
+mkswap myswap
+
+swapon myswap
+```
+Usando los comandos anteriores, este archivo de intercambio se usará solo durante la
+sesión actual del sistema. Si se reinicia la máquina, el archivo seguirá estando
+disponible, pero no se cargará automáticamente. Puede automzatizar eso agregando
+el nuevo archivo de intercambio a `/etc/fstab`.
+
+## Mantener la integridad de los sistemas de archivos
