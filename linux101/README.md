@@ -5934,3 +5934,196 @@ instalar esta utilidad utilizando el administrador de paquetes para su distribuc
 de Linux, ya que es probale que no sea parte de una instalación predeterminada.
 
 ## Controlar el montaje y desmontaje de los sistemas de archivos
+#### Montaje y desmontaje de sistemas de archivos
+El comando para montar manualmente un sistema de archivos se llama `mount` y su
+sintaxis es:
+
+    mount -t TYPE DEVICE MOUNTPOINT
+
+Donde:
+- **`TYPE`**: el tipo de sistema de archivos que se está montando.
+- **`DEVICE`**: el nombre de la partición que contiene el sistema de archivos (`/dev/sda1`).
+- **`MOUNTPOINT`**: dónde se montará el sistema de archivos. No es necesario que el directorio en el que esté montado esté vacío, aunque debe existir. Sin embargo, cualquier archivo que contenga será inaccesible por su nombre mientras el sistema de archivos esté montado.
+
+Por ejemplo, para montar una unidad flash USB que contenga un sistema de archivos exFAT
+ubicado en `/dev/sdb1` en un directorio llamado `flash` en su directorio de inicio,
+puede usar:
+
+    mount -t exfat /dev/sdb1 ~/flash
+
+Después del montaje, se podrá acceder al contenido del sistema de archivos en el
+directorio `~/flash`:
+
+    ls -lh ~/flash
+
+#### Listado del sistema de archivos montados
+Si teclea simplemente `mount`, obtendrá una lista de todos los sistemas de archivos
+actualmente montados en su sistema. Esta lista puede ser bastante grande porque,
+además de los discos conectados a su sistemas, también contiene varios sistemas de
+archivos en tiempo de ejecución en la memoria que sirven para propósitos. Para filtrar
+la salida, puede usar el parámetro `-t` para listar solo los sistemas de archivos del
+tipo correspondiente, como se muestra a continuación:
+```sh
+mount -t ext4
+/dev/sda1 on / type ext4 (rw,relatime,errors=remount-ro)
+```
+Puede especificar varios sistemas de archivos a la vez separándolos con una coma:
+```sh
+mount -t ext4,fuseblk
+/dev/sda1 on / type ext4 (rw,noatime,errors=remount-ro)
+/dev/sdb1 on /home/carol/flash type fuseblk
+(rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other,blksize=4096) [DT_8GB]
+```
+La salida de los ejemplo anteriores se puede describir en el formato:
+
+    SOURCE on TARGET type TYPE OPTIONS
+
+Donde `SOURCE` es la partición que contiene el sistema de archivos, `TARGET` es el
+directorio donde está montado, `TYPE` es el tipo del sistemas de archivos y `OPTIONS`
+son las opciones pasadas al comando `mount` en el momento del montaje.
+
+#### Parámetros adicionales de la línea de comandos
+Hay muchos parámetros de la línea de comandos que se pueden usar con `mount.` Algunas
+de las más utilzadas son:
+- **`-a`**: esto mostrará todos los sistemas de archivos listados en el archivo `/etc/fstab`.
+- **`-o o --options`**: esto pasará una lista de opciones de montaje separadas por comas al comando de montaje, que puede cambiar cómo se montará el sistema de archivos.
+- **`-r o -ro`**: esto montará el sistema de archivos como de solo lectura.
+- **`-w o -rw`**: esto hará que el sistema de archivos de montaje sea escribible.
+
+Para desmontar un sistemas de archivos, use el comando `umount`, seguido del nombre del
+dispositivo o el punto de montaje. Teniendo en cuenta el ejemplo anterior, los
+comandos siguientes son intercambiables:
+```sh
+umount /dev/sdb1
+umount ~/flash
+```
+Algunos de los parámetros de la línea de comandos para `umount` son:
+- **`-a`**: esto desmontara todos los sistemas de archivos listados en `/etc/fstab`.
+- **`-f`**: esto forzará el demonstaje de un sistema de archivos. Esto puede resultar úitl si ha montado un sistema de archivos remoto que se ha vuelto inalcanzable.
+- **`-r`**: si el sistema de archivos no se puede desmontar, esto intentará convertirlo en solo lectura.
+
+#### Tratamiento de archivos abiertos
+Al desmontar un sistema de archivos, puede econtrar un mensaje de error que indica que el `target is busy`. Esto sucederá si hay archivos abiertos en el sistema de archivos.
+Sin embargo, puede que no sea obvio de inmediato dónde se encuentra un archivo 
+abierto o qué está accediendo al sistema de archivos.
+
+En tales casos, puede usar el comando `lsof`, seguido del nombre del dispositivo que
+contiene el sistema de archivos, para ver una lista de los procesos que acceden a él
+y qué archivos están abiertos. Por ejemplo:
+```sh
+umount /dev/sdb1
+umount: /media/carol/External_Drive: target is busy.
+
+lsof /dev/sdb1
+COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+evince 3135 carol 16r REG 8,17 21881768 5159
+media/carol/External_Drive/Docuements/E-Books/MagPi40.pdf
+```
+`COMMAND` es el nombre del ejecutable que abrió el archivo y `PID` es el número de
+proceso. `NAME` es el nombre del archivo que está abierto. En el ejemplo anterior, el
+archivo `MagPi40.pdf` es abierto por el programa `evince`. Si cerramos el programa,
+podremos demontrar el sistema de archivos.
+
+#### ¿Dónde montar?
+Puede montar un sistema de archivo en cualaquier lufar que desee. Sin embargo, hay
+algunas buenas prácticas que debe seguir para facilitar la administración del sistema.
+
+Tradicionalmente, `/mnt` era el directorio en el que se montarían todos los dispositivos
+externo y una serie de puntos de anclaje preconfigurado para dispositivos comunes,
+como unidades de CR-ROM (`/mnt/cdrom`) y disquetes (`/mnt/floppy`) existían en él.
+
+Esto ha sido reemplazado por `/media`, que ahora es el punto de montaje predeterminado
+para cualquier medio extraible por el usuario conectados al sistema.
+
+En la mayoría de las distribuciones modernas de Linux y entornos de escritorio, los
+dispositivos extraíbles se  montar automáticamente en `/media/USER/LABEL` cuando
+se conecta al sistema, donde `USER` es el nombre de usuario y `LABEL` es la etiqueta del
+dispositivo. Por ejemmplo, una unidad flash USB con la etiqueta `FlashDrive`
+conectada por el usuario `john` se montaría en `/media/john/FlashDrive`.
+
+Dicho esto, siempre que necesite montar manualmente un sistema de archivos, es buena
+práctica montarlo en `/mnt`.
+
+#### Montaje de sistemas de archivo en el arranque
+El archivo `/etc/fstab` contiene descripciones sobre los sistemas de archivos que se
+pueden montar. Este s un archivo de texto, donde cada línea describe un sistema de
+archivos que se va a montar, con seis campos por línea en el siguiente orden:
+
+    FILESYSTEM MOUNTPOINT TYPE OPTIONS DUMP PASS
+
+Donde:
+- **`FILESYSTEM`**: el dispositivo que contiene el sistema de archivos que se va a montar. En lugar del dispositivo, puede especificar el UUID o etiqueta de la partición.
+- **`MOUNTPOINT`**: dónde se montará el sistema de archivos.
+- **`TYPE`**: el tipo de sistema de archivos.
+- **`OPTIONS`**: opciones de montaje que se pasarán a `mount`.
+- **`DUMP`**: indica si cualquier sistema de archivos ext2/3/4 debe considerarse para la copia de seguridad mediante el comando `dump`. Por lo general, es cero, lo que significa que debe ignorarse.
+- **`PASS`**: cuando es distinto de cero, define el orden en el que se comprobarán los sistemas de archivos durante el arranque. Normalmente es cero.
+
+Por ejemplo, la primera partición en el primer disco de una máquina podría describerse
+como:
+
+    /dev/sda1 / ext4 noatime/errors
+
+Las opciones de montaje en `OPTIONS` son una lista de parámetros separados por comas,
+que pueden ser genéricos o específicos del sistema de archivos. Entre los genéricos
+tenemos:
+- **`atime y noatime`**: por defecto, cada vez que se lee un archivo, se actualiza la información de tiempo de acceso. Deshabilitar esto (con `noatime`) puede acelerar la E/S del disco. No confundan esto con la hora de modificación, que se actualiza cada vez que se escribe un archivo.
+- **`auto y noauto`**: si el sistema de archivos puede (o no) montarse automáticamente con `mount -a`.
+- **`defaults`**: esto pasará las opciones `rw`, `suid`, `dev`, `exec`, `auto`, `nouser` y `async` a `mount`.
+- **`dev y nodev`**: si deben interpretarse los dipositivos de caracteres o bloques en el sistema de archios montado.
+- **`exec y noexec`**: permitir o denegar el permiso para ejecutar binarios en el sistema de archivos.
+- **`user y nouser`**: permite (o no) a un usuario normal montar el sistema de archivos.
+- **`group`**: permite a un usuario montar el sistema de archivos si el usuario pertenece al mismo grupo que posee el dispositivo que lo contiene.
+- **`owner`**: permite a un usuario montar un sistema de archivos si el usuario posee el dipositivo que lo contiene.
+- **`suid y nosuid`**: permite, o no, que los bits SETUID y SETGID surtan efecto.
+- **`ro y rw`**: monsta un sistema de archivos como de solo lectura o de escritura.
+- **`remount`**: esto intentará volver a montar un sistema de archivos ya montado. Esto no se usa en `/etc/fstab`, sino como un parámetro para `mount -o`. Por ejemplo, para volver a montar la partición `/dev/sdb1` ya contada como de solo lectura, puede usar el comando `mount -o remount,ro /dev/sdb1`. Al vovler a montar, no es necesario especificar el tipo de sistema de archivos, solo el nombre del dispositivo o el punto de mnotaje.
+- **`sync y async`**: realizar todas las operaciones E/S en el sistema de archivos de forma sincrónica o asicrónica. `async` suele ser predeterminado. La página del manual de `mount` advierte que el uso de `sync` en medios con un número limitado de ciclos de escritura (como unidades flash o tarjetas de memoria) puede acortar la vida útil del dipositivo.
+
+#### Uso de UUDI y etiquetas
+Especificar el nombre del dispositivo que contiene el sistema de archivos a montar
+puede presentar algunos problemas. A veces, el mismo nombre del dispositivo puede
+asignarse a otro dispositivo dependiendo de cuándo o dónde se conectó a su sistema.
+Por ejemplo, una unidade flash USB en `/dev/sdb1` puede asignarse a `/dev/sdc1` si se
+conecta a otro puerto, o después de otra unidad flash.
+
+Una forma de evitrar esto es especificar la etiqueta o UUID del volumen. Ambos se
+especifican cuando se crea el sistema de archivos y no cambiarán, a menos que el
+sistema de archivos se destruya o se asigne manualmente una nueva etiquetaa o UUID.
+
+El comando `lsblk` se puede utlizar para consultar información sobre un sistema de
+archivos y averiguar la etiqueta y el UUID asociados a él. Para hacer esto, user el
+parámetro `-f`, seguido del nombre del dispositivo:
+
+    lsblk -f /dev/sda1
+
+Aquí está el significado de cada columna:
+- **`NAME`**: nombre del dispositivo que contiene el sistema de archivos.
+- **`FSTYPE`**: tipo de sistema de archivos.
+- **`LABEL`**: etiqueta del sistema de archivos.
+- **`UUID`**: identificador único universal (UUID) asignao al sistema de archivos.
+- **`FSAVAIL`**: cuánto espacio hay disponible en el sistema de archivos.
+- **`FSUSE%`**: porcentaje de uso del sistema de archivos.
+- **`MOUNTPOINT`**: dónde está montado el sistema de archivos.
+
+En `/etc/fstab` un dispositivo se puede especificar por su UUID con la opción `UUID=`,
+seguido del UUID, o con `LABEL=`, seguido de la etiqueta. Entonces, en lugar de:
+
+    /dev/sda1 / ext4 noatime/errors
+
+Usarías:
+
+    UUID=6e2c12e3-472d-4bac-a257-c49ac07f3761 / ext4 noatime,errors
+
+O, si tienen un disco con la etiqueta `homedisk`:
+
+    LABEL=homedisk /home ext4 defaults
+
+La misma sintaxis se puede utilizar con el comando `mount`. En lugar del nombre del
+dispositivo, pase el UUID o la etiqueta. Por ejemplo, para montar un disco NTFS externo
+con el UUID `56C11DCC5D2E1334` en `/mnt/external`, el comando sería:
+
+    mount -t ntfs UUID=56C11DCC5D2E1334 /mnt/external
+
+#### Montaje de discos con Systemd
+pg486
