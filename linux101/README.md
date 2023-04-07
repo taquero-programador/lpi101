@@ -753,7 +753,7 @@ archivos de configuración compatibles. El primer método lo implementa el está
 implementado por systemd y Upstart. Historicamente, los administradores de servicios
 basados en SysV fueron los más utilizados por las distribuciones Linux. Hoy en día,
 los administradores de servicos basados en sistemas se encuentran con mayor frecuencia
-en la mayoría de las distribuiciones de Linux. El administrador de servicios es el
+en la mayoría de las distribuciones de Linux. El administrador de servicios es el
 primer programa lanzado por el núcleo durante el proceso de arranque, por lo que su PID
 (número de identificación de proceso) siempre es `1`.
 
@@ -4220,7 +4220,7 @@ seleccionado por defecto. Para cambiar la prioridad de otro proceso, escriba su 
 y presione Enter. Luego, aparecerá el mensaje `Renice PID 1 to value` (con el
 número PID solicitado) y se puede asignar un nuevo valor nice.
 
-#### Realizar búsquedas de archivos de textos usando expresiones regulares
+## Realizar búsquedas de archivos de textos usando expresiones regulares
 Los argoritmos de búsqueda de cadenas son ampliamente utilizados por varias tareas de   procesamiento de datos, tanto que los sistemas operativos similares a Unix tiene su
 propia implementación ubicua: *Expresiones regulares (Regular expression)*, a menudo
 abreviadas como *REs*. Las expresiones regulas consisten en secuencias de caracteres
@@ -4819,4 +4819,427 @@ deseado. La lista de nombres de host se pueden utilizar para escribir reglas de
 bloqueo de firewall o para tomar otras medidas para hacer cumplir la seguirdad del
 servidor.
 
-pg414
+## Dispositivo, sistemas de archivos Linux y el estándar de jerarquía de archivos
+En cualquier sistema sistema opetaivo, es necesario particionar un disco antes de
+poder usarlo. Una partición es un subconjunto lógio del disco físico y la información
+sobre las particiones se almacena en una tabla de particiones. Esta tabla incluye
+información sobre el primer y último sector de la partición y su tipo, y más detalles
+sobre cada partición.
+
+Por lo general, un sistema operativo considera cada partición como un "disco" separado,
+incluso si reside en el mismo medio físico. En los sistemas Windwos se les asigna letras
+como `C:` (historicamente el disco principal), `D:` y así sucesivamente. En Linux, cada
+partición se asigna a un directorio en `/dev`, como `/dev/sda1` o `/dev/sda2`.
+
+#### Comprensión de MBR y GPT
+Hay dos formas principales de almacenar información de paritción en discos duros.
+El primero es MBR (Master Boot Record) y el segundo es GPT (GUID Partition Table).
+
+**MBR**: este es un remanente de los primeros días de MS_DOS (más específicamente, 
+PC_DOS 20.0 de 1983) y durante décadas fue el esquema de particiones estádar en las PC.
+La tablla de particiones se almacena en el primer sector del disco, llamado
+*Boot Sector*, junto con un cargador de arranque, que en los sistemas Linux suele ser el
+GRUB. Pero MBR tiene una serie de limitaciones que dificultan su uso en sistemas
+modernos, como la imposibilidad de utilizar discos de más de 2 TB de tamaño y el
+límite de solo 4 particiones primarias por disco.
+
+**GUID**: un sistema de particiones que aborad muchas de las limitaciones de MBR. No
+existe un límite práctico en el tamaño del disco, y el número máximo de particiones
+está limitado solo por propio sistema operativo. Se encuetra más comúnmente en máquinas
+más modernas que usa UEFI en lugar del antiguo BIOS de PC.
+
+Durante las tareas de administración del sistema es muy posible que encuentre amboses   quemas en uso, por lo que es importante saber como usar las herramientas asociadas a
+cada uno para crear, eliminar y modificar particiones.
+
+#### Gestión de particiones MBR con FSIDK
+La utilidad estándar para administrar particiones MBR en Linux es `fdisk`. Esta es una
+utilidad interactiva basada en menús. Para usarlo, teclee `fdisk` seguido del nombre del
+dispositivo correspondiente al disco que deea editar. Por ejemplo, el comando:
+
+    fdisk /dev/sda
+
+Editaría la tabla de particiones del primer dispositivo conectado a SATA (`sda`) en
+el sistema. Tenga en cuenta que debe especificar el dispositivo correspondiente al
+disco físico, no una de sus particiones (como `/dev/sda1`).
+
+Cuando se invoca, `fdisk` monstrará un saludo, luego una advertencia y esperará sus
+comandos.
+```sh
+fdisk /dev/sda
+Welcome to fdisk (util-linux 2.33.1).
+Changes will remain in memory only, until you decide to write them.
+Be careful before using the write command.
+Command (m for help):
+```
+La advertencia es importante. Puede crear, editar o elimnar particiones a voluntad,
+pero no se escribirá nada en el disco a menos que utilice el comando write (`w`). Por
+lo tanto, puede "practicar" sin riesgo de perder datos, siempre que se mantenga alejado
+de la tecla `w`. Para salir de `fdisk` sin guardar cambios, use el comando `q`.
+
+#### Impresión de la tabla de particiones actual
+El comando `p` se usa para imprimir la tabla de particiones actual. La salida sería algo
+como esto:
+```sh
+Command (m for help): p
+Disk /dev/sda: 111.8 GiB, 120034123776 bytes, 234441648 sectors
+Disk model: CT120BX500SSD1
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x97f8fef5
+Device
+Boot
+Start
+/dev/sda1
+/dev/sda2
+End
+Sectors
+Size Id Type
+4096 226048942 226044847 107.8G 83 Linux
+226048944 234437550
+8388607
+4G 82 Linux swap / Solaris
+```
+Aquí esta el significado de cada columna:
+- **`Device`**: el dispositivo asignado a la partición
+- **`Boot`**: muestra si la partición es de arranque o no
+- **`Start`**: el sector donde comienza la partición
+- **`End`**: el sector donde termina la partición
+- **`Sectors`**:  el número total de sectores en la partición. Multiplíquelo por el tamaño del sector para obtener el tamaño de la particón en bytes.
+- **`Size`**: el tamaño de la partición en formato legible para humanos. En el ejemplo anterior, los valores están en gigabytes.
+- **`Id`**: el valor númerico que representa el tipo de partición.
+- **`Type`**: la descripción del tipo de partición
+
+#### Particiones primarias vs extendidas
+En un disco MBR, puede tener 2 tipos principale de particiones, primarias y extendidas.
+Como dijimos antes, solo puede tener 4 particiones primarias en el disco, y si desea
+que el disco sea "de arranque", la primera partición debe ser primaria.
+
+Una forma de ecitar esta limitación es crear una partición extendida que actúe como
+contenedor de particiones lógicas. Podría tener, por ejemplo, una partición primaria,
+una partición extendida que ocupa el resto del espacio del disco y cinco particiones
+lógicas dentro de ella.
+
+Para un sistema operativo como Linux, las particiones primarias y extendidas se tratan
+exactamente de la misma manera, por lo qe no hay "ventajas" de usar una sobre la otra.
+
+#### Crear una partición
+Para crear una partición, use el comando `n`. De forma predeterminada, las particiones
+se crearán al comienzo del espacio no asignado en el disco. Se le pedirá el tipo de
+partición (primaria o extendida), primer sector y último sector.
+
+Para el primer sector, normalmente puede aceptar el valor predeterminado sugerido por
+`fdisk`, a menos que necesite una partición para comenzar en un sector específico. En
+lugar de especificar el último sector, puede especificar un tamaño seguido de las letras
+`K`, `M`, `G` o `P`. Por lo tanto, si desea crear una partición de 1 GB, puede
+especificar `+1G` como el último sector y `fdisk` dimensionará la partición en
+consecuencia. Vea este ejemplo para la creación de un partición primaria:
+```sh
+Command (m for help): n
+Partition type
+    p primary (0 primary, 0 extended, 4 free)
+    e extended (container for logical partitions)
+Select (default p): p
+Partition number (1-4, default 1): 1
+First sector (2048-3903577, default 2048): 2048
+Last sector, +/-sectors or +/-size{K,M,G,T,P} (2048-3903577, default 3903577): +1G
+```
+#### Comprobación de espacio no asignado
+Si no sabe cuánto espacio libre hay en el disco, puede usar el comando `f` para mostar
+el espacio no asignado, así:
+```sh
+Command (m for help): F
+Unpartitioned space /dev/sdd: 881 MiB, 923841536 bytes, 1804378 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+Start
+End Sectors Size
+2099200 3903577 1804378 881M
+```
+#### Eliminar particiones
+Para eliminar una partición, use el comando `d`. `fdisk` le pedirá el número de la
+partición que desea eliminar, a menos qye haya solo una partición en el disco. En este
+caso, esta partición será seleccionada y eliminada inmediatamente.
+
+Tenga en cuenta que si elimina un partición extendida, también se eliminarán todas las
+particiones lógicas que contiene.
+
+#### ¡Cuidado con la brecha!
+Tengas en cuenta que al crear una nueva partición con `fdisk`, el tamaño máximo se
+limitará a la cantidad máxima de espacio contiguo no asignado en el disco. Digamos, por
+ejemplo, que tiene el siguiente mapa de particiones:
+```sh
+Device  Boot    Start   End Sectors Size Id Type
+/dev/sdd1 2048 1050623 1048576 512M 83 Linux
+/dev/sdd2 1050624 2099199 1048576 512M 83 Linux
+/dev/sdd3 2099200 3147775 1048576 512M 83 Linux
+```
+Luego borre la partición 2 y compruebe si hay espacio libre:
+```sh
+Command (m for help): F
+Unpartitioned space /dev/sdd: 881 MiB, 923841536 bytes, 1804378 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+
+Start   End Sectors Size
+1050624 2099199 1048576 512M
+3147776 3903577 755802 269M
+```
+Sumando el tamaño del espacio no asignado, en teoría tenemos 881 MB disponible. Pero
+visualice lo que sucede cuanto intentamos crear una partición de 700 MB:
+```sh
+Command (m for help): n
+Partition type
+    p primary (2 primary, 0 extended, 2 free)
+    e extended (container for logical partitions)
+Select (default p): p
+Partition number (2,4, default 2): 2
+First sector (1050624-3903577, default 1050624):
+Last sector, +/-sectors or +/-size{K,M,G,T,P} (1050624-2099199, default 2099199):
++700M
+Value out of range.
+```
+Eso sucede porque el espacio contiguo no asignado más grande en el disco es el bloque
+de 512 MB que pertenecía a la partición 2. Su nueva partición no puede "pasar" la
+partición 2 para usar parte del espacio no asignao después de ella.
+
+#### Cambiar el tipo de partición
+En ocasiones, es posible que deba cambiar el tipo de partición, especialmente cuando
+se trata de disco que utilizarán en otro sistemas operativo o plataformas. Esto de hace
+con el comando `t`, seguido del número de la partición que desea cambiar.
+
+El tipo de patición debe ser especificado por su código hexadecimal correspondiente, y
+puede ver una lista de todos los códigos válidos usando el comando `l`.
+
+No confunga el tipo de partición con el sistema de archivos que se utiliza en ella.
+Aunque al principio existía una relación entre ellos, hoy no se puede asumir que esto
+sea cierto. Una partición de Linux, por ejemplo, puede contener cualquier sistema de
+sistema de archivos nativo de Linux, como ext4 o ReiserFS.
+
+#### Administrar particiones GUID con GDISK
+La utilidad `gdisk` es el equivalente a `fdisk` cuando se trata de discos particionados
+GPT. De hecho, la interfaz está modelada a partir de `fdisk`, con un indicador
+interactivo y los mismos (o muy similares) comandos.
+
+#### Impresión de la tabla de particiones actual
+El comando `p` se usa para imprimir la tabla de particiones actual. La salida sería algo
+como esto:
+```sh
+Command (? for help): p
+Disk /dev/sdb: 3903578 sectors, 1.9 GiB
+Model: DataTraveler 2.0
+Sector size (logical/physical): 512/512 bytes
+Disk identifier (GUID): AB41B5AA-A217-4D1E-8200-E062C54285BE
+Partition table holds up to 128 entries
+Main partition table begins at sector 2 and ends at sector 33
+First usable sector is 34, last usable sector is 3903544
+Partitions will be aligned on 2048-sector boundaries
+Total free space is 1282071 sectors (626.0 MiB)
+Number  Start (sector)  End (sector)    Size    Code Name
+1 2048 2099199 1024.0 MiB 8300 Linux filesystem
+2 2623488 3147775 256.0 MiB 8300 Linux filesystem
+```
+Desde el princio, notamos algunas cosas diferentes:
+- Cada disco tiene un identificado de disco (GUID) único. Este es un número hexadecimal de 128 bits, asignado al azar cuando se crea la tabla de particiones. Dado que hay 3.4 x 10^38 valores posibles para este número, las posibilidades de que 2 discos aleatorios tengan el mismo GUID son bastante escasas. El GUID se puede usar para identificar qué sistemas de archivos montar en el momento del arranque (y dónde), eliminando la necesidad de usar la ruta del dispositivo para hacerlo (como `/dev/sda`).
+- ¿Ve la frade `Partition table holds up to 128 entries`? Así es, se puede tener hasta 128 particiones en un disco GPT: Debido a esto, no hay necesidad de paticiones primarias y extendidas.
+- El espacio libre aparece en la última línea, por lo que no es necesario un equivalente del comando `F` de `fdisk`.
+
+#### Crear una patición
+El comando para crear una partición es `n` al igual que en `fdisk`. La principal
+diferencia es que además del número de partición y el primer y último sector, también
+puede especificar el tipo de partición durante la creación. Las particiones GPT
+admiten más tipos que MBR. puede consultar una lista de todos los tipos admitidos
+mediante el comando `l`.
+
+#### Eliminar particiones
+Para eliminar una partición, escriba `d` y el número de partición. A diferencia de
+`fdisk`, la primera partición no se seleccionará automáticamente si es la única en el
+disco.
+
+En los discos GPT, las particiones se pueden reordenar u "ordenar" fácilemente para
+evitar huecos en secuencia de numeración. Para hacer esto, simplemente use el comando
+`s.` Por ejemplo, imagine un disco con la siguiente tabla departiciones:
+
+#### ¿Brecha? ¿Qué brecha?
+A diferencia de los disco MBR, al crear una partición en discos GTP, el tamaño no está
+limitado por la cantidad máxima de espacio contiguo no asignado. Puede utilzar el
+último bit de un sector libre, sin importart dónde se encuentre en el disco.
+
+#### Opciones de recuperación
+Los dicos GPT almacenan copias de seguridad del encabezado GPT y las tabla de
+particiones, lo que facilita la recuperación de discos en caso de que estos datos se
+hayan dañado. `gdisk` proporciona funciones para ayudar en esas tareas de recuperación,
+a las que se accede con el comando `r`.
+
+Puede recontruir un encabezado GPT principal corrupto o una tabla de particiones con
+`b` y `c`, respectivamente, o usar el encabezado princpal y la tabla para reconstruir
+una copia de seguiridad con `d` y `e`. Tambien puede convertir un MBR a GPT con `f` y
+hacer lo contrario con `g`, entre otras opciones. Escriba `?` en el menú de recuperación
+para obtener una lista de todos los comandos de recuperación disponibles y descripciones
+sobre lo que hacen.
+
+#### Creación de sistemas de archivos
+Particionar el disco es solo el primer paso para poder usar un disco. Después de eso,
+deberá formatear la partición con un sistema de archivos antes de usarla para
+almacenar datos.
+
+Un sistema de archivos controla cómo se almacena los datos y cómo se accede a ellos en
+el disco. Linux admite muchos sistema de archivos, algunos nativos, como la familia
+ext (Extended Filesystem), mientras que otros porvienen de otros sistemas operativos
+como Fat de MS-DOS, NTFS de Windows NT, HFS y HFS+ de Mac OS, etc.
+
+La herramienta estándar utilizada para crear un sistema de archivos en Linux es
+`mkfs`, quien viene en muchos "sabores" según el sistema de archivos con el que necesita
+trabajar.
+
+#### Creación de un sistema de archivos ext2/ext3/ext4
+El sistema de archivos extendido (ext) fue el primer sistema de archivos para Linux,
+y a través de los años fue reemplazado por nuevas versiones llamadas ext2, ext3 y ext4,
+que actualmente es el sistema de archivos predeterminado para muchas distribuciones de
+Linux.
+
+Las utilidades `mkfs.ext2`, `mkfs.ext3` y `mkfs.ext4` se utilizan para crear sistemas de
+archivos ext2, ext3 y ext4 respectivamente. De hecho, todas estas utilidades existen
+solo como enlaces simbólicos a otra utilidad llamada `mke2fs`. `mke2fs` modifica sus
+valores predeterminados de acuerdo con el nombre por el que se le llama. Como tal,
+todos tiene el mismo comportamiento y parámetros de línea de comando.
+
+La forma de uso más sencilla es:
+
+    mkfs.ext2 TARGET
+
+Donde `TARGET` es el nombre de la partición donde se debe crear el sistema de archivos.
+Por ejemplo, para crear un sistema de archivos ext3 en `/dev/sda1` el comando sería:
+
+    mkfs.ext3 /dev/sda1
+
+En lugar de usar el comando correspondiente al sistema de archivos que desea crear,
+puede pasar el parámetro `-t` a `mke2fs` seguido del nombre del sistema de archivos.
+Por ejemplo, los siguientes comandos son equivalentes y crearán un sistema de archivos
+en `/dev/sda1`:
+```sh
+mkfs.ext4 /dev/sda1
+mke2fs -t ext4 /dev/sda1
+```
+
+#### Parámetros de línea de comandos
+`mke2fs` adminte una amplia gama de opciones y parámetros de línea de comandos. Estos
+son algunos de los más importantes. Todos ellos también se aplican a `mkfs.ext2`,
+`mkfs.ext3` y `mkfs.ext4`:
+- **`-b SIZE`**:  establece el tamaño de los bloques de datos en el dispositivo en `SIZE`, que puede ser de 1024, 2048o 4096 bytes por bloque.
+- **`-c`**: comprueba el dispositivo de destino en busca de bloques defectuosos antes de crear el sistema de archivos. Puede ejecutar una comprobación completa, per mucho más lenta, pasando esre parámetro dos veces, como en `mkfs.ext4 -c -c TARGET`.
+- **`-d DIRECTORY`**: copia el contenido del directorio especificafo en la raíz del nuevo sistema de archivos. Útil si necesita "rellenar previamente" el disco con un conjunto predefinido de archivos.
+- **`-F`**: esta opción forzará mke2fs a crear un sistema de archivos, incluso si las otras opciones pasadas a él o al objetivo son peligrosas o no tienen ningún sentido. Si se especifica dos veces, incluso se puede usar para crear un sistema de archivos en un dispositivo que está montado o en uso, lo cual es muy, muy malo.
+- **`-L VOLUME_LABEL`**: establecerá la etiqueta de volumen en la especificada en `VOLUME_LABEL`. Esta etiqueta debe tener un máximo de 16 caracteres.
+- **`-n`**: esta es una opción realmente útil que simula la creación del sistema de archivos y muestra lo que se haría si se ejecuta sin la opción `n`. Piense en ello como un modo de "prueba". Es bueno comprobar las cosas antes de realizar cambios en el disco.
+- **`-q`**: modo silencioso. `mke2fs` se ejecutará normalmente, pero no producirá ninguna salida en la terminal. üitl cuando se ejecuta `mke2fs` desde un script.
+- **`-U ID`**: esto establecerá un UUID de una partición en el valor especificado como ID. Los UUID son números de 128 bits de notación hexadecimal que sirven para identificar de forma única una partición en el sistema operativo. Este número se especifica como una cadena de 32 dígitos en el formato 8-4-4-4-12, es decir, 8 dígitos, guión, 4 dígitos, guión, 4 dígitos, guión, 4 dígitos, guión, 12 dígitos, como `D249E380-7719-45A1-813C-35186883987E`. En lugar de un ID, también
+    puede especificar parámetros como `clear` para borrar el UUID del sistema de archivos, `random`, para usar un UUID generado aleatoriamente o `time` para crear un UUID basado en el tiempo.
+- **`-V`**: modo detallado, imprime mucha más informacion durante el funcionamiento de lo habitual. ütil para fines de depuración.
+
+#### Creación de un sistema de archivos XFS
+XFS es un sistema de archivos de alto redimiento desarrollado originalmente por Silicon
+Graphic en 1993 para su sistema operativo IRIX. Debido a sus característica de
+rendimiento y confiabilidad, se usa comúnmente para servidores y otros entorn que
+requiern un ancho de banda alto (o garantizado) del sistema de archivos.
+
+Las herramientas para administrar sistemas de archivos XFS son parte del paquete
+`xfsprogs`. Es posible que este paquete deba instalarse manualmente, ya que no se
+incluye de forma predeterminada en algunas sitribuciones de Linux. Otros, como Red
+Hat Enterprise Linux 7, usan XFS como sistema de archivos predeterminado.
+
+Los sistema de archivos XFS se dividen en al menos 2 partes, una sección de registrodonde    se mantiene un registro de todas las operaciones del sistema de
+archivos (comúnmente llamado Journal) y la sección de datos. La secci´on de registro
+puede estar ubicada dentro de la sección de datos (el comportamiento predeterminado),
+o incluso en un disco separado por completo, para un mejor rendimiento y confiabilidad.
+
+El comando más básico para crear un sistema de archivos XFS es `mkfs.xfs TARGE`,
+donde `TARGET` es la partición en la que se desea que se cree el sistema de archivos.
+Por ejemplo: `mkfs.xfs /dev/sda1`.
+
+Como en `mke2fs`, `mkfs.xfs` adminte una serie de opciones de línea de comandos. Estos
+son algunas de las más comues:
+- **`-b size=VALUE`**: establece el tamaño del bloque en el sistema de archivos, en butes, al especificado en `VALUE`. El valor predeterminado es 4096 bytes (4 KiB), el mínimo es 512 y el máximo es 65536 (64 KiB).
+- **`-m crc=VALUE`**: los parámetros que comienzan con `-m` son opciones de etadatos. Este habilita (si `VALUES` es `1`) o deshabilita (si `VALUE` es `0`) el uso de comprobaciones CRC32c para verificar la integridad de todos los metadatos en el disco. Esto permite una mejor detección de erroes y recuperación de fallas relacionadas con problemas de hardware, por lo que está habilitado de forma predetermnada. El impacto el en rendimiento de esta comprobación debería ser mínimo, por
+    lo que normalmente no hay razón para desactivarlo.
+- **`-m uuid=VALUE`**: establece el UUID de la ártición al especificado como VALUE. Recuerde que los UUDI son números de 32 caracteres (128 bits) en base hexadecimal, especificados en grupos de 8, 4, 4, 4 y 12 dígitos separados por guines, como `1E83E3A3-3AE9-4AAC-BF7E-29DFFECD36C0`.
+- **`-f`**: forzar la creación de un sistema de archivos en el dispositivo de destino incluso si se detecta un sistema de archivos en él.
+- **`-l logdev=DEVICE`**: esto colocará la sección de registro del sistema de archivos en el dispositivo especificado, en lugar de dentro de la sección de datos.
+- **`-l size=VALUE`**: esto establecerá el tamaño de la sección de registro en el especificado en `VALUE`. El tamaño se puede especificar en bytes y se pueede utilizar un sufijo como `m` o `g`. `-l size=10m`, por ejemplo, limitará la sección de registro a 10 Megabytes.
+- **`-q`**: modo silencioso. En este modo, `mkfs.xfs` no imprimirá los parámetros del sistema de archivos que se está creando.
+- **`-L LABEL`**: establece la etiqueta del sistema de archivos, que puede tener un máximo de 12 caracteres.
+- **`-N`**: similar al parámetro `-n` de `mke2fs`, hará que `mkfs.xfs` imprima todos los parámetros para la creación del sistema de archivos, sin crearlo realmente.
+
+#### Creación de un sistema de archivos FAT o VFAT
+El sistema de archivos FAT se originó a partir de MS-DOS y, a lo largo de los años,
+ha recibido muchas revisiones que culminarian con el formato FAT32 lanzado en 1996 con
+Windows 95 OSR2.
+
+VFAT es una extensión del formato FAT16 que admite nombre de archivo largos (hasta
+255 caracteres). Ambos sistemas de archivos son manejados por la misma utilidad,
+`mkfs.fat`. `mkfs.vfat` es un alias.
+
+El sistema de archivos FAT tiene importantes inconvenientes que restringen su uso en
+discos grandes. FAT16, por ejemplo, adminte volúmenes de 4 GB como máximo y un tamaño
+de archivos máximo de 2 GB. FAT32 aumenta el tamañp del volumen hasta 2 PB y el tamaño
+máximo del archivo hasta 4 GB. Debido a esot, los sistemas de archivos FAT se utilizan
+hoy con más frecuencia en unidades flash pequeñas o tarjetas de memoria, o en
+dispositivos y sistemas operativos heredados que no adminten sistemas de archivos más
+avanzados.
+
+El comando más básico para la creación de un sistema de archivos FAT es `mkfs.fat TAR`,
+donde `TARGET` es la partición den la que desea que se cree el sistema de archivos. Por
+ejemplo: `mkfs.fat /dev/sdc1`.
+
+Como otras utilidades, `mkfs.fat` soporta una serie de opciones de línea de comandos.
+A continuación se muestra los más importantes. Se puede leer una lista completa y una
+descripción de cada opción en el manual de la utilidad, `man mkfs.fat`.
+- **`-c`**: comprueba el dispositivo de destino en busca de los bloques defectuosos antes de crear el sistema de archivos.
+- **`-C FILENAME BLOCK_COUNT`**: creará el archivo especificado en `FILENAME` y luego creará un sistema de archivos FAT dentro de él, creadno efectivamente una "imagen de disco" vacía, que luego puede escribirse en un dispositivo usando una utilidad como `dd` o montarse como un loopback dispositivo. Al usar esta opción, el número de bloque en el sistema de archivos (`BLOCK_COUNT`) debe especificarse después del nomre del dispositivo.
+- **`-F SIZE`**: selecciona el tamaño de la FAT (File Allocation Table), entre 12, 16 o 32, es decir, entre FAT12, FAT16 o FAT32. si no se especifica, `mkfs.fat` seleccionará la opción apropiada según el tamaño del sistema de archivos.
+- **`-n NAME`**: establece la etiqueta de volumen, o el nombre, para el sistema de archivos. Puede tener hasta 11 caracteres y el valor predeterminado es sin nombre.
+- **`-v`**: modo detallado. Imprime muchas más información de la habitual, útil para depurar.
+
+#### Creación de un sistema de archivos exFAT
+exFAT es un sistema de archivos creado por Microsoft en 2006 que aborda una de las
+limitaciones más importantes de FAT3: el tamaño del archivo y del disco. En exFAT, el   tamaño máximo de archivo es de 16 exabytes (desde 4 GB en FAT32) y el tamaño máximo del
+disco es de 128 petabytes.
+
+Como es compatible con los tres principales sistemas operativo (Windows, Linux y mac
+OS), es una buena opción donde se necesita interoperabilidad, como en unidades flash
+de gran capacidad, tarjetas de memoria y discos externos. De hcho, es el sistema de
+archivos predeterminado, según lo define la SD Association, para tarjetas de memoria
+SDXC de más de 32 GB.
+
+La utilidad predeterminada para crear sistemas de archivos exFAT es `mkfs.exfat`, es
+es un enlace a `mkexfatfs`. El comando más básico es `mkfs.exfar TARGET`, donde `TARGET`
+es la patición en la que desea que se cree el sistema de archivos. Por ejemplo:
+`mkfs.exfat /dev/sdb2`.
+
+Al contrario de las otras utilidades, `mkgs.exfat` tiene muy pocas opciones de línea
+de comandos. Son:
+- **`-i VOL_ID`**: establece el ID del volumen en el valor especificado en `VOL_ID`. este es un número hexadecimal de 32 bits. Si no esa definido, es establece una ID basada en la hora actual.
+- **`-n NAME`**: establece la etiqueta de volumen o el nombre. Puede tener hasta 15 caracteres y el valor predeterminado es sin nombre.
+- **`-p SECTOR`**: especifica el primer sector de la primera partición del disco. Este es un valor opcional y el predeterminado es cero.
+- **`-s SECTORS`**: define el número de sectores físicos por el grupo de asignación. Debe ser una potencia de dos, como 1, 2, 4, 8, etc.
+
+#### Familiarización con el sistema de archivos Btrfs
+Btrfs (oficialmente el B-Tree Filesystem, pronunciado como "Butter FS", "Better FS"
+o incluso "Butterfuss") es un sistema de archivos que ha estado en desarrollo desde 2007
+específicamente para Linux por el Oracle Corporation y otras empresas, incluidas
+Fujitsu, Red Gat, Intel y SUSE, entre otras.
+
+Hyas muchas características que hacen que Btrfs sea atractivo en sistemas modernos donde
+son comunes grandes cantidades de almacenamiento. Entre estos se encuetran el soporte
+para múltiples dispositivos (incluyendo la cración de bandas, la duplicación y la
+creación de bandas+duplicación, como en una configuración RAID), compresión
+transparente, optimizaciones de SSD, copias de seguridad incrementales, instantáneas, desfragmentación en línea, comprobación duera de línea, compatibilidad de
+subvolúmenes (con cuotas), deduplicación y mucho más.
+
+Como es un sistema de archivos copy-on-write, es muy resistente a los bloqueos. Y además
+de eso, Btrfs es fácil de usar y está bien soportado por muchas distribuciones de
+Linux. Y algunos de ellos, como SUSE, lo utilizan como sistema de archivos
+predeterminado.
+
+#### Creación de un sistemas de archivos Btrfs
