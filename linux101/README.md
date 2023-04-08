@@ -6227,3 +6227,14 @@ Ahora, siempre que se acceda al directorio `/mnt/external`, se montara el disco.
 antes, para habilitar el montaje automático en cada arranque, usaría:
 
     sudo systemctl enable mnt-external.automount
+
+## Administración de los permisos y los propietarios de los archios
+Al ser un sistema multiusuario, linux necesita alguna forma de rastrear quién es el
+propietario de cada archivo y si un usuario puede o no realizar acciones en un archivo.
+Esto es para garantizar la privacidad de los usuarios que deseen mantener la
+confidencialidad del contenido de sus archivos, así como para garantizar la
+colaboración al hacer que cierto archivos sea accesibles para múltiples usuarios.
+
+Esto se realizar mediante un sistma de permiso de tres niveles. Cada archivo en el
+disco es propiedad de un usuario y un grupo y tiene tres conjuntos de permisos: uno
+para su propietarios, otro para el grupo propietario y otro para todos los demás.
