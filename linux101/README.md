@@ -6126,4 +6126,104 @@ con el UUID `56C11DCC5D2E1334` en `/mnt/external`, el comando sería:
     mount -t ntfs UUID=56C11DCC5D2E1334 /mnt/external
 
 #### Montaje de discos con Systemd
-pg486
+Systemd es el init del sistema, el primer proces que se ejecuta en muchas
+distribuciones de Linux. Es responsable de generar otros procesos, iniciar servicios
+y arrancar el sistema. Entre muchas otras tareas, systemd también se puede utilizar para
+gestionar el montaje (y montaje automático) de sistemas de archivos.
+
+Para utilizar esta función de systemd, debe crear un archivo de configuración
+llamado *mount init*. Cada volumen que se va a montar tiene su propia unidad de montaje
+y es necesario colocarlo en `/etc/systemd/system`.
+
+Las unidades de montaje son archivo de texto simples con la extensión `.mount`. El
+formato básico se muestra a continuación:
+```sh
+[Unit]
+Description=
+
+[Mount]
+What=
+Where=
+Type=
+Options=
+
+[Install]
+WantedBy=
+```
+- **`Description=`**: breve descripción de la unida de montaje, algo así como `Monta el disco de respaldo`.
+- **`What=`**: qué se debe montar. El volumen debe especificar como `/dev/disk/by-uudi/VOL_UUID` donde `VOL_UUID` es el UUID del volumen.
+- **`Where=`**: debe ser la ruta completa hacia donde se debe montar el volumen.
+- **`Type=`**: el tipo de sistema de archivos.
+- **`Options=`**: las opciones de montaje que desee pasar, son las mismas que se utilizan con el comando `mount` o en `/etc/fstab`.
+- **`WantedBy=`**: se utiliza para la gestión de dependencias. En este casoi, usaremos `multi-user.target`, lo que significa que soempre que el sistema se inicie en un entorno multiusuario (un inicio normal), se montará la unidad.
+
+Nuesto ejemplo anterior del disco externo podría escribirse como:
+```sh
+[Unit]
+Description=External data disk
+
+[Mount]
+What=/dev/disk/by-uuid/56C11DCC5D2E1334
+Where=/mnt/external
+Type=ntfs
+Options=defaults
+
+[Install]
+WantedBy=multi-user.target
+```
+Pero aún no hemos terminado. Para que funcione correctamente, la unida de montaje debe
+tener el mismo nombre que el punto de montaje. En este caso, el punto de montaje es
+`/mnt/external`, por lo que el archivo debe llamarse `mnt-external.mount`.
+
+Después de eso, debe reiniciar el demonio systemd con el comando `systemctl` e
+iniciar la unidad:
+```sh
+systemctl daemon-reload
+systemcl start mnt-exterlan.mount
+```
+Ahora el contenido del disco externo debería estar disponible en `/mnt/external`. Puede
+verificar el estado del montaje con el comando `systemctl status mnt-external.mount`:
+
+    sudo systemctl status mnt-external.mount
+
+El comando `systemctl start mnt-external.mount` solo habilitará la unidad para la
+sesión actual. Si desea habilitarlo en cada arranque, reemplace `start` por `enable`:
+
+    sudo systemctl enable mnt-external.mount
+
+#### Montaje automático de la unidad de montaje
+La unidad de montaje se puede montar automáticamente siempre que se acceda al punto
+de montaje. Para hacer esto, necesita un archivo `.automount`, junto con el archivo
+`.mount` que describe la unidad. El formato básico es:
+```sh
+[Unit]
+Description=
+
+[Automount]
+Where=
+
+[Install]
+WantedBy=multi-user.target
+```
+Como antes, `Description=` es una breve descripción del archivo y `WHere=` es el punto
+de montaje. Por ejemplo, un archivo `.automount` para nuestro ejemplo anterior sería:
+```sh
+[Unit]
+Description=Automount for the external data disk
+
+[Automount]
+Where=/mnt/external
+
+[Install]
+WantedBy=multi-user.target
+```
+Guarde el archivo con el mismo nombre que el punto de montaje
+(`mnt-external.automount`), vuelva a cargar systemd e inicie la unidad:
+
+    sudo systemctl daemon-reaload
+    sudo system start mnt-external.automount
+
+Ahora, siempre que se acceda al directorio `/mnt/external`, se montara el disco. Como
+antes, para habilitar el montaje automático en cada arranque, usaría:
+
+    sudo systemctl enable mnt-external.automount
