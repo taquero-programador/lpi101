@@ -292,3 +292,241 @@ adduser user2
 su - user2
 ls -a
 ```
+
+#### Variables: asignación y referencia
+Una variable puede definirse como un nombre que contiene un valor.
+
+En Bash, dar un valor a un nombre se llama *asignación* y es la forma en que creamos o establecemos
+las variables. Por otro lado, el proceso de acceder al valor contenido en el nombre se llama
+*variable referenciada*.
+
+La sintaxis para la asignación de variables es:
+
+    <variable_name>=<varaible_value>
+
+Por ejemplo:
+
+    distro=zorinos
+
+La variables `distro` es igual a `zorinos`, es decir, hay una porción de memoria que contiene el
+valor `zorinos` con `distro` siendo el puntero hacia este.
+
+Tenga en cuenta, que no puede haber ningún espacio a ambos lados del signo de igual cuando se
+asigna una variable:
+```sh
+distro =zorinos # error
+distro= zorinos # error
+```
+A causa del error, Bash leyó `distro` y `zorinos` como órdenes.
+
+Para referencias a una variable (es decir, para comprobar su valor) utilizamos el comando `echo`
+que precede al nombre de la variable con un signo `$`:
+
+    echo $distro
+
+#### Nombres de variables
+Al elegir un nombre de las variables, hay ciertas reglas que se deben tener en cuenta.
+
+El nombre de una variable puede contener letras (a-z, A-Z), números (0-9) y giones bajos (_):
+```sh
+distro=zorinos
+DISTRO=zorinos
+distro_1=zorinos
+_distro=zorinos
+```
+No puede empezar con un número o Bash se confundira:
+
+    1distro=zorinos
+
+No puede contener espacios (ni siquiera usando comillas); por convención, se usan los giones
+bajos en su lugar:
+```sh
+"my distro"=zorinos # error
+my_distro=zorinos
+echo $my_distro
+```
+
+#### Valores de las variables
+En lo que respecta a la referencia o valor de las variables, también es importante considerar
+una serie de reglas.
+
+las variables pueden contener cualquier carácter alfanumérico (a-z, A-Z, 0-9) así como la
+mayoría de los caracteres (?, !, *, ., /, etc.):
+```sh
+distro=zorin12.4?
+echo $distro
+```
+Los valores de las variables deben ser encerrados entre comillas si contienen espacios simples:
+```sh
+distro=zorin 12.4 # error
+distro="zorin 12.4"
+distro='zorsin 12.4'
+```
+Los valores de las variables también deben ser encerrados entre comillas si contienen
+caracteres como los utilizados para la redirección (`<`, `>`) o el símbolo de pipe (`|`). Lo único que
+hace el siguiente comando es crear un archivo vacío llamado `zorin`:
+```sh
+distro=>zorin
+ls zorin
+```
+Esto funciona, siempre y cuando usemos comillas:
+
+    distro=">zorin"
+
+Sin embargo, las comillas simples y dobles no siempre son intercambiables. Según lo que
+hagamos con una variable (asignación o referencia), el uso de una u otra tiene implicaciones y
+dará resultado diferentes. En el contexto de la asignación de variables, las comillas simples
+toman todos los caracteres del valor de la variable *literalmente*, mientras que las comillas
+dobles permiten la sustitución de la variable:
+```sh
+lizard=uromastyx
+animal='My $lizard'
+echo $animal # My $lizard
+animal="My $lizard"
+echo $animal # My uromastyx
+```
+Por otra parte, cuando se hace referencia a una variable cuyo valor incluye algunos espacios
+iniciales (o adicionales, a veces combinados con asteriscos) es ibligatorio utilizar comillas
+dobles después del comando `echo` para evitar la división de los campos y la expasión de
+nombres:
+```sh
+lizard="    genus   |   uromastyx"
+echo $lizard # genus | uromastyx
+echo "$lizard" #    genus   | uromastyx
+```
+Si la referencia de la variable contiene un signo de exclamación de cierre, este debe ser
+el último carácter de la cadena (de lo contrario Bash pensará que nos refererimos a un evento
+histórico):
+```sh
+distro=zorin.?/!os # error
+distro=zorin.?/!
+```
+Cualquier "backslash" debe escapar por otro. Además, si una barra invertida es el útlimo
+carácter de la cadena y no escapa, Bash interpretará que quremos un salto de línea y nos dará
+una nueva línea:
+```sh
+distro=zorinsos\ # interpreta como nueva línea
+distro=zorinos\\
+echo $distro
+```
+
+#### Variables locales o de shell
+Las variables locales o de shell existen solo en el shel en el que se crean. Por convención,
+las variables locales se escriben en minúsculas.
+
+Con el fin de realizar algunas pruebas, vamos a crear una variable local. Como se ha explicado
+anteriormente. elegimos un nombre apropiado para la variable y la equiparemos a un valor
+apropiado. Por ejemplo:
+```sh
+reptile=tortoise
+echo $reptile
+```
+En ciertos escenarios, cuando se escriben los scripts, la inmutabilidad puede ser una
+característica interesante de las variables. Si queremos que nuestras variables sean inmutables,
+podemos crearlas en modo de solo lectura (`readonly`):
+
+    readonly reptile=tortoise
+
+Otra opción es convertirlas después de haberlas creado:
+```sh
+reptile=tortoise
+readonly reptile
+```
+Ahora, si intentamos cambiar el valor de `reptile`, Bash lo negará:
+
+    reptile=lizard # readonly variable
+
+> Para listar todas las variables de solo lectura en nuestra sesióna actual, escriba `readonly -p`.
+
+Un comando útil cuando se trata de variable locales es `set`.
+
+`set` da salida a todas las variables y funciones de shell que se encuentran actualmente
+asignadas. Dado que pueden ser muchas líneas, se recomienda usarlo en combinación con un
+buscador como `less`:
+
+    set | less
+
+¿Se encuentra nuestra variable `tortoise`?
+
+    set | grep reptile
+
+Sin embargo, `reptile` siendo una variable local, no será heredado por ningún proceso hijo
+generado desde el shell actual.
+
+Para remover cualquier variable (local o global), usamos el comando `unset`:
+
+    unset reptile
+
+> `unset` debe ser seguido por el nombre de la variable, no por el simbolo `$`.
+
+#### Variables globales o de entorno
+Existen variable globales o de entorno para el shell actual, así como para todos los
+procesos subsecuentes que se derivan de este. Por convención, las variables de entorno se
+escriben en mayúsculas.
+
+Podemos pasar recursivamente el valor de estas variables a otras variables y el valor de estas
+últmias se expandirá finalmente a las primeras:
+```sh
+my_shell=$SHELL
+echo $my_shell
+/bin/bash
+your_shell=$my_shell
+echo $your_shell
+/bin/bash
+our_shell=$your_shell
+echo $our_shell
+/bin/bash
+```
+Para que una variable de shell se convierta en una variable de entorno, se debe utilizar el
+comando `export`:
+
+    export reptile
+
+Con `export reptile` hemos convertido nuestra variable local en una variable de entorno para que
+los shells hijos puedan reconocerla y usarla.
+
+De la misma manera, `export` puede ser usado para asignar y exportar una variable, todo a la vez:
+
+    export amphibian=frog
+
+> Con `export -n <variable_name>` la variable se convertirpa de nuevo en una variable local.
+
+El comando `export` también nos dará una lista de todas las variables de entorno existentes o
+cuando se digita con la opción `-p`:
+
+    export -p
+
+> El comando `declare -x` es equivalente a `export`.
+
+Dos comandos más que puede ser usados para imprimir una lista de todas las variable de entorno
+son `env` y `printenv`:
+
+    env | grep -i "pwd"
+
+Además de ser un sinónimo de `env`, a veces podemos usar `printenv` de forma similar a como
+usamos el comando `echo` para comprobar el valor de una variable
+
+    printenv PWD
+
+Sin embargo, con `printenv` el nombre de la variable no está precedido por `$`.
+
+#### Ejecución de un programa en un entorno modificado
+El comando `env` puede ser usado para modifcar el entorno de shell en el momento de la ejecución
+de un programa.
+
+Para iniciar una nueva sesión de Bash con un entorno tan vacío como sea posible, despejando
+la mayoría de las variables (así como las funciones y alias), usaremos `env` con la opción `-i`:
+
+    env -i bash
+
+Ahora la mayoría de las variables de nuestro entorno han desaparecido. Y solo quenda unas pocas:
+
+    env
+
+También podemos usar `env` para establecer una variable particular para un programa particular.
+
+Cuando hablamos de los shell no interactivos sin inicio de sesión, observamos como los scripts
+no leen ningún archivo de inicio estándar, sino que buscan el valor de la variable
+`BASH_ENV` y lo usan como un archivo de inicio si existe.
+
+Demostrémos este proceso: pg48
