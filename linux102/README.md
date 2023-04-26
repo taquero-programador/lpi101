@@ -529,4 +529,249 @@ Cuando hablamos de los shell no interactivos sin inicio de sesión, observamos c
 no leen ningún archivo de inicio estándar, sino que buscan el valor de la variable
 `BASH_ENV` y lo usan como un archivo de inicio si existe.
 
-Demostrémos este proceso: pg48
+Demostrémos este proceso:
+
+1. Creamos nuestro propio archivo de inicio llamado `.startup_script` con el siguiente contenido:
+
+    CROCODILIAN=caiman
+
+2. Escribimos un script Bashh llamado `test_env` con el siguiente contenido:
+```sh
+#!/bin/bash
+
+echo $CROCODILIAN
+```
+
+3. Establecemos el bit ejecutable para nuestro script `test_env.sh`:
+```sh
+chmod +x test_env.sh
+```
+
+4. Por último, usamos `env` para establecer `BASH_ENV` en `startup_script` para `test_env.sh`:
+
+
+#### Variables comunes de entorno
+Es hora de revisar algunas de las variables de entorno más relevantes que se establecen en los
+archivos de configuración de Bash.
+
+**`DISPLAY`**: en relación con el servidor X, el valor de esta variable se compone normalmente de
+tres elementos:
+- El hostname (la ausencia de este significa `localhost`) donde se ejecuta el servidor X.
+- Dos puntos como delimitdor.
+- Un números (normalmente es `0` y se refiere a la pantalla de la computadora).
+```sh
+printenv | grep -i "display"
+```
+
+**`HISTCONTROL`**: esta variable controla qué comandos se guardan en `HISTFILE`. Hay tres valores
+posibles:
+- **`ignorespace`**: los comandos que empiecen con un espacio no se guardarán.
+- **`ignoredups`**: un comando que es el mismo que el anterior no se guardará.
+- **`ignoreboth`**: los comandos que caen en cualquiera de las dos categorías no se guardarán.
+```sh
+echo $HISTCONTROL
+```
+
+**`HISTSIZE`**: esto establece el número de comandos que se almacenarán en la memoria mientras dure la
+sesión de shell.
+```sh
+echo $HISTSIZE
+```
+
+**`HISTFILESIZE`**: esto establece el número de comandos que se guardarán en `HISTFILE` tanto al
+principio como al final de la sesión:
+```sh
+echo $HISTFILEZIE
+```
+
+**`HISTFILE`**: el nombre del archivo que almacena todos los comandos a medida que se escriben. Por
+defecto este se encuentra en `~/.bash_history`:
+```sh
+echo $HISTFILE
+```
+
+**`HOME`**: esta variable almacena la ruta absoluta del directorio principal del usuario y se establece
+cuando el usuario se conecta. `~` es equivalente a `$HOME`.
+
+**`HOSTNAME`**: variable que almacena el nombre de la máquina en la red:
+```sh
+echo $HOSTNAME
+```
+
+**`HOSTYPE`**: esto almacena la arquitectura de la unidad central de procesamiento (CPU) del equipo:
+```sh
+echo $HOSTTYPE
+```
+
+**`LANG`**: esta variable guarda la información de localización que se utiliza para el sistema:
+```sh
+echo $LANG
+```
+
+**`LD_LIBRARY_PATH`**: esta variable consiste en un conjunto de directorios separados por dos puntos
+donde las bibliotecas compartidas son compartidas por los programas.
+
+**`MAIL`**: esta variable almacena el archivo en el que Bash revisa el correo electrónico.
+
+**`MAILCHECK`**: esta variable almacena un valor numérico que indica en segundos la frecuencia con la
+que Bash comprueba si hay correo nuevo.
+
+**`PATH`**: esta variable de entorno almacena la lista de directorios donde Bash busca los archivos
+ejecutables cuando se le indica que ejecute cualquier programa.
+
+Dos cosas con respecto al valor de `PATH`:
+- Los nombre de los directorios se escriben usando rutas absolutas.
+- Los dos puntos se usan como delimitadores.
+
+**`PS1`**: esta variable almacena el valor del indicador Bash.
+
+**`PS2`**: normalmente se establece en `>` y se usa como un mensaje de continuidad para comandos largo
+de varias líneas.
+
+**`PS3`**: usando como el indicador para el comando `select`.
+
+**`PS4`**: normalmente se establece en `+` y se usa para la depuración.
+
+**`SHELL`**: esta variable almacena la ruta absoluta del shell actual:
+
+**`USER`**: esto almacena el nombre del usuario actual.
+
+#### Creando Alias
+Un alias es un nombre sustituto de otro(s) comando(s). Puede ejecutarse como un comando normal,
+pero en su lugar ejecuta otro comando según la definición de alias.
+
+La sintaxis para declarar alias es muy sencillas. Estos se declaran escribiendo la palabra clave
+`alias` seguida de su asignación. A su vez, dicha asignación consiste en el nombre del alias, un
+signo igual y uno o más comandos:
+
+    alias alias_name=command
+
+Por ejemplo:
+
+    alias oldshell=sh
+
+El poder de los alias radica en que nos permiten escribir versiones cortas de comandos largos:
+
+    alias ls="ls --color=auto"
+
+De la misma manera, podemos crear alias para una serie de comandos concatenados, usando el
+punto y coma (`;`) como delimitador. Por ejemplo, podemos tener un alias que nos de información
+sobre la ubicación de l ejecutable `git` y su versión:
+
+    alias git_info="which git ; git --version"
+
+El comando `alias` producirá un listado de todos los alias disponibles en el sistema.
+
+El comando `unalias` eliminas los alias:
+
+    unalias git_info
+
+Debemos encerrar los comandos entre comillas (simples o dobles) cuando los argumentos o
+parámetros tengan espacios.
+
+La variable también puede ser asignada dentro del alias.
+
+Escapara de un alias es útil cuando un alias tiene el mismo nombre que un comando normal. En
+este caso, el alias tiene prioridad sobre el comando original, sin embargo, este sigue siendo
+accesible al espacar del alias.
+
+#### Expansión y evaluación de las comillas en los alias
+Cuando se usan comillas con variable de entorno, las comillas simples hacen que la expresión
+sea dinámica:
+```sh
+alias where?='echo $PWD'
+where?
+/home/user2
+cd Music
+where?
+/home/user2/Music
+```
+Sin embargo, con las comillas dobles la expansión se hace de forma estática:
+```sh
+$ alias where?="echo $PWD"
+$ where?
+/home/user2
+$ cd Music
+$ where?
+/home/user2
+```
+
+#### Persistencia de Alias: scripts de inicio
+Al igual que con las variables, para que nuestroas alias ganen persistencia, debemos escribirlo
+en scripts de Inicialización que se ejecuten al inicio. Como ya sabemos, un buen archivo para
+que los usuarios agreguen sus alias personales es `~/.bashrc`.
+
+#### Creando funciones
+En comparación con los alias, las funciones son más programables y flexibles, especialmente
+cuando se trata de explotar todo el potencial de las variables incorporadas y parámetros
+posicionales de Bash. También son muy buenas para trabajar con estructuras de control de flujo,
+como bucles o conficionales. Podemos pensaer en una función como un comando que incluye la
+lógica a través de bloques o colecciones de otros comandos.
+
+#### Dos sintaxis para crear funciones
+**Usando la palabra clave `function`**: podemos usar la palabra clave `function`, seguida del nombre
+de la función y los comandos entre corchetes:
+```sh
+function function_name {
+    commands
+}
+```
+
+**Usar `()`**: por otro lado, podemos omitir la palabra `function` y usar dos paréntesis justo
+después del nombre de la función:
+```sh
+function_name() {
+    commands
+}
+```
+Es común agregar funciones en archivos o scripts. Sin embargo, también se puede escribir con
+cada comando en el shell prompt, en una línea diferente que indica una nueva línea después de
+un salto de línea.
+
+En cualquier caso, e independientemente de la sintaxis que elijamos, si decidimos saltarnos los
+saltos de línea y escribir una funcioón en una sola línea, los comandos deben estar separados
+por punto y coma:
+
+    greet() { greeting="Hello world!"; echo $greeting; }
+
+Al igual que con las variables y los alias, si queremos que las funciones sean persistentes a
+través de los reinicios del sistema tenemos que agregarlas en los scripts de inicialización
+de shell como `~/etc/bash.bashrc` o `~/.bashrc`.
+
+#### Variables especiales incorporadas en Bash
+Bourne Again Shell llega con un conjunto de variables especiales que son particularmen útiles
+para funciones y scripts. Estas son especiales porque solo pueden ser referenciadas,
+no asignadas. Aquí hay una lista de las már relevantes:
+
+**`$?`**: la referencia de esta variable se expande hasta el resultado de la última ejecución
+del comando. Un valor de `0` significa éxito y un valor distinto de `0` es error.
+
+**`$$`**: se expande hasta el PID del shell (process ID).
+
+**`$!`**: se expabde hasta el PID del último trabajo en segund plano.
+
+#### Parámetros de posición de `0` a `9`
+Se expande a los prámetros o argumentos que se pasan a la función, `$0` expandiéndose al
+nombre del script o shell.
+
+Otras variables especiales incorporadas en Bash incluyen:
+
+**`$#`**: se expande al número de argumentos que se le pasan al comando.
+
+**`$@, $*`**: se extiende a los argumentos pasados al comando.
+
+**`$_`**: se expande hasta el último parámetro o el nombre de script.
+
+#### Parámetros de posición en las funciones
+Podemos pasarlos a las funciones desde adentro del archivo o el script:
+```sh
+editors() {
+    edit=emcas
+
+    echo "The text editor of $USER is: $editor"
+    echo "Bash is not a $1 shell"
+}
+editors tortoise
+```
+
+#### Personalizar y escribir scripts sencillos
