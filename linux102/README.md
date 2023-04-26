@@ -774,4 +774,142 @@ editors() {
 editors tortoise
 ```
 
-#### Personalizar y escribir scripts sencillos
+## Instalar y configurar X11
+El sistema X Window es una pila de software que se utiliza para mostrar texto y gráficos en una
+pantalla. El aspecto y diseño de un cleinte X no está dictado por el sistema X Window, sino
+que es manejado por cada cliente X individual, un administrador de ventanas, o un entorno
+de escritorio completo como KDE, GNOME o Xfce.
+
+El sistema X Window es multiplataforma y funciona en varios sistemas operativos como Linux,
+BSD, Solaris y otros sistemas de tipo Unix. También hay implementaciones disponibles para
+MacOS de Apple y Window de Microsoft.
+
+#### Arquitectura de sistema X Window
+El sistema X Window proporciona los mecanismos para dibujar formas bidimensionales básicas
+en una pantalla. Se divide en un cliente y un servidor; en la mayoría de las intalaciones en
+las que se requeire un escritorio gráfico, estos componentes estáran presentes en el mismo
+equipo. El componente cliente toma la forma de una aplicación, como un emulador de terminal,
+un juego o un navegador web. Cada aplicación cliente informa al servidor X sobre la ubicación
+y el tamaño de su ventana en la pantalla de la computadora. El cliente también maneja lo
+que entra en esa ventana, y el servidor X coloca el dibujo solicitado en la pantalla. El
+sistema X Window también maneja la entrada de dispositivos como mouse, teclados,
+trackpads y más.
+
+El sistema X Window es capaz de funcionar en red donde múltiples clientes X de diferentes
+computadoras de una red pueden hacer solicitudes a un solo servidor X remoto. El razonamiento
+que subyace a esto es que un adminstrador o usuario pueda tener acceso a una aplicación gráfica
+en un sistema remoto que puede no estar disponible en sus sistema local X Window es un sistema
+modular, y esto es una característica clave. A lo largo de la existencia de este sistema se han
+desarrollado nuevas características que se han añadido a su marco (Framework). Estos nuevos
+componentes solo fueron añadidos como extensiones al servidor X, dejando al núcleo del
+protocolo X11 intacto. Estas extensiones están contenidas dentro de los archivos de la
+biblioteca Xorg. Algunos ejemplos de bibliotecas Xorg incluyen: `libxrandr`, `libXcursor`,
+`libX11`, `libxkbfile` así como otras, cada una de ellas proporciona una funcionalidad extendida
+al servidor X.
+
+Un administrador de pantalla proporciona un acceso gráfico a un sistema. Este sistema puede
+ser un ordenador local o un ordenador a través de una red. El administrador de pantalla se lanza
+después de que la máquina se inicia y así comenzará una sesión de servidor X para el usuario
+autenticado. El administrador de pantalla también es responsable de mantener el servidor X en
+funcionamiento. Algunos ejemplos de gestores de pantalla son: GDM, SDDM y LightDM. Cada
+instancia de un servidor X en funcionamiento tiene un nombre de pantalla para indentificarlo.
+El nombre de la pantalla contiene lo siguiente:
+
+    hostname:displaynumber.screennumber
+
+El nombre de la pantalla también indica una aplicación gráfica donde debe ser renderizada y
+sobre cuál host (si se utiliza una conexión X remotea).
+
+El `hostname` se refiere al nombre del sistema que monstrará la aplicación. Si falta un nombre
+de host en el nombre de pantalla, entonces se asume que es el host local.
+
+El `displaynumber` hace referencia a la colección de "pantallas" que están en uso, ya sea una
+sola o varias pantallas en una estación de trabajo. A cada sesión de servidor X en ejecución se
+le da un número de pantalla que comienza `0`.
+
+Por defecto el `screennumber` es `0`. Esto puede ser el caso si solo una pantalla o varias pantallas
+físicas están configuradas para trabajar como una sola pantalla. Cuando todas la pantallas en
+una configuración de múltiples monitores se combinan en una lógica, las ventanas de la
+aplicación pueden moverse libremente entre las pantallas. En situaciones en las que cada
+pantalla está configurada para funcionar de manera independiente, cada una albergará las
+ventanas de aplicación que se abran dentro de ella y las ventanas no podrán moverse de una
+patalla a otra. Cada pantalla independiente tendrá un propio número asignado. Si solo hay
+una lógica en uso, entonces se omite el punto y el número de pantalla.
+
+El nombre de una sesión X en curso se almacena en la variable de entorno `DISPLAY`:
+
+    echo $DISPLAY # :0
+
+La salida detalla lo siguiente:
+
+1. El servidor X en uso está en el sistema local, por lo tanto no hay nada impreso a la izquierda de los dos puntos.
+
+2. La sesión actual del servidor X es la primera como indica el `0` que sigue a los dos puntos.
+
+3. Solo hay una pantalla lógica en uso, por lo que un número de pantalla no es visible.
+
+Ejemplo de configuración en pantalla:
+
+![example](pics/01.png)
+
+**(A)**: un solo monitor, con una sola configuración de visualización y una sola pantalla.
+
+**(B)**: configurado como una sola pantalla, con dos monitores físicos como una sola. Las ventanas
+de aplicación pueden moverse libremente entre los dos monitores.
+
+**(C)**: una configuración de pantalla única, sin embargo, cada monitor es una pantalla
+independietne. Ambas pantallas seguirán compartiendo los mismos dispositivos de entrada como
+el teclado y el mouse, pero una aplicación abierta en la plantalla `:0.0` no puede ser movida
+a la pantalla `:0.1` o viceversa.
+
+Para iniciar una aplicación en una pantalla específica, asigne el número de pantalla a la
+variable de entorno `DISPLAY` antes de lanzar la aplicación:
+
+    DISPLAY=:0.1 firefox &
+
+Este comando iniciaría el navegador web Firefoz en la pantalla de la derecha. Algunos conjuntos
+de herramientas también proporcionan opciones de línea de comandos para ordenar a una
+aplicación que se ejecute en una pantalla especifica. Por ejemplo, `--screen` y `--display`
+de `gtk-options`.
+
+#### Configuración de un servidor X
+Tradicionalmente, el principal archivo de configuración que se utiliza para configurar un
+servidor X es el archivo `/etc/X11/xorg.conf`. En las distribuciones modernas de Linux, el
+servidor X se configurará así mismo en timpo de ejecución cuando este es iniciado, y por lo
+tanto no puede existir ningún archivo `xorg.conf`.
+
+El archivo `xorg.conf` está dividido en estrofas llamadas `secciones`. Cada sección comienza con
+el término `Section` y después de este término se encuentra el nombre de la sección que se
+refiere a la configuración de un componente. Cada `Section` está correspondientemente terminada
+por una `EndSection`. El típico archivo `xorg.conf` contiene las siguientes secciones:
+
+**`InputDevice`**: se utiliza para configurar un modelo específico de taclado o mouse.
+
+**`InputClass`**: en las distribuciones modernas de Linux esta sección se encuetra típicamente en
+un archivo de configuración separado y localizado en `/etc/X11/xorg.conf.d/`. El `InputClass`
+se usa para configurar una clase de dispositivos de hardware como teclados y mouses en
+lugar de un componente específico de hardware. Ejemplo del archivo
+`/etc/X11/xorg.conf.d/00-keyboard.conf`:
+```conf
+Section "InputClass"
+    Identifier "system-keyboard"
+    MatchIsKeyboard "on"
+    Option "XkbLayout" "us"
+    Option "XkbModel" "pc105"
+EndSection
+```
+La opción para `XkbLayout` determina la disposición de las teclas de un teclado, como Dvorak para
+diestros y zurdos, QWERTY e idioma. La opción para `XkbModel` se usa para definir el tipo de
+teclado en uso. Una tabla de modelos, diseños y sus descripciones se pueden encontrar en
+`xkeybpoard-config`. Los archivos asociados a las distribuciones de teclado se pueden encontrar
+en `/usr/share/X11/xkb`. Un ejemplo de siseño de teclado griego plotónico en una computadora de
+Chromebook se vería como el siguiente:
+```conf
+Section "InputClass"
+    Identifier "system-keyboard"
+    MatchIsKeyboard "on"
+    Option "XkbLayout" "gr(polytonic)"
+    Option "XkbModel" "chromebook"
+EndSection
+```
+pg 129
