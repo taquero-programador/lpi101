@@ -850,7 +850,7 @@ La salida detalla lo siguiente:
 
 Ejemplo de configuración en pantalla:
 
-![example](pics/01.png)
+![example](../pics/01.png)
 
 **(A)**: un solo monitor, con una sola configuración de visualización y una sola pantalla.
 
