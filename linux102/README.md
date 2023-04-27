@@ -1256,3 +1256,48 @@ configuración de la conexión para su uso posterior. Remmina tiene plugins para
 individual y hay un plugin para XDMCP, VNC, DRP y Spice. La elección de la herramienta
 adecuada depdende de los sistemas operativos implicados, la calidad de la conexión de red
 y las características del entorno de escritorio remoto que debe estar disponibles.
+
+## Administrar cuentas de usuario y de grupo y los archivos de sistema relacionados con ellas
+#### Agregando cuentas de usuario
+En linux, puedeañadir una nueva cuenta de usuario con el comando `useradd`. Por ejemplo,
+con privilegios de root, puede crear una nueva cuenta de usuario llamada `Michael` con una
+configuración por defecto, usando lo siguiente:
+
+    useradd michael
+
+Cuando se ejecuta el comando `useradd`, la información de usuario y grupo almacenada en la
+base de datos de contraseñas y grupos se actualiza para la cuenta de usuario recién creada,
+y si especifica, también se crea el directorio principal del nuevo usuario. Adicionalmente
+se crea un grupo con el mismo nombre de la cuenta de usuario.
+
+Una vez que haya creado el nuevo usuario, puede establecer su contraseña usando el comando
+`passwd`. Puede reviar su ID de usuario, ID de grupo y los grupos a los que pertenece a través
+de los comandos `id` y `groups`.
+```sh
+passwd michael
+id michael
+groups michael
+```
+Las opciones más importantes que se aplican al comando `useradd` son:
+
+- **`-c`**: crear una nueva cuenta de usuario con comentarios personalizados.
+- **`-d`**: crear una nueva cuenta de usuario con un directorio de inicio específico.
+- **`-e`**: crear una nueva cuenta de usuario estableciendo una fecha específica en la que se desactivará.
+- **`-f`**: crear una nueva cuenta estableciendo el número de días después de que expire una contraseña, durante los cuales el usuario debe actualizar (de lo contrario, la cuenta se desactivará).
+- **`-g`**: crear una nueva cuenta de usuario con un GID específico.
+- **`-G`**: crear una nueva cuenta de usuario añadiéndola a múltiples grupos secundarios.
+- **`-k`**: crear una nueva cuenta de usuario copiando los archivos del "kel" de un directorio personzalizado específico (opción válida con `-m`).
+- **`-m`**: crear una nueva cuenta de usuario con su directorio principal.
+- **`-M`**: crear una nueva cuenta de usuario sin su directorio principal
+- **`-s`**: crear una nueva cuenta de usuario con un shell de acceso específico.
+- **`-u`**: crear una nueva cuenta de usuario con un UID específico.
+
+#### Modificación de las cuentas de usuario
+En ocasiones es necesario cambiar un atributo de una cuenta de usuario existente, como
+también el nombre de usuario, el shell, la fecha de caducidad de la contraseña, etc. En tales
+casos, necesitas usar el comando `usermod`:
+```sh
+usermod -s /bin/tcsh michael
+usermod -c "Micheal User Account" michael
+```
+
