@@ -912,4 +912,127 @@ Section "InputClass"
     Option "XkbModel" "chromebook"
 EndSection
 ```
-pg 129
+Alternativamente, la disposición del teclado puede ser modificada durante una sesión X en curso
+con el comando `setxkbmap`. Aqupi hay un ejemplo de este comando que configura la disposición del
+Politónico Griego en una computadora Chromebook:
+
+    setxkbmap -model chromebook -layout "gr(polytonic)"
+
+Este ajuste solo durará mientras la sesión X esté en uso. Para que estos cambios sean
+permanentes, modifique el archivo `/etc/X11/xorg.conf.d/00-keyboard.conf` para incluir los ajustes
+necesarios.
+
+Las distribuciones modernas de Linux proporciona el comando `localectl` a través de `systemd`
+que tamién puede ser usado para modificar una disposición del teclado y creará automáticamente
+el archivo de configuración `/etc/X11/xorg.conf.d/00-keyboard.conf`. Aquí hay un ejemplo de
+configuración de un teclado Politónico Griego en una Chromebook, esta vez usando el comando
+`localectl`:
+
+    localectl --no-convert set-x11-keymap "gr(polytonic)" chromebook
+
+La opción `--no-convert` se usa aquí para evitar que `localectl` modifique el mapa de teclas de la
+consola de host.
+
+**`Monitor`**: la sección `Monitor` describe el monitor físico que se utiliza y dónde está conetado.
+El siguiente es un ejemplo de configuración que muestra un monitor físico conetado al segundo
+puerto de la pantalla y que se utiliza como monitor primario:
+```sh
+Section "Monitor"
+    Identifier"DP2"
+    Option "Primary" "true"
+EndSection
+```
+**`Device`**: la sección `Device` describe la tarjeta de video física que se utiliza. tambińe
+contendrá el módulo del núcleo utilizado como controlador de la tarjeta de video, junto con su
+ubicación física en la placa base:
+```sh
+Section "Device"
+    Identifier "Device0"
+    Driver "i915"
+    BusID "PCI:0:2:0"
+EndSection
+```
+**`Screen`**: la sección `Screen` una las secciones `Monitor` y `Device`. Un ejemplo de la sección
+`Screen` podría ser la siguiente:
+```sh
+Section "Screen"
+    Identifier "Screen0"
+    Device "Device0"
+    Monitor "DP2"
+EndSection
+```
+**`ServerLayout`**: la sección `ServerLayout` agrupa todas las secciones como el mouse, teclado y
+las pantallas en una interfaz del sistema X Window:
+```sh
+Section "ServerLayout"
+    Identifier "Layout-1"
+    Screen "Screen0" 0 0
+    InputDevice "mouse1"
+    InputDevice "system-keyboard" "CorePointer" "CoreKeyboard"
+EndSection
+```
+Los archivos de configuración especificados por el usuario también residen en
+`/etc/X11/xorg.conf.d/`. Los archivos de configuración proporcionados por la distribución se
+localizan en `/usr/share/X11/xorg.conf.d/`. Los archivos de configuración ubicados dentro de
+`/etc/X11/xorg.conf.d/` son analizados antes del archivo `/etc/X11/xorg.conf` si existen en el
+sistema.
+
+El comando `xdpinfo` se una en una computadora para mostrar información sobre una instancia de
+servidor X en ejecución:
+
+    xdpinfo
+
+#### Creando un archivo de configuración básica de Xorg
+Aunque X creará su configuración después del inicio del sistema en instalaciones modernas de
+Linux, un archivo `xorg.conf` todavía puede ser usado. Para generar un archivo
+`/etc/X11/xorg.conf` permanente, ejecute el siguiente comando:
+
+    sudo Xorg -configure
+
+> Si ya existe una sesión X en ejecución. tendra que especificar un `DISPLAY` diferente en el comando, por ejemplo: `sido Xorg :1 -configure`.
+
+En alguas distribuciones de Linux, el comando `X` puede ser usado en lugar de `Xorg`, ya que `X`
+es un enlace simbólico a `Xorg`.
+
+Se creará un archivo `xorg.conf.new` en su actual directorio de trabajo. El contenido de este
+archivo se derova de lo que el servidor X ha encontrado disponible en el hardware y los
+controladores del sistema local. Para user este archivo, tendrá que ser movido al directorio
+`/etc/X11/` y renombrado a `xorg.conf`:
+
+    sudo mv xorg.conf.new /etc/X11/xorg.conf
+
+#### Wayland
+Wayland es el nuevo protocolo de visualización diseñado para reemplazar el sistems W Window.
+Muchas distribuciones modernas de Linux lo usarn como un servidor de visualización por defecto.
+Se supone que es más ligero en cuanto a recursos del sistema y su instalación ocupa menos
+espacio en disco que X. El proecto comeznzó en 2010 y todavía esta en desarrollo activo,
+incluyendo el trabajo de los desarrolladores activos y anteriores de X.org.
+
+A diferencia del sistema X Window, no hay niniguna instancia de servidor que se ejecute entre el
+cliente y el kernel. En su lugar, una ventana cliente trabaja con su propio código o el de un
+kit de herramientas (como Gtk+ o Qt) para proporcionar el renderizado. Para hacer el
+renderizado, se hace una petición al kernel de Linux a través del protocolo Wayland. El
+kernel reenvía la solicitud a través de este protocolo al Wayland compositor que se encarga
+de la entrada de dispositivos, la gestión de ventanas y la composición. El compositor es
+parte del sistema que combina los elementros renderizados en una salida visual en la
+pantalla.
+
+La mayoría de las herramientas modernas como Gtk+ 3 y Qt 5 han sido actualizada para
+permitir la renderización a un sistema X Window o a una computadora con Wayland. No todas las
+aplicaciones autónomas han sido escritas para soportar el renderizado en Wayland hasta ahora.
+Para las aplicaciones y frameworks que todavía toene como objetivo que se ejecute el
+sistema X Window, la aplicación puede ejecutarse dentro de XWayland. El sistems XWayland
+es un servidor X separado que se ejecuta dentro de un cliente de Wayland y por lo tanto,
+renderiza el contenido de una ventana de cliente dentro de una isntancia de servidor X
+independiente.
+
+Así como el sistema X Windows utiliza una vaiable de entorno `DISPLAY` para controlar las
+pantallas en uso, el protocolo Wayland utiliza una variable de entorno `WAYLAND_DISPLAY`. A
+continuación se muestra la salida de un sistema que ejecuta una pantalla Wayland:
+```sh
+echo $WAYLAND_DISPLAY
+wayland-0
+```
+Esta variable de entorno no está disponible en los sistemas que ejecutan X.
+
+## Escritorios gricos
