@@ -850,7 +850,7 @@ La salida detalla lo siguiente:
 
 Ejemplo de configuración en pantalla:
 
-![example](pics/01.png)
+![example](../pics/01.png)
 
 **(A)**: un solo monitor, con una sola configuración de visualización y una sola pantalla.
 
@@ -912,4 +912,347 @@ Section "InputClass"
     Option "XkbModel" "chromebook"
 EndSection
 ```
-pg 129
+Alternativamente, la disposición del teclado puede ser modificada durante una sesión X en curso
+con el comando `setxkbmap`. Aqupi hay un ejemplo de este comando que configura la disposición del
+Politónico Griego en una computadora Chromebook:
+
+    setxkbmap -model chromebook -layout "gr(polytonic)"
+
+Este ajuste solo durará mientras la sesión X esté en uso. Para que estos cambios sean
+permanentes, modifique el archivo `/etc/X11/xorg.conf.d/00-keyboard.conf` para incluir los ajustes
+necesarios.
+
+Las distribuciones modernas de Linux proporciona el comando `localectl` a través de `systemd`
+que tamién puede ser usado para modificar una disposición del teclado y creará automáticamente
+el archivo de configuración `/etc/X11/xorg.conf.d/00-keyboard.conf`. Aquí hay un ejemplo de
+configuración de un teclado Politónico Griego en una Chromebook, esta vez usando el comando
+`localectl`:
+
+    localectl --no-convert set-x11-keymap "gr(polytonic)" chromebook
+
+La opción `--no-convert` se usa aquí para evitar que `localectl` modifique el mapa de teclas de la
+consola de host.
+
+**`Monitor`**: la sección `Monitor` describe el monitor físico que se utiliza y dónde está conetado.
+El siguiente es un ejemplo de configuración que muestra un monitor físico conetado al segundo
+puerto de la pantalla y que se utiliza como monitor primario:
+```sh
+Section "Monitor"
+    Identifier"DP2"
+    Option "Primary" "true"
+EndSection
+```
+**`Device`**: la sección `Device` describe la tarjeta de video física que se utiliza. tambińe
+contendrá el módulo del núcleo utilizado como controlador de la tarjeta de video, junto con su
+ubicación física en la placa base:
+```sh
+Section "Device"
+    Identifier "Device0"
+    Driver "i915"
+    BusID "PCI:0:2:0"
+EndSection
+```
+**`Screen`**: la sección `Screen` una las secciones `Monitor` y `Device`. Un ejemplo de la sección
+`Screen` podría ser la siguiente:
+```sh
+Section "Screen"
+    Identifier "Screen0"
+    Device "Device0"
+    Monitor "DP2"
+EndSection
+```
+**`ServerLayout`**: la sección `ServerLayout` agrupa todas las secciones como el mouse, teclado y
+las pantallas en una interfaz del sistema X Window:
+```sh
+Section "ServerLayout"
+    Identifier "Layout-1"
+    Screen "Screen0" 0 0
+    InputDevice "mouse1"
+    InputDevice "system-keyboard" "CorePointer" "CoreKeyboard"
+EndSection
+```
+Los archivos de configuración especificados por el usuario también residen en
+`/etc/X11/xorg.conf.d/`. Los archivos de configuración proporcionados por la distribución se
+localizan en `/usr/share/X11/xorg.conf.d/`. Los archivos de configuración ubicados dentro de
+`/etc/X11/xorg.conf.d/` son analizados antes del archivo `/etc/X11/xorg.conf` si existen en el
+sistema.
+
+El comando `xdpinfo` se una en una computadora para mostrar información sobre una instancia de
+servidor X en ejecución:
+
+    xdpinfo
+
+#### Creando un archivo de configuración básica de Xorg
+Aunque X creará su configuración después del inicio del sistema en instalaciones modernas de
+Linux, un archivo `xorg.conf` todavía puede ser usado. Para generar un archivo
+`/etc/X11/xorg.conf` permanente, ejecute el siguiente comando:
+
+    sudo Xorg -configure
+
+> Si ya existe una sesión X en ejecución. tendra que especificar un `DISPLAY` diferente en el comando, por ejemplo: `sido Xorg :1 -configure`.
+
+En alguas distribuciones de Linux, el comando `X` puede ser usado en lugar de `Xorg`, ya que `X`
+es un enlace simbólico a `Xorg`.
+
+Se creará un archivo `xorg.conf.new` en su actual directorio de trabajo. El contenido de este
+archivo se derova de lo que el servidor X ha encontrado disponible en el hardware y los
+controladores del sistema local. Para user este archivo, tendrá que ser movido al directorio
+`/etc/X11/` y renombrado a `xorg.conf`:
+
+    sudo mv xorg.conf.new /etc/X11/xorg.conf
+
+#### Wayland
+Wayland es el nuevo protocolo de visualización diseñado para reemplazar el sistems W Window.
+Muchas distribuciones modernas de Linux lo usarn como un servidor de visualización por defecto.
+Se supone que es más ligero en cuanto a recursos del sistema y su instalación ocupa menos
+espacio en disco que X. El proecto comeznzó en 2010 y todavía esta en desarrollo activo,
+incluyendo el trabajo de los desarrolladores activos y anteriores de X.org.
+
+A diferencia del sistema X Window, no hay niniguna instancia de servidor que se ejecute entre el
+cliente y el kernel. En su lugar, una ventana cliente trabaja con su propio código o el de un
+kit de herramientas (como Gtk+ o Qt) para proporcionar el renderizado. Para hacer el
+renderizado, se hace una petición al kernel de Linux a través del protocolo Wayland. El
+kernel reenvía la solicitud a través de este protocolo al Wayland compositor que se encarga
+de la entrada de dispositivos, la gestión de ventanas y la composición. El compositor es
+parte del sistema que combina los elementros renderizados en una salida visual en la
+pantalla.
+
+La mayoría de las herramientas modernas como Gtk+ 3 y Qt 5 han sido actualizada para
+permitir la renderización a un sistema X Window o a una computadora con Wayland. No todas las
+aplicaciones autónomas han sido escritas para soportar el renderizado en Wayland hasta ahora.
+Para las aplicaciones y frameworks que todavía toene como objetivo que se ejecute el
+sistema X Window, la aplicación puede ejecutarse dentro de XWayland. El sistems XWayland
+es un servidor X separado que se ejecuta dentro de un cliente de Wayland y por lo tanto,
+renderiza el contenido de una ventana de cliente dentro de una isntancia de servidor X
+independiente.
+
+Así como el sistema X Windows utiliza una vaiable de entorno `DISPLAY` para controlar las
+pantallas en uso, el protocolo Wayland utiliza una variable de entorno `WAYLAND_DISPLAY`. A
+continuación se muestra la salida de un sistema que ejecuta una pantalla Wayland:
+```sh
+echo $WAYLAND_DISPLAY
+wayland-0
+```
+Esta variable de entorno no está disponible en los sistemas que ejecutan X.
+
+## Escritorios gricos
+#### Sistema X Window
+En Linux y otros sistemas operativos similares a Unix en los que se emplea, el sistema X
+Window (conocido como X11 o simplemente X) proporciona los recuros de bajo nivel relacionados
+con la reepresentación de la interfaz gráfica y la interacción del usuario con ella.
+Por ejemplo:
+
+- El manejo de los eventos de entrada, como los movimiento del mouse o las pulsaciones de teclas.
+- La capacidad de cortar, copiar y pegas el contenido del texto entre aplicaciones separadas.
+- La interfaz de programación que otros programas utilizan para dibujar elementos gráficos.
+
+Aunque el sistema X Window se encarga de controlar la pantalla gráfica, no pretende dibujar
+elementos visuales complejos. Las formas, los colores, los matices y cualquier otro efecto
+visual son generados por la aplicación que se ejecuta sobre X. Este enfoque da a las
+aplicaciones mucho espacio para crear interfaces personalizadas, pero también pueden dar
+lugar a sobreusos de desarrollo que están fuera del alcande de la aplicación y a incoherencias
+en el aspecto y comportamiento cuando se comparan con las interfaces de otros programas.
+
+Desde el punto de vista del desarrollador, la introducción del ambiente de escritorio facilita
+la programación de la interfaz gráfica de usuario vinculada al desarrollo de la aplicación
+subyacente, mientras que desde el punto de vista del usuario proporciona una experiencia
+coherente entre las distintas aplicaciones. Los entornos de escritorio reunen interfaces de
+programación, bibliotecas y programas de apoyo que cooperan para ofrecer conceptos de diseño
+tradicionales pero aún en evolución.
+
+#### Ambientes de escritorio
+La tradicional interfaz gráfica de la computadora de escritorio consiste en varias ventanas
+asociada con procesos en ejecución. Como el sistema X Window por sí solo ofrece solo
+características interactivas básicas, la experiencia completa del usuario depende de los
+componentes proporcionados por el entorno de escritorio. Probablemente el componente más
+importante de un entorno de escritorio, es el administrador de ventanas (windows manager)
+que controla la colocación y decoración de las ventanas. Es el gesto de ventanas que añade
+la barra de título a la ventan, los botones de control y gestiona el cambio entre las
+ventanas abiertas.
+
+Todos los entornos de escritorio proporcionan un gestor de ventnas que se ajusta al aspecto
+y a la sensación de un kit de herramientas de widgets. Los widgets son elementos visuales
+informativos o interactivos, como botnoes o campos de entrada de texto, distribuidos dentro
+dentro de la ventana de la aplicación. Los componentes estándares del escritorio y el
+propio gesto de ventanas dependen de tales kits de herramientas de widgets para ensamblar
+sus interfaces.
+
+Las bibliotecas de software, como Gtk+ y Qt, proporcionan widgets que los programadores
+pueden usar para construir elaboradas interfaces gráficas para sus aplicaciones.
+Históricamente, las aplicaciones desarrolladas con GTK+ no se parecían a las aplicaciones
+hechas con Qt y viceversa, pero el mejor soporte de temas de los entornos de escritorio de
+hoy en día hacen que la distinción sea menos obvia.
+
+En general, Gtk+ y Qt ofrecen las mismas características en cuanto a los widgets. Los
+elementos interactivos simples pueden ser indistinguibles, mientas que los widgets compuestos,
+como la ventan de diálogo que utilizan las aplicaciones para abrir y gurardar archivos,
+sin embargo, pueden tener un aspecto bastante diferente. No obstante, las aplicaciones
+construidas con conjuntos de herramientas distintos pueden ejecutarse simultáneamente,
+independietemente del conjunto de herramientas de widgets utilizado por los demas componentes
+del escritorio.
+
+Además de los componentes básicos del escritorio, que podrían considerarse programas
+individuales por sí mismos, los entornos de escritorio persiguen la metáfora del escritorio
+proporcionando un conjunto mínimo de accesorios desarrollados bajo las mismas pautas de
+diseño. Las variaciones de las siguientes aplicaciones son comúnmente proporcionadas por
+todos los principales entornos de escritorio:
+
+**Aplicaciones relacionadas con el sistema**: emuladores de terminal, gestor de archivos, gestor de
+instalación de paquetes, herramientas de configuración del sistema.
+
+**Comunicación e Internet**: Administrador de contactos, cliente de correo electrónico, navegador web.
+
+**Aplicaciones de oficina**: calendario, calculadora, editor de texto.
+
+Los entornos de escritorio pueden incluir muchos otros servicios y aplicaciones: el salduo de
+la pantalla de inicio de sesión, el gestero de sesiones, la comunicación entre procesos,
+el agente de credenciales, etc. También incorporan características proporcionadas por
+servicioss de sistemas de terceros, como PulseAudio para el sonido y CUPS para la impresión.
+Estas características no necesitan el entorno gráfico para funcionar, pero el entorno de
+escritorio proporciona gráficas frontend para facilitar la configuración y el funcionamiento
+de esos recursos.
+
+#### Entornos de escritorio populares
+Muchos sistemas operativos patentados solo admiten un único entorno oficial de escritorio
+que está vinculador a su lanzamiento particular y que se supone no debe ser modifiado. A
+diferencia de ellos, los sistemas operativos basados en Linux soportan diferentes opciones de
+entornos de escritorio que pueden utilizarse en conjunto con X. Cada entorno de escritorio
+tiene sus propias características, pero normalmente comparten algunos conceptos de diseño
+comunes:
+- Un lanzador de aplicaciones que lista las aplicaciones integradas y de terceros disponibles en el sistema.
+- Reglas que definen las aplicaciones predeterminadas asociadas a los tipos de archivos y protocolos.
+- Herramientas de configuración para personalizar la apariencia y el comportamiento del entorno de escritorio.
+
+Gnome es uno de los entorno de escritorio más populares, siendo la primera opción en
+distribuciones como Fedora, Debian, Ubuntu, SUSE Linux Enterprise, Red Hat Enterprise Linux,
+CentOS, etc. En su versión 3, Gnome trajo grande cambios en su aspecto y estructura, alejándose
+de la metáfora del escritorio e introduciendo el Gnome SHell como su nueva interfaz.
+
+El lanzador de pantalla completa Gnome Shell Activities reemplazó al tradicional lanzador
+de aplicaciones y a la barra de tareas. Sin embargo, todavía es posible usar Gnome 3 con
+el aspecto antiguo eligiendo la opción de Gnome Classic en la pantalla de inicio de sesión.
+
+KDE es un gran ecosistema de aplicaciones y plataforma de desarrollo. Su últoma versión de
+entorno de escritorio, KDE Plasma, se utiliza por defecto en openSUSE, Mageia, Kubuntu, etc.
+El emploe de la biblioteca Qt es la característica más destacada de KDE, que le da su aspecto
+inconfunfible y una plétora de aplicaciones originales. KDE incluso proporciona una herramienta
+de configuración para asegurar la cohesión visual con las aplicaciones Gtk+.
+
+Xfce es un entorno de escritorio que pretende ser eséticamente agradable sin consumir muchos
+recuros de la máquina. Su estructura está alamente modularizada, permitiendo al usuario activar
+y descativar componentes según sus necesidades y preferencias.
+
+Hay muchos otros entornos de escritorio para Linux, normalmente proporcionados por
+bifuraciones de distribuciones alternativas. La distribución Linux Mint, por ejemplo, proporciona
+dos entornos de escritorio originales: Cinnamon Y MATE. LXDE es un entorno de escritorio
+adaptado al bajo consumo de recursos, lo que lo convierte en una buena opción para su
+instalación en equipos antiguos o en ordenadores monoplaca. Aunque no ofrece todas las
+características de los entornos de escritorio más pesados, LXDE ofrece todas las
+características básicas que se esperan de una moderna interfaz gráfica de usuario.
+
+#### Interoperabilidad de escritorio
+La diversidad de entornos de escritorio en los sistemas operativos basados en Linux impone
+un reto: ¿cómo hacer que funcionen correctamente con aplicaciones gráficas o servicios de
+sistema de teceros sin tener que implementar un soporte específico para cada uno de ellos?
+los métodos y especificaciones compartidas entre entornos de escritorio mejoran en gran
+medida la experiencia del usuario y resuelven muchos problemas de desarrollo, ya que las
+aplicaciones gráficas deben interactuar con el entorno de escritorio actual, independietemente
+del entorno de escritorio para el que fueron diseñadas originalmente. Además, es importante
+mantener la configuración general del escritorio si el usuario acaba cambiando su elección
+de entorno de escritorio.
+
+La organización freedesktop.org mantinene un gran cuerpo de especificaciones para la
+interoperabilidad de los ordenadores de sobremesa. La adopción de la especificación completa
+no es obligatoria, pero muchas de ellas se utilizan ampliamente:
+
+**Ubicaciones de directorios**: donde se encuentran los ajustes personales y otros archivos
+específicos del usuario.
+
+**Entradas en el escritorio**: las aplicaciones de línea de comandos pueden ejecutarse en el
+entorno de escritorio a través de cualquier emulador de terminal, pero sería demasiado
+confuso hacer que todas ellas estuvieran disponibles en el lanzado de aplicaciones. Las
+entradas de escritorio son archivos de tesxto que terminan en `.desktop` que son utilizados
+por el entorno de escritorio para recopilar información sobre las aplicaciones de escritorio
+disponibles y cómo utilizarlas.
+
+**Aplicación de arranque automático**: entradas de escritorio que indican la aplicación que
+debe iniciarse automáticamente después de que el usuario haya iniciado la sesión.
+
+**Arrastrar y soltar**: cómo las aplicaciones deben manejar los eventos de arrastart y soltar.
+
+**Papalera (trash can)**: la ubicación común de los archivos eliminados por el administrador de
+archivos, así como los métodos para almacenar y eliminar archivos de allí.
+
+**Temas de iconos**: el formato común de las bibliotecas de iconos intercambiables.
+
+La facilidad de uso que ofrecen los entornos de escritorio tienen un inconveniente en comparación
+con las interfaces de texto como shell: la capacidad de proporcionar acceso remoto. Mientras
+que un entorno de shell de línea de comandos de un equipo remoto puede ser fácilmente accesible
+con herramientas como `ssh`, el acceso remoto a entorno gráficos requiere métodos diferentes
+y pueden no lograr un rendimiento satisfactorio en conexiones más lentas.
+
+#### Acceso no local
+El sistema X Window adopta un diseño basado en pantallas autónomas, donde el mismio
+administrador de pantalla puede controlar máas de una sesión de escritorio gráfico al mismo
+tiempo. En esencia, una pantalla es análoga para un terminal de texto: ambas se refieren a una
+máquina o aplicación de software utilizada como punto de entrada para establecer una sesión
+de sistema operativo independiente. Aunque la configuración más común implica una sesión gráfica
+singular que se ejecuta en la máquina local, también son posibles otras configuraciones
+menos convencionales:
+- Cambiar entre sesiones de escritorio gráfico activas en la misma máquina.
+- Más de un conjunto de dispositivos de visualización (por ejemplo, pantalla, telcado, mouse) conectados a la misma máquina, cada una controlando su propia sesión de escritorio gráfica.
+- Sesiones remotas de escritorio gráfico, donde la interfaz gráfica se envía a través de la red a una pantalla remota.
+
+Las sesiones de escritorio remotos son soportadas por X, que emplea el X Display Manager
+Control Protocol (XDMCP) para comunicarse con las pantallas remotas. Debido a su alto uso de
+ancho de badan, el XDMCP se utiliza raramente a través de Internet o en redes LAN de baja
+velocidad. Los problemas de seguridad también son una preocupación con XDMCP: la pantalla
+local se comunica con un administrador de pantalla X remoto con privilegios para ejecutar
+procedimientos remotos, por lo que una eventual vulnerabilidad podría favorcer la ejecución de
+comandos arbitrarios ocon privilegios en el equipo remoto.
+
+Además, el XDMCP requiere que se ejecute X instancias en ambos extremos de la conexión, lo
+que puede hacerla inviable si el sistema X Window no está disponible para todas las máquinas
+involucradas. En la práctica, se utilizan otros métodos más eficientes y menos invasivos para
+establecer sesiones de escritorio gráfico a distancia.
+
+Virtual Network Computing (VNC) es una herramienta de plataforma independiente para ver y
+controlar entorno de escritorios remotos usando el protocolo Remote Frame Buffer (RFB). A
+través de este, los eventos producidos por el teclado y el mouse, se transmiten al escritorio
+remotor, que a su vex devuelven cualquier actualización de la pantalla para ser mostrados
+localmente. Es posible ejecutar muchos servidors VNC en la misma máquina, pero cada servidor
+VNC necesita un puerto TCP exclusivo en la interfaz de red que acepte las solicitudes de sesión
+entrantes. Por convención, el primer servidor VNC debe user el puerto TCP 5900, el segundo
+debe usar el 5901, y así sucesivamente.
+
+El servior VNC no necessita privilegios especiales para funcioanr. Por ejemplo, un usuario
+ordinario puede iniciar sesión en su cuenta remota e iniciar su propio servidor VNC dese allí.
+Luego, en la máquina local puede utilizar cualquier aplicación cliente de VNC para acceder
+al escritorio remoto. El archivo `~/.vnc/xstartup` es un script de shell eejecutado por el
+servidor VNC cuando se inicia y puede ser utilizado para definir qué entorno de escritorio,
+el servidor VNC podrá a disposición del cliente VNC. Es importante señalar que VNC no
+proporciona métodos modernos de cifrado y autenticación de forma nativa, por lo que debe
+utilizarse junto con una aplicación de terceros que proporcione esas características. Los
+métodos que implicant túneles de VPN y SSH se utilizan a menudo para asegurar las conexiones
+de VNC.
+
+Remote Desktop Protocol (RDP) se utiliza principalmente para acceder de forma remota al
+escritorio de un sistema operativo Microsoft Windows a través del puerto de red TCP 3389.
+Aunque utiliza el protocolo RDP de Microsoft, la implementación cliente en los sistemas
+Linux son programas de código abierto licenciado bajo GNU General Public License (GLP) y no
+tienen restricciones legales de uso.
+
+Simple Protocol for Independiente Computing Envirionments (Spice) comprenden un conjunto de
+herramientas destinadas para acceder al entorno de escritorio de los sistema virtualizados,
+ya sea en la máquina local o en una ubicación remoto. Además, el protocolo Spice ofrce
+características nativas para integrar los sistemas locales y remotos como la posibilidad de
+acceder a los pospositivos locales (por ejemplo, los altavoces de sonido y los dispositivos
+USB conectados) desde la máquina remota y el intercambio de archivos entre los dos sistemas.
+
+Hay comandos específicos del cliente para conectarse a cada uno de estos protocolos de
+escritorio remoto, pero el cliente de escritorio remoto Remmina proporciona una interfaz
+gráfica integrada que facilita el proceso de conexión, almacenando opcionalmente la
+configuración de la conexión para su uso posterior. Remmina tiene plugins para cada protocolo
+individual y hay un plugin para XDMCP, VNC, DRP y Spice. La elección de la herramienta
+adecuada depdende de los sistemas operativos implicados, la calidad de la conexión de red
+y las características del entorno de escritorio remoto que debe estar disponibles.
