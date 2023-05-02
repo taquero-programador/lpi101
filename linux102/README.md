@@ -1413,4 +1413,230 @@ Las otras opciones que se aplican al comando `change` son:
 - **`-I`**: establece el número de días de incatividad después de que una contraseña expire, durante los cuales el usuario deberá actualizaral (de lo contrario la cuenta será desactivada).
 - **`-m`**: establece la duración mínima de la contraseña para una cuenta de usuario.
 - **`-M`**: establece la duración máxima de la contrasela para una cuenta de usuario.
-- **`-W`**: establece el número de días de advertencia antes que la contraseña expire, durante los cules se le advierte al usuario que deberá cambiarla.
+- **`-W`**: establece el número de días de advertencia antes que la contraseña expire, durante los cuales se le advierte al usuario que deberá cambiarla.
+
+## Automatizar tareas administradivas del sistema mediante la programación de trabajos
+#### Programar trabajos con Cron
+En sistemas Linux `cron` es un demonio que se ejecuta continuamente y se activa a cada minuto
+para comprobar un conjunto de tablas en busca de tareas a ejecutar. Estas tablas se conocen
+como *crontabs* y contienen las llamadas cron jobs. Cron es adecuado para servidores y
+sistemas que están encendidos constantemente, porque cada trabajo de cron se ejecuta solo si
+el sistema se está ejecutando a la hora programada. Puede ser usado por usuarios ordinarios,
+cada uno de los cuales tiene su propio `crontab`, así como el usuario root que gestiona los
+crontabs del sistema.
+
+#### Crontab de usuario
+Los crontabs de usuario son archivos de texto que gestionan la programación de los trabajos
+cron definidos por el usuario. Siempre tiene el nombre de la cuente del usuario que lo creó,
+pero la ubicación de estos archivos depende de la distribución utilizada (generlamente un
+subdirectorio de `/var/spoll/cron`).
+
+Cada línea en un crontab de usuario contiene seis campos separados por un espacio:
+- El minuto de la hora (0-59)
+- La hora del día (0-23)
+- El día del mes (1-31)
+- El mes del año (1-12)
+- El día de la semana (0-7 con domingo=0 o domingo=7)
+- La orden a ejecutar
+
+Para el mes del año y el día de la semana puede usar las tres primeras letras del nombre en
+lugar del número correspondiente.
+
+Los primeros cinco campos indican cuándo ejecutar el comando que se especifica en el sexto
+campo, y puede conteneruno o más valores. En particular, se pueden especificar múltiples
+valores utilizando:
+
+- **`*` (asterisco)**:  se refiere a cualquier valor
+- **`,` (coma)**: especifica una lista de posibles valores
+- **`-` (guión)**: especifica un rango de valores posibles
+- **`/`**: especifica valores escalonados
+
+Muchas de las distribuciones incluyen el archivo `/etc/crontab` que puede ser usado como referencia
+para la disposición de un archivo `cron`. A continuación se muestra un ejemplo de archivo
+`/etc/crontab` de una instalación de Debian:
+```sh
+# /etc/crontab: system-wide crontab
+# Unlike any other crontab you don't have to run the `crontab'
+# command to install the new version when you edit this file
+# and files in /etc/cron.d. These files also have username fields,
+# that none of the other crontabs do.
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+```
+
+#### Crontabs del sistema
+Los crontabs del sistema son archivos de texto que gestionan la programación de los trabajos del
+cron del sistema y solo pueden ser editados por el usuario root. El archivo `/etc/crontab`
+y todos los que se encuentran del dirctorio `/etc/cron.d` son crontabs del sistema.
+
+La mayoría de las distribuciones también incluyen los directorios `/etc/cron.hourly`,
+`/etc/cron.daily`, `/etc/cron.weekly` y `/etc/cron.monthly` que contiene scripts para ser ejecutados
+con la frecuencia apropiada. Por ejemplo, si quiere ejecutar un script diariamente puede
+colocarlo en `/etc/cron.daily`.
+
+La sintaxis de los crontabs del sistema es similar a la de los crontabs de los usuarios,
+sin embargo, también requiere un campo obligatorio adicional que especifica qué usuario
+ejecutará el trabajo de cron. Por lo tanto, cada línea de un crontab de sistema contiene
+siete campos separados por un espacio:
+
+- El minuto de la hora (0-59)
+- La hora del día (0-23)
+- El día del mes (1-31)
+- El mes del año (1-12)
+- El día de la semana (0-7 con domingo=0 o domingo=7)
+- El nombre de la cuenta de usuario que se utilizará al ejecutar el comando.
+- La orden a ejecutar
+
+En cuanto a los crontabs de usuario, puede especificar múltiples valores para los campos de
+tiempo usando los operadores `*, , , -` y `/`. También puede indicar el mes y el día de la semana
+con las tres primeras letras del nombre en lugar del número correspondiente.
+
+#### Especificaciones de tiempo particulares
+Al editar los archivos crontab, también puede usar atajos especiales en las primeras cinco
+columnas en lugar de las especificaciones de tiempo:
+
+- **`@reboot`**: ejecutara la tarea especificada una vez después de reiniciar.
+- **`@hourly`**: ejecutara la tarea especificada una vez por hora al iniciar.
+- **`@daily (0 @midnight)`**: ejecutara la tarea especificada una vez al día a medianoche.
+- **`@weekly`**: ejecutara la tarea especificada una vez a la semana a medianoche del domingo.
+- **`@monthly`**: ejecutara la tarea especificada una vez a la medianoche del primer día del mes.
+- **`@yearly (o @annualy)`**: ejecutara la tarea especificada una vez al año a medianoche del 1 de enero.
+
+#### Variables de crontab
+En ocasiones, dentro de un archivo crontab, hay variables definidas antes de que se declaren
+las tareas programas. Las variables de entorno establecida (comúnmente) son:
+
+**`HOME`**: el directorio donde `cron` invoca los comandos (por defecto el directorio principal
+del usuario).
+
+**`MAILTO`**: el nombre del usuario o la dirección a la que se envía la salida estándar y el
+error (por defecto, el propietario del crontab). También se permiten múltiples valores
+separados por comas y un valor vacío indica que no se debe enviar ningún correo.
+
+**`PATH`**: la ubicación de los comandos en los sistemas de archivos.
+
+**`SHELL`**: el shell a usar (por defecto `/bin/sh`).
+
+#### Crear trabajos en un cron de usuario
+El comando `crontab` se usa para mantener los archivos `crontab` para usuarios individuales. En
+particular, puede ejecutar el comando `crontab -e` para editar su propio archivo crontab o para
+crear uno si aún no existe.
+
+Por defecto, el comando `crontab` abre el editor especificado por las variables de entorno
+`VISUAL` o `EDITOR` para que puede empezar a editar su archivo `crontab`. Algunas distribuciones
+le permiten elegir un editor de una lista cuando `crontab` se ejecuta por primera vez.
+
+Si quiere ejecutar rl script `foo.sh` ubicado en su directorio principal todos los días a las
+10:00 am, puede agregar la siguiente línea a su archivo crontab:
+
+    0 10 * * * /home/bender/foo.sh
+
+Ejemplos adicionales:
+```sh
+0,15,30,45 08 * * 2 /home/frank/bar.sh
+30 20 1-15 1,6 1-5 /home/frank/foobar.sh
+```
+En la primera línea, el script `bar.sh` se ejecuta todos los martes a las 08:00 am, 08:15 am,
+08:30 am y a las 08:45 am. En la segunda línea el script `foobar.sh` se ejecuta a las 08:30 pm
+de lunes a viernes durante los primeros quince días de enero y julio.
+
+Además de la opción `-e`, el comando `crontab` tiene otras opciones útiles:
+- **`-l`**: muestra el crontab actual en la salida estándar
+- **`-r`**: quita el crontab actual
+- **`-u`**: especifica el nombre del usuario cuyo crontab necesita ser modificado. Esta opción requiere privilegios de root y permite que el usuario root edite los archivos crontab de otro usuario.
+
+#### Crear crones de sistema
+A diferencia de los crontabs de usuario, los crontabs de sistema se actualizan usando un
+editor: por lo tanto, no es necesario ejecutar el comadno `crontab` para editar `/etc/crontab` y
+los archivos en `/etc/cron.d/`. Recuerde que cuando edite los crontabs del sistema, debe
+especificar la cuenta que se usará para ejecutar el trabajo cron (normalmente root).
+
+Por ejemplo, si quiere ejecutar el script `barfoo.sh` ubicado en el directorio `/root` todos los
+días a la 01:30 am, puede abrir `/etc/crontab` con un editor y agregar la siguiente línea:
+
+    30 01 * * * root /root/barfoo.sh >>/root/output.log 2>>/root/error.log
+
+En el ejemplo anterior, la salida del `job` se añade a `/root/output.log`, mientras que los
+errores se añaden a `/root/error.log`.
+
+#### Configurar el acceso a la programación de tareas
+En Linux los archivos `/etc/cron.allow` y `/etc/cron.deny` se usan para establecer las restricciones
+`crontab`. En particular, se usan para permitir o no la programación de trabajos cron para
+diferentes usuarios. Si existe el archivo `/etc/cron.allow`, solo los usuarios no root listados
+dentro de él pueden programar trabajos cron usando el comando `crontab`. Si `/etc/cron.allow`
+no existe pero `/etc/cron.deny` existe, solo los archivos no root listatos dentro de este
+archivo no pueden programar trabajos cron usando el comando `crontab` (en este caso un
+`/etc/cron.deny` vacío significa que a cada usuario se le permite programar trabajos con `crontab`).
+Si no existe ninguno de los archivos, el acceso del usuario a la programación de trabajos
+cron dependerá de la distribución utilizada.
+
+> Los archivo `/etc/cron.allow` y `/etc/cron.deny` contienen una lista de nombre de usuario, cada uno en una línea separada.
+
+#### Una alternativa a cron
+Usando systemd como el administrador del sistema y del servicio, puede establecer *timers*
+como una alternativa a `cron` para programar sus tareas. Los temporizadores son archivos de
+unidad systemd indentificados por el sufijo `.timer`, y para cada uno de ellos debe haber un 
+archivo de unidad correspondiente que describa la unidad que se activará cuando el
+temporizados transcurra. Por defecto, un `timer` activa un servicio con el mismo nombre,
+excepto por el sufijo.
+
+Un temporizador incluye una sección de `[Timer]` que especifica cuándo deben ejecutarse los
+trabajos programados. Específicamente, puede usar la opción `OnCalendar=` para definir
+temporizadores en tiempo real que funcionan de la misma manera que los trabajos cron (están
+basados en expresiones de eventos de calendario). La opción `OnCalendar=` requiere la siguiente
+sintaxis:
+
+    DayOfWeek Year-Month-Day Hour:Minute:Second
+
+Con el `DayOfWeek` siendo opcional. Los operadores `*, /` y `,` tienen el mismo significado que los
+usados por los trabajos de corn, mientras que puede usar `...` entre dos valores para indicar
+un rango contiguo. Para la especificación `DayOfWeek`, puede usar las tres primeras letras del
+nombre o el nombre completo.
+
+por ejemplo, si quiere ejecutar el servicio llamado `/etc/systemd/systemd/foobar.service` a
+las 05:30 del primer lunes de cada mez, puede añadir las siguientes líneas en el archivo
+correspondiente de la unidad `/etc/systemd/system/foobar.time`:
+```sh
+[Unit]
+Description=Run the foobar service
+
+[Timer]
+OnCalendar=Mon *-*-1..7 05:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+Una vez que haya creado el nuevo temporizados, puede activarlo e iniciarlo ejecutando los
+siguientes comandos como root:
+```sh
+systemctl enable foobar.timer
+systemctl start foobar.timer
+```
+Puede cambiar la frecuencia de su trabajo programado, modificando el valor `OnCalendar` y
+luego escribiendo el comando `systemctl daemon-reload`.
+
+Finalmente, si quiere ver la lista de temporizadores activos ordenados por el tiempo que
+transcurre a continuación, puede usar el comando `systemctl list-timers`. Puede añadir la opción
+`--all` para ver también las unidades de temporizadores inactivos.
+
+En lugar de las formas mencionadas anteriormente, se pueden utilizar algunas exoresiones
+especiales que describen frecuencias particulares para la ejecución del trabajo:
+- **`hourly`**: ejecutar la tarea especificada una vez por hora al comienzo de la hora.
+- **`daily`**: ejecutara la tarea especificada una vez al día a medianoche.
+- **`weekly`**: ejecutara la tarea especificada una vez a la semana a medianoche del lunes.
+- **`monthly`**: ejecutara la tarea especificada una vez al mes a la medianoche del primer día del mes.
+- **`yearly`**: ejecutara la tarea especificada una vez al año a medianoche del primer día de enero.
+
+#### Programar tareas con at
+
