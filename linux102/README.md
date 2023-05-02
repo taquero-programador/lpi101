@@ -1300,4 +1300,117 @@ casos, necesitas usar el comando `usermod`:
 usermod -s /bin/tcsh michael
 usermod -c "Micheal User Account" michael
 ```
+Al igual que el comando `useradd` el comando `usermod` requiere privilegios de root.
 
+Las opciones más importantes que se aplican al comando `usermod` son:
+- **`-c`**: agrega un breve comentario a la cuente de usuario.
+- **`-d`**: cambiar el directorio princial de la cuenta de usuario. Cuando se usa con la opción `-m`, los contenidos del directorio principal actual se mueven al nuevo directorio principal, que a su vez se crea de no existir.
+- **`-e`**: establece la fecha de expiración de la cuenta de usuario.
+- **`-f`**: establece el número de días después de que una contraseña expira, durante los cuales el usuario debe actualizar la contraseña (de lo contrario la cuenta de desactivará).
+- **`-g`**: cambia el grupo primario de la cuenta de usuario (el grupo debe existir).
+- **`-G`**: añade grupos secundarios a la cuenta de usuario especificada. Cada grupo debe existir y debe estar separado por coma, sin espacios en blanco. Si se usa sola, esta opción elimina todos los grupos existente a los que pertenece, mientras que cuando se usa con la opción `-a`, simplemente añade nuevos grupos secuandarios a los ya existentes.
+- **`-l`**: cambia el nombre de usuario de la cuenta de usuario especificada.
+- **`-L`**: bloquea la cuenta de usuario especificada. Esto pone un signo de exclamación delante de la contraseña ecriptada dentro del archivo `/etc/shadow`, deshabilitando así el acceso con una contraseña para ese usuario.
+- **`-s`**: cambia el shell de acceso de la cuenta de usuario especificado.
+- **`-u`**: cambia el UID de la cuenta de usuario especificado.
+- **`-U`**: desbloquea la cuenta de usuario especificada. Esto elimina el signo de exclamación delante de la contraseña cifrada en el archivo `/etc/shadow`.
+
+#### Eliminando cuentas de usuario
+Si quieres borrar una cuenta de usuario, puedes usar el comando `userdel`. En particular, este
+comando actualiza la información almacenada en las bases de datos de las cuentas, borrando
+todas las entradas referentes al usuario especificado. La opción `-r` también elimina el
+directorio principal del usuario y todo su contenido, junto con el spool de correo del
+usuario. Otros archivos, localizados en otros lugares, deben ser buscados y eliminados
+manualmente.
+
+    userdel -r michael
+
+Al igual que con la gestión de usuarios, puede añadir, modificar y eliminar grupos usando
+los comandos `groupadd`, `groupmod`, y `groupdel` con privilegios de root.
+
+    groupadd -g 1090 developer
+
+La opción `-g` crea un grupo con un GID específico.
+
+Si luego desea renombrar el grupo de `developer` a `web-developer` y cambiar su GID, puede
+ejecutar lo siguiente:
+
+    groupmod -n web-developer -g 1050 developer
+
+Finalmente, si quieres borrar el grupo `web-developer`, puede ejecutar lo siguiente:
+
+    groupdel web-debeloper
+
+No se puede eliminar un grupo si es el grupo principal de una cuenta de usuario. Por lo tanto
+debe eliminar el usuario antes de eliminar el grupo. En cuanto a los usuarios, si elimina un
+grupo, los archivos pertenecientes a ese grupo pemanecen en su sistema de archivo y no se
+eliminan ni se asignan a otro grupo.
+
+#### El directorio `skel`
+Cuando añades una nueva cuenta de usuario, incluso creando su directorio principal, el
+directorio recién creado se carga de archivos y carpetas que se copian del directorio skel
+(por defecto `/etc/skel`). La idea detrás de esto es simple: un administrador del sistema quiere
+agregar nuevos usuarios que tengan los mismos archivos y directorios en su carpeta principal.
+Por lo tanto, si desea personalizar los archivos y carpetas que se crean automáticamente en
+el directorio principal, debe añadir estos nuevos archivos y carpetas al directorio skel.
+
+#### El archivo `/etc/login.defs`
+En linux, el archivo `etc/login.defs` especifica los parámetros de configuración que controlan
+la creación de usuarios y grupos. Además, los comandos anteriores toman por defecto valores
+de este archivo.
+
+Las directivas más importantes son:
+
+**`UID_MIN y UID_MAX`**: el rango de ID de usuari que puede ser asignado a los nuevos usuarios
+ordinarios.
+
+**`GID_MIN y GID_MAX`**: el rango de ID de grupo que puede ser asignado a nuevos grupos ordinarios.
+
+**`CREATE_HOME`**: especifica si un directorio principal debe ser creado por defecto para los
+nuevos usuarios.
+
+**`USERGROUPS_ENAB`**: especifica si el sistema debe crear por defecto un nuevo grupo para cada
+nueva cuenta de usuario con si mismo nombre, y a su vez al eliminar la cuenta también se debe
+eliminar el grupo principal del usuario si ya no contiene miembros.
+
+**`MAIL_DIR`**: el directorio de la cola de correo.
+
+**`PASS_MAX_DAYS`**: el número máximo de días que una contraseña puede ser usada.
+
+**`PASS_MIN_DAYS`**: el número mínimo de días permitido entre los cambios de contraseña.
+
+**`PASS_MIN_LEN`**: la longitud mínima aceptable de la contraseña.
+
+**`PASS_WARN_AGE`**: el número de días de advetencia antes de que una contraseña expire.
+
+#### El comando `passwd`
+Este comando se utiliza principalmente para cambiar la contraseña de un usuario. Cualquier
+usuario puede cambiar su propia contraseña, pero solo root puede cambiar la contraseña de
+cualquier usuario. Esto sucede porque el comando `passwd` tiene el bit SUID puesto (una
+`s` en lugar del flag ejecutable para el propietario), lo que significa que se ejecuta con los
+privilegios del propietario del archivo (root).
+
+Dependiendo de las opciones de `passwd` utilizadas, puede controlar aspectos específicos del
+envejecimiento de las contraseñas tales como:
+- **`-d`**: borrar la contreñas de una cuenta de usuario (deshabilitando así al usuario).
+- **`-e`**: fuerza la cuenta de usuario a cambiar de contraseña.
+- **`-i`**: establecer el número de días de incatividad después de que una contraseña expire, durante los cuales el usuario debe actualizar la contraseña (de lo contrario, la cuenta será desactivada).
+- **`-l`**: bloquea la cuenta de usuario (la contraseña cifrada se prefija con un signo de exclamación en el archivo `/etc/shadow`).
+- **`-n`**: establece la duración mínima de la contraseña.
+- **`-S`**: información de salida sobre el estado de la contraseña de una cuenta de usuario específica.
+- **`-u`**: desbloquea la cuenta de usuario (el signo de exclamación se elimina del campo de la contraseña en el archivo `/etc/shadow`).
+- **`-x`**: establece la duración máxima de la contraseña.
+- **`-w`**: determina el número de días de advertencia antes de que la contraseña expire, durante los cuales se advierte al usuario que debe cambiarla.
+
+#### El comando `change`
+Este comando determinado como "change age", se usa para cambiar el período de la contraseña
+de un usuario. El comando `change` está restringido a root, expecto la opción `-l`, que puede ser
+usada por usuarios ordinarios para listar el timpo de su contraseña.
+
+Las otras opciones que se aplican al comando `change` son:
+- **`-d`**: establece el último cambio de contraseña para una cuenta de usuario.
+- **`-E`**: establece la fecha de caducidad de una cuenta de usuario.
+- **`-I`**: establece el número de días de incatividad después de que una contraseña expire, durante los cuales el usuario deberá actualizaral (de lo contrario la cuenta será desactivada).
+- **`-m`**: establece la duración mínima de la contraseña para una cuenta de usuario.
+- **`-M`**: establece la duración máxima de la contrasela para una cuenta de usuario.
+- **`-W`**: establece el número de días de advertencia antes que la contraseña expire, durante los cules se le advierte al usuario que deberá cambiarla.
