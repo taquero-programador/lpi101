@@ -1638,5 +1638,31 @@ especiales que describen frecuencias particulares para la ejecución del trabajo
 - **`monthly`**: ejecutara la tarea especificada una vez al mes a la medianoche del primer día del mes.
 - **`yearly`**: ejecutara la tarea especificada una vez al año a medianoche del primer día de enero.
 
-#### Programar tareas con at
+#### Programar tareas con `at`
+el comando `at` se utiliza para la programación de tareas una única vez y solo requiere que se
+especifique cuándo se debe ejecutar una tarea en el futuro. Después de introducir `at` en la
+línea de comandos, seguido de las especificación de tiempo, entrará en la línea de comandos
+`at` donde puede definir los comandos a ejecutar. Puede salir del prompt con la secuencia de
+teclas `Ctrl + D`.
+```sh
+at now +5 minutes
+warning: commands will be executed using /bin/sh
+at> date
+at> Ctrl+D
+job 12 at Sat Sep 14 09:15:00 2019
+```
+El comando anterior simplemente ejecuta el comando `date` después de cinco minutos. Similar a
+`cron`, la salida estándar y el error se envía por correo electrónico. Tenga en cuenta que el
+demonio `atd` tendrá que estar ejecutándose en el sistema para que puede usar la programación
+de `at`.
 
+Las opciones mpas importantes que se aplican al comando `at` son:
+- **`-c`**: imprime los comandos de una tarea específica (por medio del ID) a la salida estándar.
+- **`-d`**: borra las tareas basdas en su ID. Es una alias para `atrm`.
+- **`-f`**: lee las tareas desde un archivo en lugar de la entrada estándar.
+- **`-l`**: lista las tareas pendientes del usuario. Si el usuario es root, se listan todas las tareas de todos los usuarios. Es un alias para `atq`.
+- **`-m`**: envía un correo al usuario al final de la tarea aunque no haya mostrado la salida.
+- **`-q`**: especifica una cola en forma de una sola letra de `a` a `z` y de `A` a `Z` (por defecto `a` para `at` y `b` para `batch`). Las tareas en las colas con las letras más altas se ejecutan con mayor prioridad. los trabajos enviados a una cola con mayúsculas son tratados como tareas `batch`.
+- **`-v`**: muestra el tiempo en el que la tarea se ejecutará antes de leerla.
+
+## Localización e internacionalización
