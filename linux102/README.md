@@ -1666,3 +1666,207 @@ Las opciones mpas importantes que se aplican al comando `at` son:
 - **`-v`**: muestra el tiempo en el que la tarea se ejecutará antes de leerla.
 
 ## Localización e internacionalización
+Todas las principales distribuciones de Linux pueden ser configuradas para utilizar ajustes
+de localización personalizados. Estos ajustes incluyen definiciones relacionadas con la
+región y el idioma, como la zona horaria, el idioma de la interfaz, así como la codificación
+de caracteres que pueden ser modificados durante la instalación del sistema operativo o en
+cualquier momento posterior.
+
+Las aplicaciones se basan en variables de entorno, archivos de configuración del sistema y
+comando para seleccionar la hora y el idioma adecuados; por lo tanto, la mayoría de las
+distribuciones comparte una forma estandarizada de ajustar la hora y los ajustes de
+localización. Estos ajustes son importantes no solo para mejorar la experiencia del usuario,
+sino también para asegurar que la hora de los eventos importantes del sistema se calculen
+correctamente, por ejemplo, informar sobre temas relaciondos con la seguridad.
+
+Para poder representar cualqueier texto escrito, independientemente del idioma hablado, los
+sistemas operativos modernos necesitan una referencia estándar de codificación de caracteres,
+y lo sistemas Linux no son la excepción. Como las computadoras solo pueden tratar con
+números, un carácter de texto no es mpas que un número asociado a un símbolo gráfico.
+Distintas plataformas informáticas pueden asocia valores numéricos distintos al mismo cáracter,
+por lo que se necesita una norma de codificación de caracteres común para que sean
+compatibles. Un documento de texto creado en un sistema solo será legible en otro sistema
+si ambos coinciden en el formato de codificación y en qué número se asocia a que carácter,
+o al menos si saben cḿo convertirlo entre las dos normas.
+
+La naturaleza heterogénea de los ajustes de localización en los sistemas basados en Linux da
+lugar a sutiles diferencias entre las distribuciones. A pesar de esas diferencias, todas las
+distribuciones comparten las mismas herramientas y concpetos básicos para configurar los
+conceptos de internacionalización de un sistema.
+
+#### Zonas horarias
+Las zonas horarias son bandas discretas de la superficie de la Tierra que abarcan el
+equivalente a una hora, es decir, regiones del mundo que experimentan la misma hora del día
+en un momento dado. Como no hay una sola longitud que pueda considerarse como el comienzo
+del día para todo el mundo, las zonas horarias son relativas al meridiano principal, donde
+el ángulo de la longitud de la Tierra se define como 0. La hora del meridiano principal se
+denomina Hora Univarsal Coordinada, por convención abreviada como UTC. Por razones practicas,
+los usos horarios no siguen la distancia longitudinal exacta del punto de referencia
+(el meridiano principal). En su lugar, los usos horarios se adaptan aritificialmente para
+seguir las fronteas de los países u otras subdivisiones importantes.
+
+Las subdivisiones políticas son tan relevantes que las zonar horarias recibe el nombre
+de algún agente geográfico importante de esa zona en particular, normalmente basado en el
+nombre de un gran país o ciudad dentro de la zona. Sin embargo, los husos horarios se dividen
+según su desfase horario en relación con el UTC y este desfase también puede utilizarse
+para indicar la zona en cuestion. La zona horaria GMT-5, por ejemplo, indica una región cuya
+hora UTC está cinco horas adelantada, es decir, esa región está cinco horas atrasada
+respecto de la UTC. Asimismo, el huso horario GTM+3 indica una región para la cual la
+hora UTC estpa tres horas por detrás. El término GMT (Greenwich Mean Time) se utiliza
+como sinónimo de UTC en los nombre de las zonas basadas en la compensación.
+
+Se puede acceder a una máquina conecada desde diferentes partes del mundo, por lo que es una
+buena práctica ajustar el reloj del hardware a UTC (la zona horaria GMT+0) y dejar la
+elección de la zona horaria a cada caso particular. Los servicios en la nibe, por ejemplo,
+se configuran comúnmente para usar UTC, ya que puede ayudar a mitigar las inconsistencias
+ocasionales entre la hora local y la hora de los clientes o en otros servidores. Por el
+contrario, los usuarios que abren una sesión remota en el servidor pueden querer utilizar
+su zona horaria local. Por lo tanto, dependerá del sistema operativo establecer la zona
+horaria correcta según cada caso.
+
+Además de la fecha y la hora actual, el comando `date` también imprimirá la zona horaria
+actualmente configurada:
+
+    date
+
+El desplazamiento relativo al UTC viene dado por el valor `-03`, lo que significa que la hora
+monstrada tiene 3 horas de retraso con respecto a UTC. Por lo tanto, la hora UTC está tres
+horas por delante, haciendo que GMT-3 sea el huso horario correspondiente a la hora dada.
+El comando `timedatectl`, que está disponible en las distribuciones que utilizan systemd,
+muestras más detalles sobre la hora y la fecha del sistema:
+```sh
+timedatectl
+               Local time: mar 2023-05-02 01:38:08 CST
+           Universal time: mar 2023-05-02 07:38:08 UTC
+                 RTC time: mar 2023-05-02 07:38:08
+                Time zone: America/Mexico_City (CST, -0600)
+System clock synchronized: yes
+              NTP service: active
+          RTC in local TZ: no
+```
+Como se muestra en la entrada `Time zone`, los nombres de las zonas horarias basadas en
+localidades (como `America/Mexico_City`) también se aceptan. La zona horaria por defecto del
+sistema se mantiene en el archivo `/etc/timezone`, ya sea por el nombre descriptivo completo
+de la zona o por la diferencia de horas. Los nombres genéricos de la zona horaria dados por
+la diferencia de horas UTC deben incluir `Etc` como la primera parte del nombre. Así que para
+fijar la zona horaria por defecto en GMT+3, el nombre de la zona horaria debe ser `Etc/GMT+3`.
+
+Aunque los nombre de las zonas horarias basadas en las localidades no requieren el
+desplazamiento de la hora para funcionar, no es tan sencillo elegirlos. La misma zona puede
+tener más de un nombre, lo que puede ser difícil de recordad. Para facilitar esto, el
+comando `tzselect` ofrece un método interactivo que guiará al usuario hacia la definición
+correcta de la zonra horaria. El comando `tzselect` debería estar disponible por defecto en
+todas las distribuciones de Linux, ya que lo proporciona el paquete que contiene los programas
+de utilidades necesarios relacionados con la Biblioteca C de GNU.
+
+El comando `tzselect` será útil, por ejemplo, para un usuario que quiera identidicar la zona
+horaria de "Sao Paulo City" en "Brazil". El comando `tzselect` comienza preguntador por la
+macro región de la ubicación deseada:
+```sh
+tzselect
+Please identify a location so that time zone rules can be set correctly.
+Please select a continent, ocean, "coord", or "TZ".
+    1) Africa
+    2) Americas
+    3) Antarctica
+    4) Asia
+    5) Atlantic Ocean
+    6) Australia
+    7) Europe
+    8) Indian Ocean
+    9) Pacific Ocean
+    10) coord - I want to use geographical coordinates.
+    11) TZ - I want to specify the time zone using the Posix TZ format.
+#? 2
+```
+La opción `2` es para las regiones de América (Norte Y Sur), no necesariamente en la misma zona
+horaria. También es posible especificar el huso horario con coordenadas geográficas o con
+la notación de desplazamiento, también conocido como el formato Posix TZ format. El siguiente
+paso es elegir el país:
+```sh
+Please select a country whose clocks agree with yours.
+    1) Anguilla             19) Dominican Republic      37) Peru
+    2) Antigua & Barbuda    20) Ecuador                 38) Puerto Rico
+    3) Argentina            21) El Salvador             39) St Barthelemy
+    4) Aruba                22) French Guiana           40) St Kitts & Nevis
+    5) Bahamas              23) Greenland               41) St Lucia
+    6) Barbados             24) Grenada                 42) St Maarten (Dutch)
+    7) Belize               25) Guadeloupe              43) St Martin (French)
+    8) Bolivia              26) Guatemala               44) St Pierre & Miquelon
+    9) Brazil               27) Guyana                  45) St Vincent
+    10) Canada              28) Haiti                   46) Suriname
+    11) Caribbean NL        29) Honduras                47) Trinidad & Tobago
+    12) Cayman Islands      30) Jamaica                 48) Turks & Caicos Is
+    13) Chile               31) Martinique              49) United States
+    14) Colombia            32) Mexico                  50) Uruguay
+    15) Costa Rica          33) Montserrat              51) Venezuela
+    16) Cuba                34) Nicaragua               52) Virgin Islands (UK)
+    17) Curaçao             35) Panama
+    53) Virgin Islands (US)
+    18) Dominica            36) Paraguay
+#? 9
+```
+El territorio de Brasil abarca cuatro zonas horarias, por lo que la información del país por
+sí sola no es suficiente para establecer la zona horaria. En el siguiente paso, el comando
+`tzselect` requerirá que el usuario especifique la región local:
+```sh
+Please select one of the following time zone regions.
+    1) Atlantic islands
+    2) Pará (east); Amapá
+    3) Brazil (northeast: MA, PI, CE, RN, PB)
+    4) Pernambuco
+    5) Tocantins
+    6) Alagoas, Sergipe
+    7) Bahia
+    8) Brazil (southeast: GO, DF, MG, ES, RJ, SP, PR, SC, RS)
+    9) Mato Grosso do Sul
+    10) Mato Grosso
+    11) Pará (west)
+    12) Rondônia
+    13) Roraima
+    14) Amazonas (east)
+    15) Amazonas (west)
+    16) Acre
+#? 8
+```
+No están disponibles todos los nombres de las localidades, pero elegir la región más cercana
+será suficiente. La información dada será utilizada por `tzselect` para mostrar la zona horaria
+correspondiente:
+```sh
+Se ha dado la siguiente información:
+        Brazil
+        Brazil (southeast: GO, DF, MG, ES, RJ, SP, PR, SC, RS)
+Therefore TZ='America/Sao_Paulo' will be used.
+Selected time is now: sex out 18 18:47:07 -03 2019.
+Universal Time is now: sex out 18 21:47:07 UTC 2019.
+Is the above information OK?
+    1) Yes
+    2) No
+#? 1
+You can make this change permanent for yourself by appending the line
+    TZ='America/Sao_Paulo'; export TZ
+to the file '.profile' in your home directory; then log out and log in again.
+Here is that TZ value again, this time on standard output so that you
+can use the /usr/bin/tzselect command in shell scripts:
+America/Sao_Paulo
+```
+El nombre de la zona horaria resultante `America/Sao_Paulo`, también puede ser usada como el
+contenido del fichero `/etc/timezone` para informar la zona horaria por defecto del sistema:
+
+    cat /etc/timezone
+
+Como se indica en la salida de `tzselect`, la variable de entorno `TZ` define la zona horaria de
+la sesión de shell. sea cual sea la zona horaria (por defecto) del sistema. Añadiendo la
+línea `TZ='America/Sao_Paulo'; export TZ` al archivo `~/.profile` hará que `America/Sao_Paulo` sea
+la zona horaria para las futuras sesiones del usuario. La variable `TZ` también puede ser
+modificada temporalmente durante la sesión actual, para mostrar la hora en una zona horaria
+diferente:
+
+    env TZ='Africa/Cairo' date
+
+En el ejemplo, `env` ejecutará el comando dado en una nueva sesisón de sub-shell con las mismas
+variables de entorno de la sesión actual, excepto la variable `TZ`, modificado por el
+argumento `TZ='Africa/Cairo'`.
+
+#### Horario de verano (Daylight Savin Time)
+pg236
