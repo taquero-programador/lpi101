@@ -1869,4 +1869,140 @@ variables de entorno de la sesión actual, excepto la variable `TZ`, modificado 
 argumento `TZ='Africa/Cairo'`.
 
 #### Horario de verano (Daylight Savin Time)
-pg236
+Muchas regiones adoptan un horario de ahorro de luz diurna (Daylight Saving Time) durante una
+parte del año (cuando los relojes se ajustan típicamente por una hora) que podría llevar a un
+sistema mal configurado a reportar la hora equivocada durante esa estación del año.
+
+El archivo `/etc/localtime` contiene los datos utilizados por el sistema operativo para ajustar
+si hora en consecuencias. Los sistemas estándares de Linux tienen un archivo para todas las
+zonas horarias en el directorio `/usr/share/zoneinfo/`, así que `/etc/localtime` es solo un enlace
+simbólico al archivo de datos reales dentro de ese directorio. Los archivos en
+`/usr/share/zoneinfo/` están organizados por el nombre de la zona horaria correspondiente, así
+que el archivo de datos para ls zona horaria `America/Sao_Paulo` será
+`/usr/share/zoneinfo/America/Sao_Paulo`.
+
+Como las definicioes para el horario de verano pueden cambiar, es importante mantener
+actualizados los archivos en `/usr/share/zoneinfo/`. El comando de actualización de la herramienta
+de gestión de paquetes que proporciona la distribución debería actualizarlos cada vez que
+haya una nueva versión disponible.
+
+#### Lenguaje y condificación de caracteres
+Los sistemas Linux pueden trabajar con una amplia variadad de lengajes y codificaciones de
+caracteres no occidentales, definiciones conocidas como *locales*. La configuración de local más
+básica es la definición de la variable de entorno `LANG`, a partir de la cual la mayoría de los
+programas de shel identifican el lenguaje a utilizar.
+
+El contenido de la variable `LANG` sigue el formato `ab_CD`, donde `ab` es el código del idioma
+y `CD` es el código de la región. El código del idioma debe seguir la norma ISO-639 y el código
+de la región debe seguir la norma ISO-3166. Un sistema configurado para usar portugués
+brasileño, por ejemplo, debe tener la variable `LANG` definida como `pt_BR.UTF-8`:
+
+    echo $LANG
+
+Como se ve en el ejemplo anterior, la variable `LANG` también contiene la condifiación de
+caracteres prevista para el sistema. ASCII, abreviatura de American Standard Code For
+Information Interchange, fue la primera norma de codifiación de caracteres ampliamente
+utilizada para la comunicación electrónica. Sin embargo, ASCII tiene un rango muy limitado de
+valores numéricos disponibles y dado que se basa en el alfabeto inglés, no contiene caracteres
+utilizados por otros idiomas o un conjunto ampliado de símbolos no alfabéticos. La
+codificación UTF-8 es una Norma de Unicode para los caracteres occidentales ordinarios, además
+de muchos otros símbolos no convencionales. Como ha señalado el Consorcio del Unicode, que
+mantiene el Estándar del Unicode, debe adoptarse por defecto para garantizar la compatibilidad
+entre las plataformas informáticas:
+
+El Estándar Unicode proporciona un número único para cada cáracter, sin importar la plataforma,
+el dispositivo, la aplicación o el idioma. Ha sido adoptado por todos los proveedores de software
+moderno y ahora permite que los datos sean transportados a través de muchas plataformas,
+dispositivos y aplicaciones diferentes sin corrupción. El soport de Unicode constituye la base
+para la representación de idiomas y símbolos en todos los sistemas operativos principales,
+motores de búsqueda, navegadores, ordenadores portátiles y teléfonos inteligentes, además de
+Internet y la World Wide Web (URL; HTML, XML, CSS, json, etc.). [...] es estándar Unicode
+y la disponibilidad de herramientas que lo respaldan se encuentra entre las tendencias
+mundiales más importanes de la tenología de software.
+
+Algunos sistemas todavía pueden usar los estándares definidos por la ISO (como el estándar
+ISO-8859-1) para la codificación de caracteres no ASCII. Sin embargo, tales etándares de 
+condificación de caracteres deberían ser desaporbados en favor de los estándares de
+codifiación de Unicode. No obstante, todos los principales sistemas operativos tienden a
+adoptar dicho estándar por defecto.
+
+Los ajustes de localización del sistema están configurados en el archivo `/etc/locale.conf`.
+La variable `LANG` y otras variables relacionadas con la localización se asigan en este archivo
+como una variable de shell ordinaria, por ejemplo:
+
+    cat /etc/locale.conf
+
+los usuarios pueden usar una configuración de locale personalizada redefiniendo la variable de
+entorno `LANG`. Puede hacerse solo para las sesión actual o para futuras sesiones, añadiendo la
+nueva definición al perfil del usuario en Bash, `~/.bash_profile` o `~/.profile`. Sin embargo,
+hasta que el usuario inicie sesión, la localización del sistema por defecto seguirá siendo
+utilizada por programas independientes del usuario, como la pantalla de inicio de sesión del
+administrador de pantalla.
+
+demás de la variable `LANG`, otras variables de entorno afectan aspectos específicos de la
+región, como el símboolo de la moneda a utilizar o el separador correcto de miles para los
+números:
+
+**`LL_COLLATE`**: establece el orden alfabético. Uno de sus propósitos es definir el orden en
+que los archivos y directorios son listados.
+
+**`LC_CTYPE`**: establece cómo el sistema tratará ciertos conjuntos de caractres. Define, por
+ejemplo, qué caracteres considera como mayúsculaes o minúsculas.
+
+**`LC_MESSAGES`**: establece el lenguaje a mostrar para los mensajes del programa (en su
+Umayoría programas GNU).
+
+**`LC_MONETARY`**: establece la unidad monetaria y el formato de la moneda.
+
+**`LC_NUMERIC`**: establece el formato numérico para los valores monetarios. Su principal
+proósito es definir los separadores de miles y decimales.
+
+**`LC_TIME`**: establece el formato y la fecha.
+
+**`LC_PAPER`**: establece el tamaño de papel estándar.
+
+**`LC_ALL`**: anula todas las demás variables, incluyendo `LANG`.
+
+El comando `locale` mostrará todas las variable definidas en la configuración de locale actual:
+
+    locale
+
+La única variable no definida es `LC_ALL`, que puede ser usada para anualar temporalemte todos
+los ajustes de localización. El siguiente ejemplo muestra cómo el comando `date` modificará
+su salida para cimplir con la nueva variable `LC_ALL`:
+```sh
+date
+seg out 21 10:45:21 -03 2019
+env LC_ALL=en_US.UTF-8 date
+Mon Oct 21 10:45:21 -03 2019
+```
+La modifiación de la variable `LC_ALL` hizo que las abreviaturas del día de la semana y del mes
+se mostraran en inglés americano (`en_US`). Sin embargo, no es obligatorio establecer la misa
+localidad para todas las variables. Es posible, por ejemplo, hacer que el lenguaje definido
+a `pt_BR` y el formato numérico (`LC_NUMERIC`) se establezca en el estándar americano.
+
+Algunos ajustes de localización cambian la forma en que los programas tratan el orden alfabético
+y los formato de los números. Mientras que los programas convencionales suelen estar preparados
+para elegir correctamente una localización común para estas situaciones, los guines pueden
+comportarse de forma inesperada cuando intentan ordenar correctamente por orden alfabético
+una lista de elementos. Por esta razón, se recomienda establecer la variable de entorno
+`LANG` en la localización común `C`, comon en `LANG=C`, para que el script produzca resultados
+inequívocos, independientemente de las definiciones de localización utilizada en el sistema
+donde se ejecute. El locale C solo realiza una simple comparación bytewise, por lo que
+también tendrá un mejor rendimiento que los otros.
+
+#### Conversión de la codificación
+El texto puede aparecer con caracteres inintelegibles cuando se muestra con una codificación
+de caracteres distinta del sistema en el que se creó el texto. El comando `iconv` puede ser
+usado para resolver este problema, convirtiendo el archivo de su codifiación de caracteres
+original a la deseada. Por ejemplo, para convertir un archivo llamado `original.txt` de la
+codifiación ISO-8859-q al archivo llamado `converted.txt` usando la codifiación UTF-8, se puede
+usar el siguiente comando:
+
+    iconv -f ISO-8859-1 -t UTF-8 original.txt > converted.txt
+
+La opción `-f ISO-8859-1` (o `--from-code=ISO-8859-1`) establece la codificación del archivo
+original y la opción `-t UTF-8` (o `--to-code=UTF-8`) establece el del archivo convertido. Todas
+las codificaciones soportadas por el comando `iconv` se listan con el comadno `iconv -l` o
+`iconv --list`. En lugar de usar la redirección de la salida, como en el ejemplo, también puede
+usar la opción `-o converted.txt` o `--output converted.txt`.
