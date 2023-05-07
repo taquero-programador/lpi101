@@ -1088,7 +1088,7 @@ elementos interactivos simples pueden ser indistinguibles, mientas que los widge
 como la ventan de diálogo que utilizan las aplicaciones para abrir y gurardar archivos,
 sin embargo, pueden tener un aspecto bastante diferente. No obstante, las aplicaciones
 construidas con conjuntos de herramientas distintos pueden ejecutarse simultáneamente,
-independietemente del conjunto de herramientas de widgets utilizado por los demas componentes
+independientemente del conjunto de herramientas de widgets utilizado por los demas componentes
 del escritorio.
 
 Además de los componentes básicos del escritorio, que podrían considerarse programas
@@ -1156,7 +1156,7 @@ un reto: ¿cómo hacer que funcionen correctamente con aplicaciones gráficas o 
 sistema de teceros sin tener que implementar un soporte específico para cada uno de ellos?
 los métodos y especificaciones compartidas entre entornos de escritorio mejoran en gran
 medida la experiencia del usuario y resuelven muchos problemas de desarrollo, ya que las
-aplicaciones gráficas deben interactuar con el entorno de escritorio actual, independietemente
+aplicaciones gráficas deben interactuar con el entorno de escritorio actual, independientemente
 del entorno de escritorio para el que fueron diseñadas originalmente. Además, es importante
 mantener la configuración general del escritorio si el usuario acaba cambiando su elección
 de entorno de escritorio.
@@ -1679,7 +1679,7 @@ localización. Estos ajustes son importantes no solo para mejorar la experiencia
 sino también para asegurar que la hora de los eventos importantes del sistema se calculen
 correctamente, por ejemplo, informar sobre temas relaciondos con la seguridad.
 
-Para poder representar cualqueier texto escrito, independientemente del idioma hablado, los
+Para poder representar cualquier texto escrito, independientemente del idioma hablado, los
 sistemas operativos modernos necesitan una referencia estándar de codificación de caracteres,
 y lo sistemas Linux no son la excepción. Como las computadoras solo pueden tratar con
 números, un carácter de texto no es mpas que un número asociado a un símbolo gráfico.
@@ -2006,3 +2006,230 @@ original y la opción `-t UTF-8` (o `--to-code=UTF-8`) establece el del archivo 
 las codificaciones soportadas por el comando `iconv` se listan con el comadno `iconv -l` o
 `iconv --list`. En lugar de usar la redirección de la salida, como en el ejemplo, también puede
 usar la opción `-o converted.txt` o `--output converted.txt`.
+
+## Servicios esenciales del sistema
+#### Mantener la hora del sistema
+Mantener la exactitud de la hora es absolutamente crucial para la informática moderna, sin
+embargo, su implementación es sorpendentemente compleja. La práctica de mantener la hora
+parecie trivial para un usuario final, pero el sistema necesita ser capaz de manejar muchas
+idiosincrasias y casos extremos de forma inteligente. Hay que tener en cuenta que las zonas
+horarias no son estáticas, sino que pueden modificarse por una decisión administrativa o
+política. Un país puede optar por dejar de utilizar el horario de verano. Cualquier
+programa debe ser capaz de manejar eso cambios de forma lógic. Afortunadamente para los
+administradores de sistemas, las soluciones para el control de la hora en el sistema
+operativo Linux son maduras, robustas y generalmente funcionan sin muchas interferencia.
+Cuando un equipo informático Linux arranca, empieza a mantener el tiempo. NOs referimos a
+estos como un relos del sistema, ya que es actualizado por el sistema operativo. Además,
+los ordenadores modernos también tendrán un reloj de hardware o de tiempo real. Esste reloj
+de hardware es a menudo una característica de la placa madre y mantiene la hora
+independientemente de si el ordenador está funcionando o no. Durante el arranque, la hora del
+sistema se ejecuta desde el reloj de hardware, pero en la mayoría de los casos estos dos
+relojes funcionan independientemente el uno del otro. En la mayoría de los sistemas modenos
+de Linux, la hora del sistema y del hardware están sincronizados con el tiempo de la red,
+que se implementa mediante el Protocolo de Tiempo de Red (NTP). En la gran mayoría de los
+casos, la única configuración que un usuario normal tendrá que hacer es establecer su zona
+horaria y el NTP se encargará del resto. El reloj del sistema está ajustado al Tiempo
+Universal Coordinada (UTC), que es la hora local de Greenwich, Reino Unido. Normalmente un
+usuario quiere saber su hora local. La hora local se calcula tomando la hora UTC y aplicando
+un offset basado en la zona horaria y en un "Horario de verano". De esta manera, se puede
+evitar mucha complejidad. El reloj del sistema puede ajustarse a la hora UTC o a la hora
+actual, pero se recomienda que se ajuste a la hora UTC.
+
+#### Date
+El comando `date` es una utilidad básica que se simplemente imprime la hora local:
+
+    date
+
+Modificar las opciones del comando `date` cambiará el formtao de la salida.
+
+Por ejemplo, un usuario puede usar `date -u` para ver la hora UTC actual.
+
+    date -u
+
+Algunas otras opciones de uso común devolverán la hora actual a un formato que se adhiere a
+un modelo RFC aceptado:
+
+**`-I`**: fecha/hora en formato ISO 8601. Si se añade `date` (`-Idate`) se limitará la salidaa a la
+fecha solamente. Otros formatos son `hours` para horas, `minutes` para minutos, `seconds` para
+segundos y `ns` para nanosegundos.
+
+**`-R`**: devuelve la fecha y la hora en formato RFC 5322.
+
+**`--rfc-3339`**: devuelve la fecha y la hora en formato RFC 3339.
+
+El formato de `date` puede ser personalizado por el usuario con secuencias especificadas en
+la página de manual. Por ejemplo, la hora actual puede ser formateada con la hora de Unix de
+esta manera:
+```sh
+date +%s
+1683492318
+```
+El tiempo de Unix se utiliza internamente en la mayoría de los sistemas tipo Unix. Almancena
+la hora UTC como el número de segundos desde *Epoch*, que ha sido definido como el 1 de enero
+de 1970.
+
+Utilizando estas secuencias, somos capaces de dar formato a la fecha y la hora en casi
+cualquier formato requerido por cualquier aplicación. Por supuesto, en la mayoría de los
+casos es es preferible atenerse a una norma aceptada.
+
+Además, `date --date` puede usarse para dar formato a una hora que no es la actual. En este
+escenario, un usuario puede especificar la fecha que se aplicará al sistema utilizando la
+hora de Unix, por ejemplo:
+
+    date --date='@1564013011'
+
+Usar la opción `-debug` puede ser muy útil para asegurar que una fecha pueda ser analizada con
+éxito. Esto es lo que sucede cuando se pasa una fecha válida al comando:
+```sh
+date --debug --date="Fri, 03 Jan 2020 14:00:17 -0500"
+date: parsed day part: Fri (day ordinal=0 number=5)
+date: parsed date part: (Y-M-D) 2020-01-03
+date: parsed time part: 14:00:17 UTC-05
+date: input timezone: parsed date/time string (-05)
+date: using specified time as starting value: '14:00:17'
+date: warning: day (Fri) ignored when explicit dates are given
+date: starting date/time: '(Y-M-D) 2020-01-03 14:00:17 TZ=-05'
+date: '(Y-M-D) 2020-01-03 14:00:17 TZ=-05' = 1578078017 epoch-seconds
+date: timezone: system default
+date: final: 1578078017.000000000 (epoch-seconds)
+date: final: (Y-M-D) 2020-01-03 19:00:17 (UTC)
+date: final: (Y-M-D) 2020-01-03 14:00:17 (UTC-05)
+vie 03 ene 2020 13:00:17 CST
+```
+Esta puede ser una herramienta útil cuando se trata de resolver problemas con una aplicación
+que genera una fecha.
+
+#### Reloj de hardware
+Un usuario puede ejecutar el comando `whclock` para ver como la hora se mantiene en el reloj en
+tiempo real. Este comando requiere previlegios elevados:
+
+    sudo hwclock
+
+Usando la opción `--verbose` la salida del comando tendrá más detalles que pueden ser útiles
+para la resolución de problemas:
+
+    sudo hwclock --verbose
+
+La línea que contiene `Calculated Hardware Clock drift`. Esta salida puede decirle si la hora
+del sistema y la del hardware se desvían una de otras.
+
+#### timedatectl
+`timedatectl` es un comando que puede ser utilizado para comprobar el estado general de la hora
+y la fecha, incluyendo si la hora de red se ha sincronizado o no.
+
+Por defecto `timedatectl` devuelce información similar a `date`, pero con la adición de la hora
+RTC (hardware) así como el estado del servicio NTP:
+
+    timedatectl
+
+#### Ajustar el tiempo utilizando `timedatectl`
+No hay un servidor NTP disponible, se recomienda usar `timedatectl` en lugar de `date` o
+`hwclock` para fijar la hora:
+
+    timedatectl set-time '2011-11-25 14:00:00'
+
+El proceso es similar a `date`. El usuario también puede establecer la hora independientemente
+de la fecha usnado el formaro HH:MM:SS.
+
+#### Ajustar la zona horaria utilizando `timedatectl`
+`timedatectl` es la forma prederida de establecer la zona horaria local en sistemas Linux
+basados en Systemd cuando no existe una interfaz gráfica. `timedatectl` listará posibles zonas
+horarias y luego la zona horaria puede ser establecida usando una de estas como argumento.
+
+Primero haremos una lista de posible zonar horarias:
+```sh
+timedatectl list-timezones
+Africa/Abidjan
+Africa/Accra
+Africa/Algiers
+Africa/Bissau
+Africa/Cairo
+...
+```
+La lista de posibles zonar horarias es largas, por lo que en este caso se recomienda el uso del
+comando `grep`.
+
+A continuación podemos establecer la zona horaria usando uno de los elementos de la lista que
+fue devuelto:
+
+    timedatectl set-timezone Africa/Cairo
+
+Tenga en cuenta que el nombre de la zona horaria debe ser exacto. `Africa/Cairo` por ejemplo,
+cambiará la zona horaria, pero `cairo` o `africa/cairo` no lo hará.
+
+#### Desactivar NTP usando `timedatectl`
+En algunos casos podría ser necesario desactivar NTP. Esto podría hacerse usando `systemctl`,
+per usaremos `timedatectl`:
+
+    timedatectl set-np no
+
+#### Establecer la zona horaria sin `timedatectl`
+La configuración de la información de la zona horaria es un paso estándar cuando se instala
+Linux en una nueva máquina. Si hay un proceso de instalación gráfico, lo mpas probable es que se
+maneje sin ninguna otra entrada del usuario.
+
+El directorio `/usr/share/zoneinfo` contiene información de las diferentes zonas horarias
+posibles. En el directorio `zoneinfo`, hay subdirectorio que contienen los nombres de los
+continentes así como otros enlaces simbólicos. Se recomienda encontrar el `zoneinfo` de su
+región a parte de su continente.
+
+Los archivos de `zoneinfo` contienen las reglas necesarias para calcular el desfase de la hora
+local en relación con UTC, y también son importantes si su región hace uso del horario de
+verano. El contenido de `/etc/localtime` será leído cuando Linux necesite determinar la zona
+horaria local. Para establecer la zona horaria sin el uso de una interfaz gráfica, el usuario
+debe crear un enlace simbólico para su ubicación desde `/usr/share/zoneinfo` a
+`/etc/localtime`. Por ejemplo:
+
+    ln -s /usr/share/zoneinfo/Canada/Eastern /etc/localtime
+
+Después de establecer la zona horaria correcta, se recomienda ejecutar:
+
+    hwclock --systohc
+
+Esto ejecutará el reloj de hardware desde el reloj de sistema (es decit, el reloj de tiempo real
+se ajustará a la misma hora que `date`).
+
+`/etc/timezone` es similar a `/etc/localtime`. Es una representación de datos de la zona horaria
+local, y como tal puede ser leída usando `cat`:
+
+    cat /etc/timezone
+
+Este archivo no es utilizado por todas las distribuciones de Linux.
+
+#### Establecer la fecha y hora sin `timedatectl`
+#### Utilizando `date`
+`date` tiene una opción para ajustar la hora del sistema. Estas son: `--set` o `-s` para fijar la
+fecha y la hora. También puede usar `--debug` para verificar la sintaxis correcta del comando
+
+    date --set="11 Nov 2011 11:11:11"
+
+SE requieren privilegios de root para poder fijar la fecha. También podemos cambiar la hora o
+la fecha de forma independiente:
+
+    date +%Y%m%d -s "20111125"
+
+Aquí debemos especificar las secuencas para que nuestra cadena sea interpretada correctamente.
+Por ejemplo, `%Y` se refiere al año, y así los primeros cuatros dígitos `2011` se interpretarán
+como el año 2011. De manera similar, `%T` es la secuenda del tiempo, y se demuestra así:
+
+    date +%T -s "13:11:00"
+
+Después de cambiar la hora del sistema, se recomienda también ajustar el relor de hardware
+para que ambos relojes, el del sistema y del del hardware, estén sincronizados:
+
+    sudo hwclock --systohc
+
+`systohc` significa "system clock to hardware clock".
+
+#### Utilizando `hwclock`
+En lugar de ajusar el reloj del sistema y actualizar el reloj de hardware, puede obtar por
+invertir el proceso. Empezaremos por ajustar el reloj del hardware:
+
+    sudo hwclock --set --date "4/12/2019 11:15:19"
+
+Note que por defecto el `hwclock` espera la hora UTC, pero devuelve la hora local por defecto.
+
+Después de ajustar el reloj de hardware, tendremos que actualizar el reloj del sistema a
+partir de este. `hctosys` significa "hardware clock to system clock".
+
+    hwclock --hctosys
