@@ -2233,3 +2233,44 @@ Después de ajustar el reloj de hardware, tendremos que actualizar el reloj del 
 partir de este. `hctosys` significa "hardware clock to system clock".
 
     hwclock --hctosys
+
+NTP utiliza una estructura jerárquica para distribuir la hora. Los relojes de referencia están
+conectados a servidores situados en la parte superior de la jerarquía. Estos servidores son
+máquinas de estrato 1 y normalmente no son accesibles al público. Sin embargo, las máquinas
+del estrato 1 son accesibles por las máquinas del estrato 2, estas a su vez son accesibles
+a las de estrato 3, y así sucesivamente. Los servidores de estrato 2 son accesibles al
+público, al igual que las máquians de menor jerarquía. Cuando se configura NTP para una red
+grande, es una buena práctica tener un pequeño número de ordenadores conectados a los
+servidores de estrato 2+, y luego hacer que esas máquinas proporcionen NTP a todas las demaś
+máquinas. De esta manera, se puede minimizar las demandas sobre las máquinas de estrato 2.
+
+Hay algunos términos importantes que surgen cuando se habla de NTP. Algunos de estos
+términos se usan en los comandos que implementaremos para comprobar el estado de NTP en nuestras
+máquians:
+
+**Offset**: se refiere a la diferencia absoluta entre la hora del sistema y la nora NTP. Por
+ejemplo, si el reloj del sistema marca alas 12:00:02 y la hora NTP marca las 11:59:58, el
+desfase entre los dos relojes es de cuatro segundos.
+
+**Step**: si el desfase de horario entre el proveedor NTP y un consumidor es superior a 128ms,
+entonces NTP realizará un único cambio singnificativo en la hora del sistema, en lugar de
+atrasar o adelantar la hora del sistema. Esto se llama *stepping*.
+
+**Slew**: se refiere a los cambios realizados en la hora del sistema cuando el offset entre
+la hora del sistema y la NTP es inferior a 128ms. Si este es el caso, los cambios se harán
+gradualmente. Esto se conoce como *slewing*.
+
+**Insane Time**: si el offset entre la hora del sistema y la hora NTP es superior a 17 minutos,
+la hora del sistema se considera insane y del demonio NTP no introducirá ningún cambio en la
+hora del sistema. Habrá que tomar medidas especiales para que la hora del sistema esté
+dentro de los 17 minutos de la hora correcta.
+
+**Drift**: se refiere al fenómeno por el que dos relojes se desincronizan con el tiempo.
+Esencialmente, si los relojes están inicialmente sincronizados, pero luego se desincronizan
+con el timepo, entonces está produciendo una deriva del reloj.
+
+**Jitter**: la fluctuación se refiere a la cantidad de desviación desde la última vez que se
+consultó un reloh. Así, si la última sincronización NTP se produjo hace 17 minutos, y el
+desfase entre el proveedor y el consumidor NTP es de 3 milisegundos, entonces 2 milisegundos
+es el jitter.
+pg266
