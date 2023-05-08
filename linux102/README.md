@@ -1088,7 +1088,7 @@ elementos interactivos simples pueden ser indistinguibles, mientas que los widge
 como la ventan de diálogo que utilizan las aplicaciones para abrir y gurardar archivos,
 sin embargo, pueden tener un aspecto bastante diferente. No obstante, las aplicaciones
 construidas con conjuntos de herramientas distintos pueden ejecutarse simultáneamente,
-independietemente del conjunto de herramientas de widgets utilizado por los demas componentes
+independientemente del conjunto de herramientas de widgets utilizado por los demas componentes
 del escritorio.
 
 Además de los componentes básicos del escritorio, que podrían considerarse programas
@@ -1156,7 +1156,7 @@ un reto: ¿cómo hacer que funcionen correctamente con aplicaciones gráficas o 
 sistema de teceros sin tener que implementar un soporte específico para cada uno de ellos?
 los métodos y especificaciones compartidas entre entornos de escritorio mejoran en gran
 medida la experiencia del usuario y resuelven muchos problemas de desarrollo, ya que las
-aplicaciones gráficas deben interactuar con el entorno de escritorio actual, independietemente
+aplicaciones gráficas deben interactuar con el entorno de escritorio actual, independientemente
 del entorno de escritorio para el que fueron diseñadas originalmente. Además, es importante
 mantener la configuración general del escritorio si el usuario acaba cambiando su elección
 de entorno de escritorio.
@@ -1679,7 +1679,7 @@ localización. Estos ajustes son importantes no solo para mejorar la experiencia
 sino también para asegurar que la hora de los eventos importantes del sistema se calculen
 correctamente, por ejemplo, informar sobre temas relaciondos con la seguridad.
 
-Para poder representar cualqueier texto escrito, independientemente del idioma hablado, los
+Para poder representar cualquier texto escrito, independientemente del idioma hablado, los
 sistemas operativos modernos necesitan una referencia estándar de codificación de caracteres,
 y lo sistemas Linux no son la excepción. Como las computadoras solo pueden tratar con
 números, un carácter de texto no es mpas que un número asociado a un símbolo gráfico.
@@ -1869,4 +1869,408 @@ variables de entorno de la sesión actual, excepto la variable `TZ`, modificado 
 argumento `TZ='Africa/Cairo'`.
 
 #### Horario de verano (Daylight Savin Time)
-pg236
+Muchas regiones adoptan un horario de ahorro de luz diurna (Daylight Saving Time) durante una
+parte del año (cuando los relojes se ajustan típicamente por una hora) que podría llevar a un
+sistema mal configurado a reportar la hora equivocada durante esa estación del año.
+
+El archivo `/etc/localtime` contiene los datos utilizados por el sistema operativo para ajustar
+si hora en consecuencias. Los sistemas estándares de Linux tienen un archivo para todas las
+zonas horarias en el directorio `/usr/share/zoneinfo/`, así que `/etc/localtime` es solo un enlace
+simbólico al archivo de datos reales dentro de ese directorio. Los archivos en
+`/usr/share/zoneinfo/` están organizados por el nombre de la zona horaria correspondiente, así
+que el archivo de datos para ls zona horaria `America/Sao_Paulo` será
+`/usr/share/zoneinfo/America/Sao_Paulo`.
+
+Como las definicioes para el horario de verano pueden cambiar, es importante mantener
+actualizados los archivos en `/usr/share/zoneinfo/`. El comando de actualización de la herramienta
+de gestión de paquetes que proporciona la distribución debería actualizarlos cada vez que
+haya una nueva versión disponible.
+
+#### Lenguaje y condificación de caracteres
+Los sistemas Linux pueden trabajar con una amplia variadad de lengajes y codificaciones de
+caracteres no occidentales, definiciones conocidas como *locales*. La configuración de local más
+básica es la definición de la variable de entorno `LANG`, a partir de la cual la mayoría de los
+programas de shel identifican el lenguaje a utilizar.
+
+El contenido de la variable `LANG` sigue el formato `ab_CD`, donde `ab` es el código del idioma
+y `CD` es el código de la región. El código del idioma debe seguir la norma ISO-639 y el código
+de la región debe seguir la norma ISO-3166. Un sistema configurado para usar portugués
+brasileño, por ejemplo, debe tener la variable `LANG` definida como `pt_BR.UTF-8`:
+
+    echo $LANG
+
+Como se ve en el ejemplo anterior, la variable `LANG` también contiene la condifiación de
+caracteres prevista para el sistema. ASCII, abreviatura de American Standard Code For
+Information Interchange, fue la primera norma de codifiación de caracteres ampliamente
+utilizada para la comunicación electrónica. Sin embargo, ASCII tiene un rango muy limitado de
+valores numéricos disponibles y dado que se basa en el alfabeto inglés, no contiene caracteres
+utilizados por otros idiomas o un conjunto ampliado de símbolos no alfabéticos. La
+codificación UTF-8 es una Norma de Unicode para los caracteres occidentales ordinarios, además
+de muchos otros símbolos no convencionales. Como ha señalado el Consorcio del Unicode, que
+mantiene el Estándar del Unicode, debe adoptarse por defecto para garantizar la compatibilidad
+entre las plataformas informáticas:
+
+El Estándar Unicode proporciona un número único para cada cáracter, sin importar la plataforma,
+el dispositivo, la aplicación o el idioma. Ha sido adoptado por todos los proveedores de software
+moderno y ahora permite que los datos sean transportados a través de muchas plataformas,
+dispositivos y aplicaciones diferentes sin corrupción. El soport de Unicode constituye la base
+para la representación de idiomas y símbolos en todos los sistemas operativos principales,
+motores de búsqueda, navegadores, ordenadores portátiles y teléfonos inteligentes, además de
+Internet y la World Wide Web (URL; HTML, XML, CSS, json, etc.). [...] es estándar Unicode
+y la disponibilidad de herramientas que lo respaldan se encuentra entre las tendencias
+mundiales más importanes de la tenología de software.
+
+Algunos sistemas todavía pueden usar los estándares definidos por la ISO (como el estándar
+ISO-8859-1) para la codificación de caracteres no ASCII. Sin embargo, tales etándares de 
+condificación de caracteres deberían ser desaporbados en favor de los estándares de
+codifiación de Unicode. No obstante, todos los principales sistemas operativos tienden a
+adoptar dicho estándar por defecto.
+
+Los ajustes de localización del sistema están configurados en el archivo `/etc/locale.conf`.
+La variable `LANG` y otras variables relacionadas con la localización se asigan en este archivo
+como una variable de shell ordinaria, por ejemplo:
+
+    cat /etc/locale.conf
+
+los usuarios pueden usar una configuración de locale personalizada redefiniendo la variable de
+entorno `LANG`. Puede hacerse solo para las sesión actual o para futuras sesiones, añadiendo la
+nueva definición al perfil del usuario en Bash, `~/.bash_profile` o `~/.profile`. Sin embargo,
+hasta que el usuario inicie sesión, la localización del sistema por defecto seguirá siendo
+utilizada por programas independientes del usuario, como la pantalla de inicio de sesión del
+administrador de pantalla.
+
+demás de la variable `LANG`, otras variables de entorno afectan aspectos específicos de la
+región, como el símboolo de la moneda a utilizar o el separador correcto de miles para los
+números:
+
+**`LL_COLLATE`**: establece el orden alfabético. Uno de sus propósitos es definir el orden en
+que los archivos y directorios son listados.
+
+**`LC_CTYPE`**: establece cómo el sistema tratará ciertos conjuntos de caractres. Define, por
+ejemplo, qué caracteres considera como mayúsculaes o minúsculas.
+
+**`LC_MESSAGES`**: establece el lenguaje a mostrar para los mensajes del programa (en su
+Umayoría programas GNU).
+
+**`LC_MONETARY`**: establece la unidad monetaria y el formato de la moneda.
+
+**`LC_NUMERIC`**: establece el formato numérico para los valores monetarios. Su principal
+proósito es definir los separadores de miles y decimales.
+
+**`LC_TIME`**: establece el formato y la fecha.
+
+**`LC_PAPER`**: establece el tamaño de papel estándar.
+
+**`LC_ALL`**: anula todas las demás variables, incluyendo `LANG`.
+
+El comando `locale` mostrará todas las variable definidas en la configuración de locale actual:
+
+    locale
+
+La única variable no definida es `LC_ALL`, que puede ser usada para anualar temporalemte todos
+los ajustes de localización. El siguiente ejemplo muestra cómo el comando `date` modificará
+su salida para cimplir con la nueva variable `LC_ALL`:
+```sh
+date
+seg out 21 10:45:21 -03 2019
+env LC_ALL=en_US.UTF-8 date
+Mon Oct 21 10:45:21 -03 2019
+```
+La modifiación de la variable `LC_ALL` hizo que las abreviaturas del día de la semana y del mes
+se mostraran en inglés americano (`en_US`). Sin embargo, no es obligatorio establecer la misa
+localidad para todas las variables. Es posible, por ejemplo, hacer que el lenguaje definido
+a `pt_BR` y el formato numérico (`LC_NUMERIC`) se establezca en el estándar americano.
+
+Algunos ajustes de localización cambian la forma en que los programas tratan el orden alfabético
+y los formato de los números. Mientras que los programas convencionales suelen estar preparados
+para elegir correctamente una localización común para estas situaciones, los guines pueden
+comportarse de forma inesperada cuando intentan ordenar correctamente por orden alfabético
+una lista de elementos. Por esta razón, se recomienda establecer la variable de entorno
+`LANG` en la localización común `C`, comon en `LANG=C`, para que el script produzca resultados
+inequívocos, independientemente de las definiciones de localización utilizada en el sistema
+donde se ejecute. El locale C solo realiza una simple comparación bytewise, por lo que
+también tendrá un mejor rendimiento que los otros.
+
+#### Conversión de la codificación
+El texto puede aparecer con caracteres inintelegibles cuando se muestra con una codificación
+de caracteres distinta del sistema en el que se creó el texto. El comando `iconv` puede ser
+usado para resolver este problema, convirtiendo el archivo de su codifiación de caracteres
+original a la deseada. Por ejemplo, para convertir un archivo llamado `original.txt` de la
+codifiación ISO-8859-q al archivo llamado `converted.txt` usando la codifiación UTF-8, se puede
+usar el siguiente comando:
+
+    iconv -f ISO-8859-1 -t UTF-8 original.txt > converted.txt
+
+La opción `-f ISO-8859-1` (o `--from-code=ISO-8859-1`) establece la codificación del archivo
+original y la opción `-t UTF-8` (o `--to-code=UTF-8`) establece el del archivo convertido. Todas
+las codificaciones soportadas por el comando `iconv` se listan con el comadno `iconv -l` o
+`iconv --list`. En lugar de usar la redirección de la salida, como en el ejemplo, también puede
+usar la opción `-o converted.txt` o `--output converted.txt`.
+
+## Servicios esenciales del sistema
+#### Mantener la hora del sistema
+Mantener la exactitud de la hora es absolutamente crucial para la informática moderna, sin
+embargo, su implementación es sorpendentemente compleja. La práctica de mantener la hora
+parecie trivial para un usuario final, pero el sistema necesita ser capaz de manejar muchas
+idiosincrasias y casos extremos de forma inteligente. Hay que tener en cuenta que las zonas
+horarias no son estáticas, sino que pueden modificarse por una decisión administrativa o
+política. Un país puede optar por dejar de utilizar el horario de verano. Cualquier
+programa debe ser capaz de manejar eso cambios de forma lógic. Afortunadamente para los
+administradores de sistemas, las soluciones para el control de la hora en el sistema
+operativo Linux son maduras, robustas y generalmente funcionan sin muchas interferencia.
+Cuando un equipo informático Linux arranca, empieza a mantener el tiempo. NOs referimos a
+estos como un relos del sistema, ya que es actualizado por el sistema operativo. Además,
+los ordenadores modernos también tendrán un reloj de hardware o de tiempo real. Esste reloj
+de hardware es a menudo una característica de la placa madre y mantiene la hora
+independientemente de si el ordenador está funcionando o no. Durante el arranque, la hora del
+sistema se ejecuta desde el reloj de hardware, pero en la mayoría de los casos estos dos
+relojes funcionan independientemente el uno del otro. En la mayoría de los sistemas modenos
+de Linux, la hora del sistema y del hardware están sincronizados con el tiempo de la red,
+que se implementa mediante el Protocolo de Tiempo de Red (NTP). En la gran mayoría de los
+casos, la única configuración que un usuario normal tendrá que hacer es establecer su zona
+horaria y el NTP se encargará del resto. El reloj del sistema está ajustado al Tiempo
+Universal Coordinada (UTC), que es la hora local de Greenwich, Reino Unido. Normalmente un
+usuario quiere saber su hora local. La hora local se calcula tomando la hora UTC y aplicando
+un offset basado en la zona horaria y en un "Horario de verano". De esta manera, se puede
+evitar mucha complejidad. El reloj del sistema puede ajustarse a la hora UTC o a la hora
+actual, pero se recomienda que se ajuste a la hora UTC.
+
+#### Date
+El comando `date` es una utilidad básica que se simplemente imprime la hora local:
+
+    date
+
+Modificar las opciones del comando `date` cambiará el formtao de la salida.
+
+Por ejemplo, un usuario puede usar `date -u` para ver la hora UTC actual.
+
+    date -u
+
+Algunas otras opciones de uso común devolverán la hora actual a un formato que se adhiere a
+un modelo RFC aceptado:
+
+**`-I`**: fecha/hora en formato ISO 8601. Si se añade `date` (`-Idate`) se limitará la salidaa a la
+fecha solamente. Otros formatos son `hours` para horas, `minutes` para minutos, `seconds` para
+segundos y `ns` para nanosegundos.
+
+**`-R`**: devuelve la fecha y la hora en formato RFC 5322.
+
+**`--rfc-3339`**: devuelve la fecha y la hora en formato RFC 3339.
+
+El formato de `date` puede ser personalizado por el usuario con secuencias especificadas en
+la página de manual. Por ejemplo, la hora actual puede ser formateada con la hora de Unix de
+esta manera:
+```sh
+date +%s
+1683492318
+```
+El tiempo de Unix se utiliza internamente en la mayoría de los sistemas tipo Unix. Almancena
+la hora UTC como el número de segundos desde *Epoch*, que ha sido definido como el 1 de enero
+de 1970.
+
+Utilizando estas secuencias, somos capaces de dar formato a la fecha y la hora en casi
+cualquier formato requerido por cualquier aplicación. Por supuesto, en la mayoría de los
+casos es es preferible atenerse a una norma aceptada.
+
+Además, `date --date` puede usarse para dar formato a una hora que no es la actual. En este
+escenario, un usuario puede especificar la fecha que se aplicará al sistema utilizando la
+hora de Unix, por ejemplo:
+
+    date --date='@1564013011'
+
+Usar la opción `-debug` puede ser muy útil para asegurar que una fecha pueda ser analizada con
+éxito. Esto es lo que sucede cuando se pasa una fecha válida al comando:
+```sh
+date --debug --date="Fri, 03 Jan 2020 14:00:17 -0500"
+date: parsed day part: Fri (day ordinal=0 number=5)
+date: parsed date part: (Y-M-D) 2020-01-03
+date: parsed time part: 14:00:17 UTC-05
+date: input timezone: parsed date/time string (-05)
+date: using specified time as starting value: '14:00:17'
+date: warning: day (Fri) ignored when explicit dates are given
+date: starting date/time: '(Y-M-D) 2020-01-03 14:00:17 TZ=-05'
+date: '(Y-M-D) 2020-01-03 14:00:17 TZ=-05' = 1578078017 epoch-seconds
+date: timezone: system default
+date: final: 1578078017.000000000 (epoch-seconds)
+date: final: (Y-M-D) 2020-01-03 19:00:17 (UTC)
+date: final: (Y-M-D) 2020-01-03 14:00:17 (UTC-05)
+vie 03 ene 2020 13:00:17 CST
+```
+Esta puede ser una herramienta útil cuando se trata de resolver problemas con una aplicación
+que genera una fecha.
+
+#### Reloj de hardware
+Un usuario puede ejecutar el comando `whclock` para ver como la hora se mantiene en el reloj en
+tiempo real. Este comando requiere previlegios elevados:
+
+    sudo hwclock
+
+Usando la opción `--verbose` la salida del comando tendrá más detalles que pueden ser útiles
+para la resolución de problemas:
+
+    sudo hwclock --verbose
+
+La línea que contiene `Calculated Hardware Clock drift`. Esta salida puede decirle si la hora
+del sistema y la del hardware se desvían una de otras.
+
+#### timedatectl
+`timedatectl` es un comando que puede ser utilizado para comprobar el estado general de la hora
+y la fecha, incluyendo si la hora de red se ha sincronizado o no.
+
+Por defecto `timedatectl` devuelce información similar a `date`, pero con la adición de la hora
+RTC (hardware) así como el estado del servicio NTP:
+
+    timedatectl
+
+#### Ajustar el tiempo utilizando `timedatectl`
+No hay un servidor NTP disponible, se recomienda usar `timedatectl` en lugar de `date` o
+`hwclock` para fijar la hora:
+
+    timedatectl set-time '2011-11-25 14:00:00'
+
+El proceso es similar a `date`. El usuario también puede establecer la hora independientemente
+de la fecha usnado el formaro HH:MM:SS.
+
+#### Ajustar la zona horaria utilizando `timedatectl`
+`timedatectl` es la forma prederida de establecer la zona horaria local en sistemas Linux
+basados en Systemd cuando no existe una interfaz gráfica. `timedatectl` listará posibles zonas
+horarias y luego la zona horaria puede ser establecida usando una de estas como argumento.
+
+Primero haremos una lista de posible zonar horarias:
+```sh
+timedatectl list-timezones
+Africa/Abidjan
+Africa/Accra
+Africa/Algiers
+Africa/Bissau
+Africa/Cairo
+...
+```
+La lista de posibles zonar horarias es largas, por lo que en este caso se recomienda el uso del
+comando `grep`.
+
+A continuación podemos establecer la zona horaria usando uno de los elementos de la lista que
+fue devuelto:
+
+    timedatectl set-timezone Africa/Cairo
+
+Tenga en cuenta que el nombre de la zona horaria debe ser exacto. `Africa/Cairo` por ejemplo,
+cambiará la zona horaria, pero `cairo` o `africa/cairo` no lo hará.
+
+#### Desactivar NTP usando `timedatectl`
+En algunos casos podría ser necesario desactivar NTP. Esto podría hacerse usando `systemctl`,
+per usaremos `timedatectl`:
+
+    timedatectl set-np no
+
+#### Establecer la zona horaria sin `timedatectl`
+La configuración de la información de la zona horaria es un paso estándar cuando se instala
+Linux en una nueva máquina. Si hay un proceso de instalación gráfico, lo mpas probable es que se
+maneje sin ninguna otra entrada del usuario.
+
+El directorio `/usr/share/zoneinfo` contiene información de las diferentes zonas horarias
+posibles. En el directorio `zoneinfo`, hay subdirectorio que contienen los nombres de los
+continentes así como otros enlaces simbólicos. Se recomienda encontrar el `zoneinfo` de su
+región a parte de su continente.
+
+Los archivos de `zoneinfo` contienen las reglas necesarias para calcular el desfase de la hora
+local en relación con UTC, y también son importantes si su región hace uso del horario de
+verano. El contenido de `/etc/localtime` será leído cuando Linux necesite determinar la zona
+horaria local. Para establecer la zona horaria sin el uso de una interfaz gráfica, el usuario
+debe crear un enlace simbólico para su ubicación desde `/usr/share/zoneinfo` a
+`/etc/localtime`. Por ejemplo:
+
+    ln -s /usr/share/zoneinfo/Canada/Eastern /etc/localtime
+
+Después de establecer la zona horaria correcta, se recomienda ejecutar:
+
+    hwclock --systohc
+
+Esto ejecutará el reloj de hardware desde el reloj de sistema (es decit, el reloj de tiempo real
+se ajustará a la misma hora que `date`).
+
+`/etc/timezone` es similar a `/etc/localtime`. Es una representación de datos de la zona horaria
+local, y como tal puede ser leída usando `cat`:
+
+    cat /etc/timezone
+
+Este archivo no es utilizado por todas las distribuciones de Linux.
+
+#### Establecer la fecha y hora sin `timedatectl`
+#### Utilizando `date`
+`date` tiene una opción para ajustar la hora del sistema. Estas son: `--set` o `-s` para fijar la
+fecha y la hora. También puede usar `--debug` para verificar la sintaxis correcta del comando
+
+    date --set="11 Nov 2011 11:11:11"
+
+SE requieren privilegios de root para poder fijar la fecha. También podemos cambiar la hora o
+la fecha de forma independiente:
+
+    date +%Y%m%d -s "20111125"
+
+Aquí debemos especificar las secuencas para que nuestra cadena sea interpretada correctamente.
+Por ejemplo, `%Y` se refiere al año, y así los primeros cuatros dígitos `2011` se interpretarán
+como el año 2011. De manera similar, `%T` es la secuenda del tiempo, y se demuestra así:
+
+    date +%T -s "13:11:00"
+
+Después de cambiar la hora del sistema, se recomienda también ajustar el relor de hardware
+para que ambos relojes, el del sistema y del del hardware, estén sincronizados:
+
+    sudo hwclock --systohc
+
+`systohc` significa "system clock to hardware clock".
+
+#### Utilizando `hwclock`
+En lugar de ajusar el reloj del sistema y actualizar el reloj de hardware, puede obtar por
+invertir el proceso. Empezaremos por ajustar el reloj del hardware:
+
+    sudo hwclock --set --date "4/12/2019 11:15:19"
+
+Note que por defecto el `hwclock` espera la hora UTC, pero devuelve la hora local por defecto.
+
+Después de ajustar el reloj de hardware, tendremos que actualizar el reloj del sistema a
+partir de este. `hctosys` significa "hardware clock to system clock".
+
+    hwclock --hctosys
+
+NTP utiliza una estructura jerárquica para distribuir la hora. Los relojes de referencia están
+conectados a servidores situados en la parte superior de la jerarquía. Estos servidores son
+máquinas de estrato 1 y normalmente no son accesibles al público. Sin embargo, las máquinas
+del estrato 1 son accesibles por las máquinas del estrato 2, estas a su vez son accesibles
+a las de estrato 3, y así sucesivamente. Los servidores de estrato 2 son accesibles al
+público, al igual que las máquians de menor jerarquía. Cuando se configura NTP para una red
+grande, es una buena práctica tener un pequeño número de ordenadores conectados a los
+servidores de estrato 2+, y luego hacer que esas máquinas proporcionen NTP a todas las demaś
+máquinas. De esta manera, se puede minimizar las demandas sobre las máquinas de estrato 2.
+
+Hay algunos términos importantes que surgen cuando se habla de NTP. Algunos de estos
+términos se usan en los comandos que implementaremos para comprobar el estado de NTP en nuestras
+máquians:
+
+**Offset**: se refiere a la diferencia absoluta entre la hora del sistema y la nora NTP. Por
+ejemplo, si el reloj del sistema marca alas 12:00:02 y la hora NTP marca las 11:59:58, el
+desfase entre los dos relojes es de cuatro segundos.
+
+**Step**: si el desfase de horario entre el proveedor NTP y un consumidor es superior a 128ms,
+entonces NTP realizará un único cambio singnificativo en la hora del sistema, en lugar de
+atrasar o adelantar la hora del sistema. Esto se llama *stepping*.
+
+**Slew**: se refiere a los cambios realizados en la hora del sistema cuando el offset entre
+la hora del sistema y la NTP es inferior a 128ms. Si este es el caso, los cambios se harán
+gradualmente. Esto se conoce como *slewing*.
+
+**Insane Time**: si el offset entre la hora del sistema y la hora NTP es superior a 17 minutos,
+la hora del sistema se considera insane y del demonio NTP no introducirá ningún cambio en la
+hora del sistema. Habrá que tomar medidas especiales para que la hora del sistema esté
+dentro de los 17 minutos de la hora correcta.
+
+**Drift**: se refiere al fenómeno por el que dos relojes se desincronizan con el tiempo.
+Esencialmente, si los relojes están inicialmente sincronizados, pero luego se desincronizan
+con el timepo, entonces está produciendo una deriva del reloj.
+
+**Jitter**: la fluctuación se refiere a la cantidad de desviación desde la última vez que se
+consultó un reloh. Así, si la última sincronización NTP se produjo hace 17 minutos, y el
+desfase entre el proveedor y el consumidor NTP es de 3 milisegundos, entonces 2 milisegundos
+es el jitter.
+pg266
