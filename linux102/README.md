@@ -2273,4 +2273,155 @@ con el timepo, entonces está produciendo una deriva del reloj.
 consultó un reloh. Así, si la última sincronización NTP se produjo hace 17 minutos, y el
 desfase entre el proveedor y el consumidor NTP es de 3 milisegundos, entonces 2 milisegundos
 es el jitter.
-pg266
+
+#### `timedatectl`
+Si su distribucición de Linux utiliza `timedatectl`, entonces por defecto implementa un cliente
+SNTP en lugar de una implementación completa de NTP. Esta es una implementación menos compleja
+de la hora de red y significa que su máquina no servirá NTP a otrs ordenadores conectados.
+
+En este caso, NTP no funcionará a menos que el servicios `timesyncd` se esté ejecutando. Como
+todos los servicios systemd, podemos verificar que se está corriendo con:
+
+    sudo systemctl status systemd-timesyncd
+
+El estado de la sincronización SNTP de `timedatectl` puede verificarse con `show-timesync`:
+
+    timedatectl show-timesync --all
+
+Esta configuración puede ser adecuada para la mayoría de las situaciones, pero será
+insuficiente si se espera sincronizar varios clientes en una red. En este caso se recomienda
+instalar un cliente NTP completo.
+
+#### NTP Daemon
+La hora del sistema se compara con la hora de la red en un horario regular. Para que esto
+funcione debemos tener un daemon que se ejecute en segundo plano. En muchos sistemas Linux,
+el nombre de este demonio es `ntpd`. Esto permitirá a una máquina no solo ser un consumidor de
+tiempo, sino también poveer el tiempo a otras máquinas.
+
+Supongamos que nuestro ordenador está basadoe en systemd y que utliza `systemctl` para controlar
+los demonios:
+
+    sudo systemctl status ntpd
+
+La consultas NTP se realizan en el puerto TPC 123. Si NTP fañña, asegúrese de que este puerto
+está abierto y a la escucha.
+
+#### Configuración de NTP
+NTP es capaz de sondear varias fuentes y seleccionar las mejores candidatas para utilizarlas
+en el ajuste de la hora del sistema. Si se pierde una conexión a red, NTP utiliza los ajustes
+anteriores de su historial para estimar los ajustes futuros. Dependiendo de su distribución
+de Linux, la lista de servidores de tiempo de red se almacenarán en diferentes lugares.
+
+El archivo `/etc/ntp.conf` contiene informacipon de condifuración sobre cómo su sistema sincroniza
+con la hora de la red. Este archivo puede ser leído y modificado usando cualquierd edit
+de texto.
+
+Por defecto, los servidores NTP utilizados se especificarán en una sección como esta:
+```sh
+# Use public servers from the pool.ntp.org project.
+# Please consider joining the pool (http://www.pool.ntp.org/join.html).
+server 0.centos.pool.ntp.org iburst
+server 1.centos.pool.ntp.org iburst
+server 2.centos.pool.ntp.org iburst
+server 3.centos.pool.ntp.org iburst
+```
+La sintaxis para añadir servidores NTP es la siguiente:
+```sh
+server (IP Address)
+server server.url.localhost
+```
+Las direcciones de los servidores pueden ser direcciones IP o URL si se ha configurado
+correctamente el DNS. En este caso, siempre se consultará el servidor. Un administrador de red
+también podría considerar el uso de un pool. En este caso, suponemos que hay varios
+proveedores NTP, todos ellos ejecutando un demonio NTP y con la misma hora. Cuando un cliente
+consulta un pool, se selecciona un proveedor al azar. Esto ayuda a distribuir la carga de la
+red entre muchas máquinas para que ninguna máquina del pool esté manejando todas las consultas
+NTP. Comúnmente, `/etc/ntp.conf` se cargará como un pool de servidores llamado `pool.ntp.org`.
+Así, por ejemplo, `servidor 0.centos.pool.ntp.org` es un pool NTP por defecto porporcionado a
+las mpaquians CentOS.
+
+#### pool.ntp.org
+Los servidores NTP utilizados por defecto son un proyecto de código abierto.
+
+#### ntpdate
+Durante la configuración inicial, la hora del sistema y la de NTP pueden estar muy desincronizada.
+Si el offset entre la hora del sistema y la del NTP es superior a 17 minutos, el demonio
+NTP no realizará cambios en la hora del sistema. EN este caso será necesaria la intervención
+manual.
+
+En primer lugar, si `ntpd` se está ejecutando será necesario detener el servicio.
+
+A continuación, utilice `ntpdate pool.npt.org` para realizar una única sincronización inicial,
+donde `poll.ntp.org` se refiere a la direcciín IP o URL de un servidor NTP. puede ser necesaria
+más de una soncronización.
+
+#### ntpd
+`ntpd` es una utilidad para monitorizar el estado de NTP. Una vez que el demonio NTP se ha
+iniciado y configurado, `ntpd` se podrá utilizar para comprobar su estado:
+
+    ntpd -q
+
+En este caso `-p` (print) imprimirá un resumen de los pares. Las direcciones de host también
+pueden ser devueltas como direcciones IP usando `-n`.
+- **`remote`**: nombre del host del proveedor NTP
+- **`refid`**: ID de referencia del proveedor NTP
+- **`st`**: estrato del provedor
+- **`when`**: número de segundos desde la última consulta
+- **`poll`**: número de segundos entre consultas
+- **`reach`**: ID de estado para indicar si se ha alcanzado un servidor. Las conexiones exitosas aumentarán este número de 1.
+- **`delay`**: tiempo en ms entre la consulta y la respuesta del servidor
+- **`offset`**: timepo en ms entre la hora del sistema y la hora NTP
+- **`jitter`**: offset en ms entre la hora del sistema y la NTP en la última consulta.
+
+`ntpq` también tiene un modo interactivo, al que se accede cuando se ejecuta sin opciones ni
+argumentos. La opción `?` devolverá una lista de comandos que `ntpq` reconocerá.
+
+#### chrony
+`chrony` es otra forma de implementar NTP. Se instala por defecto en algunos sistemas Linux, pero
+está disponible para du descarga en las principales distribuciones. `chronyd` es el demonio de
+chrony, y `chronyc` es la interfaz de la línea de comandos. Puede ser necesario inidicar y
+habilitar `chronyd` antes de interactuar con `chronyc`.
+
+Si la instalación de chrony tiene una configuración por defecto, el comando `chronyc tracking`
+proporcionará información sobre NTP y la hora del sistema:
+
+    chronyc tracking
+
+- **`Stratum`**: número de saltos a un ordenador con un reloj de referencia conectado
+- **`Ref time`**: es ahora UTC a la que se realizó la última medición de la fuente de referencia.
+- **`System time`**: retraso del reloj del sistema desde el servidor sincronizado.
+- **`Last offset`**: offset estimado de la última actualización del reloj
+- **`RMS offset`**: promedio a largo plazo del valor del offset
+- **`Frecuency`**: se trata de la tasa en la que el reloj del sistema pudiera estar incorrecto si el cronyd no lo corrigiera. Se proporciona en ppm (partes por millon).
+- **`Residual freq`**: frecuencia residual que indica la diferencia entre las mediciones de la fuente de frecuencia y la drecuencia que se utiliza actualmente.
+- **`Skew`**: límite de error estimado de la frecuencia
+- **`Root delay`**: total de los retratos de la ruta de red hacia el ordenador del estrato, desde el que se está sincronizando el ordenador.
+- **`Leap status`**: es el estado de salto que puede tener uno de los siguientes valores: normal, insetar segundo, borrar segundo o no sincronizado.
+
+También podemos ver información detallada sobre la última actualización NTP válida:
+
+    chrony ntpdata
+
+Por último, `chronyc sources` devolverá información sobre los servidore NTP que se utilizan
+para sincronizar la hora:
+
+    chronyc sources
+
+Por el momento, esta máquina no tiene fuentes configuradas. Podemos añadir fuentes desde
+`pool.npt.org` abriendo el fichero de configuración de chrony. Este suel estar ubicado en
+`/etc/chrony.conf`.
+
+Además, en este archivo podemos elegir cambiar la configuración por defecto en cuanto a skew
+y drift, así como la ubicación del driftfile y keyfile.
+
+En esta máquina, necesitamos hacer una gran correción inicial del reloj. Optaremos por
+descomentar la siguiente línea:
+
+    ! makestep 1.0 3
+
+Después de realizar los cambios en el archivo de configuración, reinicie el servicio `chronyd` y
+utilice `chronyc makestep` para escalar manualmente el reloj del sistema.
+
+Para verificar los cambios `crhonyc tracking`.
+
+## Registro del sistema
