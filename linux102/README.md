@@ -2662,3 +2662,4 @@ em `/var/log/debug` (excluyendo cualquier mensaje procedente de las instalacione
 `authpriv`, `news` y `mail`).
 
 #### Entradas manuales en el registro del sistema: logger
+pg297
