@@ -489,7 +489,7 @@ De la misma manera, `export` puede ser usado para asignar y exportar una variabl
 
     export amphibian=frog
 
-> Con `export -n <variable_name>` la variable se convertirpa de nuevo en una variable local.
+> Con `export -n <variable_name>` la variable se convertira de nuevo en una variable local.
 
 El comando `export` también nos dará una lista de todas las variables de entorno existentes o
 cuando se digita con la opción `-p`:
@@ -2425,3 +2425,240 @@ utilice `chronyc makestep` para escalar manualmente el reloj del sistema.
 Para verificar los cambios `crhonyc tracking`.
 
 ## Registro del sistema
+Los registros pueden ser el mejor amigo de un administrador de sistemas. Son archivos en los
+que se registra cronológicamente todos los eventos del sistema y la red desde el momento que se
+inicia. Así, la gama de información que se puede encontrar en los registos incluye prácticamente
+todos los aspectos del sistema: intentos fallidos de autenticación, errores de programas y
+servicios, hosts bloqueados por el cortafuegos, etc. Como puede imaginar, los registros
+facilitan mucho la vida de los administradores de sistemas a la hora de solucionar problemas,
+comprobar recursos, detectar comportamientos anómalos de los programas, etc.
+
+#### Registro del sistema
+En el momento en que el kernel y los diferentes procesos de su sistema comienzan a ejecutarse
+y a comunicarse entre sí, se genera mucha información en forma de mensajes que se envía
+a los registros.
+
+Sin los registros, la búsqueda de un evento ocurrido en un servidor supodría un dolor de
+cabeza para los administradores del sisema, de ahí la importancia de contar con una forma
+estandarizada y centralizada de realizar un seguimiento de cualquier suceso del sistema. Los
+registros son determinantes y reveladores para entender las estadísticas del sistema y hacer
+predicciones de tendencias.
+
+Dejando de lado `systemd-journald`, el registro ha sido tradicianalmente manejado por tres
+servicios principales dedicados: `syslog`, `syslog-ng` (syslog new generation) y `rsyslog`
+(the rocket-fast system for log processing). El `rsyslog` aportó importantes mejoras y se ha
+convertido en la opción más popular hoy en día. Cada uno recoje mensajes de otros servicos y
+programas, y los lmacena en archivos de registro, normalmente en `/var/log/`. Sin embargo,
+algunos servicios se encargan de sus propios registros (por ejemplo, el servidor web Apache
+HTTPD o el sistema de impresión CUPS). Asimismo, el kernel de Linux utiliza el ring buffer
+para almacenar sus mensajes de registro.
+
+> `REPL` significa Reliable Event Logging Protocol y amplía la funcionalidad del protocolo syslog para proporcionar una entraga fiable de los mensajes.
+
+Dado que `rsyslog` se ha convertido en la instalación de registro estándar oficial en todas las
+principales distros. `rsyslog` utiliza un modelo cliente-servidor. El cliente y el servidor
+pueden estar en el mismo host o en diferentes máquinas. Los mensajes son enviados y recibidos
+en un formato particular y pueden ser guardados en servidores centralizados de `rsyslog` a
+través de la red. El demonio de rsyslog (`rsyslogd`) trabaja junto con `klogd` (que gestiona
+los mensajes del kernel).
+
+#### Tipos de registros
+Como los registros son datos variables, normalmente se encuentra en `/var/log/`. A grandes
+rasgos, se pueden clasificar en registros de sistema y registros de servicio o programa.
+
+**/var/log/auth.log**: actividades relacionadas con los procesos de autenticación, como usuarios
+registrados, información sudo, trabajos corn, intentos fallidos de inicio de sesión, etc.
+
+**/var/log/syslog**: es un archivo centralizado para prácticamente todos los registros capturados
+por `rsyslogd`. Debido a que incluye tanta información, los registros se distribuyne a través
+de otros archivos de acuerdo con la configuración suministrada en `/etc/rsyslog.conf`.
+
+**/var/log/debug**: información de depuración de programas.
+
+**/var/log/kernel.log**: mensajes de kernel.
+
+**/var/log/messages**: mensajes informativos que no están relacionados con el kernel, sino con
+otros servicios. También es el destino por defecto del registro del cliente remoto en una
+implementación de servidor de registro centralizado.
+
+**/var/log/daemon.log**: información ralacionada con los demonios o servicios que se ejecutan
+en segundo plano.
+
+**/var/log/mail.log**: información relacionada con el servidor de correo electrónico, por ejemplo,
+postfix.
+
+**/var/log/Xorg.0.log**: información relacionada con la tarjeta gráfica.
+
+**/var/run/utmp y /var/log/wtmp**: registro de acceso exitosos.
+
+**/var/log/btpm**: intentos fallidos de inicio de sesión, por ejemplo, ataque de fuerza bruta
+a través de ssh.
+
+**/var/log/faillog**: intentos de autenticación fallidos.
+
+**/var/log/lastlog**: fecha y hora de los últimos inicios de sesión de los usuarios.
+
+Algunos ejemplos de registro de servicio:
+
+**/var/log/cups/**: directorio para los registros del Sistema de Impresión (Common Unix Printing
+System). Normalmente incluye los siguientes archivos de registro por defecto: `error_log`,
+`page_log` y `acces_log`.
+
+**/var/log/apache2/ or /var/log/httpd**: directorio para los registros del servidor web Apache.
+Normalmente incluye los siguientes archvos de registros por defecto: `access.log`, `error_log`,
+y `other_vhosts_access.log`.
+
+**/var/log/mysql**: directorio para los registros del Sistema de Gestión de Base de Datos
+Relacionales MySQL. Suele incluir los siguientes archivos de registro por defecto:
+`error_log`, `mysql.log` y `mysql-slow.log`.
+
+**/var/log/samba/**: directorio para los registros del protocolo Session Message Block (SMB).
+Suele incluir los siguientes archivos de registro por defecto: `log.`, `log.nmbd` y `log.smdb`.
+
+#### Leyendo registros
+**`less or more`**: permite ver y desplazarse por una página a la vez:
+
+    less /var/log/auth.log
+
+**`zless or zmore`**: lo mismo que `less` y `more`, pero utilizado para los registros que se comprien
+con `gzip` (una función común de `logrotate`):
+
+    zless /var/log/auth.log.3.gz
+
+**`tail`**: muestra las últimas líneas de un archivo (10 líneas por defecto). El poder de `tail`
+reside en el parámetro `-f`, que muestra dinámicamente las nuevas líneas a medida que se añaden:
+
+    tail -f /var/log/messages
+
+**`head`**: ver las primeas líneas de un archivo (10 líneas por defecto):
+
+    head -5 /var/log/mail
+
+**`grep`**: utilidad de filtrado que permite buscar cadenas específicas:
+
+    grep "dhclient" /var/log/syslog
+
+Como habrá notadp, la salida se imprime en el siguiente formato:
+- Marca de tiempo
+- Nombre del host desde el que se originó el mensaje
+- Nombre del programa/servico que ha generado el mensaje
+- El PID del programa que generó el mensaje
+- Descripción de la acción realizada
+
+Hay algunos ejemplos en los que los registros no son de texto, sino archivos binarios, y por
+consiguiente, hay que utilizar comandos especiales para analizarlos:
+
+**`/var/log/wtmp`**: `who` or `w`.
+
+    who
+
+**`/var/log/btmp`**: `utmpdump` or `last -f`.
+
+    utmpdump /var/log/btpm
+
+**`/var/log/faillog`**: `faillog`.
+
+    faillog -a | less
+
+**`/var/log/lastlog`**: `lastlog`.
+
+    lastlog | less
+
+#### ¿Cómo se convierten los mensajes en registros?
+El siguiente proceso ilustra cómo se escribe un mensaje en un archivo de registro:
+
+1. Las aplicaciones, los servicios y el kernel escriben mensaje en archivos especiales (sockets
+y buffers de memoria), por ejemplo, `/dev/log` o `/dev/kmsg`.
+
+2. `rsyslogd` obtiene la información de los sockets o buffers de memoria.
+
+3. Dependiendo de las reglas encontradas en `/etc/rsyslog.conf` y/o de los archivos en
+`/etc/rsyslog.d/`, `rsyslogd` mueve la información al archivo de registro correspondiente
+(típicamente encontrado en `/var/log/`).
+
+#### Facilidades, prioridades y acciones
+El archivo de configuración de `rsyslog` es `/etc/rsyslog.conf`. Normalmente se divide en tres
+secciones: `MODULES`, `GLOBAL DIRECTIVES` y `RULES`.
+
+> En algunas distribuciones también puede encontrar archivos de configuración en `/etc/rsyslog.d/`.
+
+`MODULES` incluye el soporte de módulos para el registro, la capacidad de mensajes y la
+recepción de registros UDP/TCP.
+
+`GLOBAL DIRECTIVES` permiten configurar una serie de cosas como los registros y los permisos del
+directorio de registros.
+
+`RULES` es donde entrarn las facilidades, las prioridades y las acciones. Las configuraciones de
+esta sección le dicen al demonio de registro que filtre los mensajes de acuerdo con ciertas
+reglas y los registro o envíe cuando sea necesario. Para comprender estar reglas, primero
+debemos explicar los conceptos de facilidades y prioridades de `rsyslog`. A cada mensaje de
+registro se le da un número de facilidad y una palabra clave que están asociados con el
+subsistema interno de Linux que produce el mensaje:
+
+Número | Palabra clave | Descripción
+-- | -- | --
+0 | `kern` | Mensajes del kernel de Linux
+1 | `user` | Mensajes a nivel de usuario
+2 | `mail` | Mensajes del sistema de correo
+3 | `daemon` | Demonios del sistema
+4 | `auth`, `authpriv` | Mensajes de seguridad/autorización
+5 | `syslog` | Mensajes de syslogd
+6 | `lpr` | Subsistema de impresión de línea
+7 | `news` | Mensajes del subsistema de red
+8 | `uucp` | Subsistema UUCP (Unix-to-Unix Copy Protocol)
+9 | `cron` | Demonio del reloj
+10 | `auth`, `authpriv` | Mensajes de seguridad/autorización
+11 | `ftp` | Demonio del FTP
+12 | `ntp` | Demonio del NTP
+13 | `security` | Registros de auditoría
+14 | `console` | Registros de alertas
+15 | `cron` | demonio de cron
+16 - 23 | de `local0` al `local7` | Local utiliza 0-7
+
+Además, a cada mensaje se le asigna un nivel de prioridad:
+
+Código | Severidad | Palabra clave | Descripción
+-- | -- | -- | --
+0 | Emergency | `emerg`, `panic` | El sistema es inutilizable
+1 | Alert | `alert` | Hay que actuar inmediatamente
+2 | Critical | `crit` | Condiciones críticas
+3 | Error | `err`, `error` | Condiciones de error
+4 | Warning | `warn`, `warninig` | Condiciones de advertencia
+5 | Notice | `notice` | Condición normal pero significativa
+6 | Informational | `info` | Mensajes informativos
+7 | Debug | `debug` | Mensajes de nivel de depuración
+
+El formato de la regla es el siguiente: `<facilidad>.<prioridad> <acción>`.
+
+Los selectores `<facilidad>.<prioridad>` filtran los mensajes que deben coincidir. Los niveles
+de prioridad son jerárquicamente inclusivos, lo que significa que rsyslog concidirá con los
+mensajes de la prioridad especificada y superiores. El selector `<acción>` muestra la acción
+a realizar (dónde enviar el mensaje de registro). Por ejemplo:
+
+    auth,autpriv.*      /var/log/auth.log
+
+Independientemente de su prioridad (`*`), todos los mensajes de `auth` o `authpriv` serán enviados
+a `/var/log/auth.log`.
+
+    *.*;auth,authpriv.none      -/var/log/syslog
+
+Todos los mensajes (independientemente de su prioridad (`*`) de todas las facilidades (`*`))
+descartando los de `auth` o `authpriv` (de ahí el sifijo `.none`) se escribirán en `/var/log/syslog`
+(el signo de menos (`-`) antes de la ruta evita excesivas escrituras en disco). Tenga en cuenta
+el punto y coma (`;`) para dividir el selector y la coma (`,`) para concatenar dos instancias en la
+misma relga (`auth`, `authpriv`).
+
+    mail.err        /var/log/mail.err
+
+Los mensajes de la instalación de `mail` con un nivel de prioridad de `error` o superior 
+(`crit`, `alert`, `emerg`) se enviarán a `/var/log/mail.err`.
+```sh
+i*.=debug;\
+    autg,authpriv.none\
+    news.none;mail.none -/var/log/debug
+```
+Los mensajes de todas las instalaciones con la prioridad `debug` y ninguna otra (`=`) se escribirán
+em `/var/log/debug` (excluyendo cualquier mensaje procedente de las instalaciones `auth`,
+`authpriv`, `news` y `mail`).
+
+#### Entradas manuales en el registro del sistema: logger
