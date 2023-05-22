@@ -7,7 +7,7 @@ comandos introducidos por el usuario, por lo tanto, los administradore de sistem
 hábiles en su uso. Como probablemente sabemos, el Bourne Again Shell (*Bash*) es el shell de
 facto en la gran mayoría de las distribuciones de Linux.
 
-El momento que el sistema operativo inicia, lo primero que el Bash (o cualquier otro shell)
+ol momento que el sistema operativo inicia, lo primero que el Bash (o cualquier otro shell)
 realiza, es ejecutar una serie de scripts de inicio. Estos scripts personalizan el entorno de
 sesión. Existen varios scripts para todo el sistema operativo, así también para usuarios
 específicos. En estos scripts podemos elegir las preferencias o configuraciones que mejor se
@@ -2662,4 +2662,239 @@ em `/var/log/debug` (excluyendo cualquier mensaje procedente de las instalacione
 `authpriv`, `news` y `mail`).
 
 #### Entradas manuales en el registro del sistema: logger
-pg297
+El comando `logger` es muy útil para los scripts de shell o para propósitos de prueba. El comando
+`logger` agregará cualquier mensaje que recibe a `/var/log/syslog` (o a `/var/log/messages` cuando
+se registre en un servidor de registro central remoto):
+
+    logger this comment goes into "/var/log/syslog"
+
+#### `rsyslog` como servidor central de registros
+Añadir un nuevo host a nuestra configuración. La disposición es la siguiente:
+
+Role | Hostname | S.O. | IP Address
+-- | -- | -- | --
+Central Loger Server | `suse-server` | openSUSE Leap 15.1 | 192.168.1.6
+Client | `debian` | Debian GNU/Linux 10 | 192.168.1.4
+
+Empecemos por configurar el servidor. En primer lugar, nos aseguramos de que `rsyslog` esté en
+funcionamiento:
+
+    sudo systemctl status rsyslog
+
+openSUSE incluye un archivo de configuración dedicado al registro remoto: `/etc/rsyslog/remote.conf`.
+Vamos a activar la recepción de mensajes de los clientes (hosts remotos) a través de TCP.
+Debemos descomentar las líneas que cargan el módulo e iniciar el sevidor TCP en el puerto
+514:
+```.conf
+# ######### Recepción de mensajes de hosts remotos ##########
+# TCP Syslog Server:
+# provides TCP syslog reception and GSS-API (if compiled to support it)
+$ModLoad imtcp.so
+# load module
+##$UDPServerAddress 10.10.0.1
+$InputTCPServerRun 514
+# force to listen on this IP only
+# Starts a TCP server on selected port
+# UDP Syslog Server:
+#$ModLoad imudp.so
+# provides UDP syslog reception
+##$UDPServerAddress 10.10.0.1
+#$UDPServerRun 514
+# force to listen on this IP only
+# start a UDP syslog server at standard port 514
+```
+Una vez hecho esto, debemos reiniciar el servicio `rsyslog` y comprobar que el servidor está
+escuhand en el puerto 514:
+```sh
+sudo systemctl restart rsyslog
+sudo netstat -nltp | grep -i "listen"
+```
+A continuación, debemos abrir los puertos en el firewall y recargar la configuración:
+```sh
+firewall-cmd --permanent --ad-port 514/tcp
+firewall-cmd --reload
+```
+
+#### Plantillas y condiciones de filtrado
+Por defecto, los registros del cliente se escribirán en el archivo `/var/log/messages` del
+servidor, junto con los del propio servidor. Sin embargo, crearemos una plantilla y una
+condición de filtrado para que los registros de nuestro cliente se almacenen en directorios
+propios. Para ello, añadiremos lo siguiente a `/etc/rsyslog.conf` (o `/etc/rsyslog.d/remote.conf`):
+```sh
+$template RemoteLogs,"/var/log/remotehosts/%HOSTNAME%/%$NOW%.%syslogseverity-text%.log"
+if $FROMHOST-IP=='192.168.1.4' then ?RemoteLogs
+& stop
+```
+**Template**: la plantilla corresponde a la primera línea y permite especificar un formato para los
+nombre de los registros mediante la genereación dinámica de nombres de archivo. Una plantilla
+se compone de:
+- Directiva de plantillas (`$template`)
+- Nombre de la plantilla (`RemoteLogs`)
+- Texto de la plantilla ("`var/log/remotehosts/%HOSTNAME%/%$NOW%.%syslogseverity-
+- text%.log`").
+
+Nuestra plantilla se llama `RemoteLogs` y su texto consiste en una ruta en `/var/log`. Todos los
+registros de nuestro host name irán al directorio `remotehosts`, donde se creará un subdirectorio
+basado en el nombre del hosr de la máquina (`%HOSTNAME%`). Cada nombre de archivo en este
+directorio consistirá en la fecha (`%$NOW%`), la gravedad (también conocida como prioridad) del
+mensaje en formato de texto (`%syslogseverity-text%`) y el sufijo `.log`. Las palabras entre los
+signos de porcentaje son propiedades y permiten acceder al contenido del mensaje de registro
+(fecha, prioridad, etc.). Un mensaje `syslog` tiene una serie de propiedades bien definidas
+que pueden utilizarse en las plantillas. A estas propiedades se accede (y se pueden modificar)
+mediante el llamado reemplazador de propiedades que implica escribirlas en signos de porcentaje.
+
+**Condición de filtro**: las dos líneas restantes corresponden a la condición de filtro y su
+acción asociada:
+- Filtro basado en expresiones (`if $FROMHOST-IP=='192.168.1.4'`)
+- Acción (`then ?RemotLogs`, `& stop`)
+
+La primera línea comprueba la dirreción IP del host remoto que envía el registro y aplica la
+plantilla `RemotLogs`. La última línea (`& stop`) garantiza que los mensajes no se envían
+simultáneamente a `/var/log/messages` (sino solo a los ficheros del directorio
+`/var/log/remotehosts`).
+
+Con la configuración actualizada, reiniciaremos `rsyslog` de nuevo y confirmaremos que aún no
+existe el directorio `remotehosts` en `/var/log`:
+```sh
+sudo systemctl restart rsyslog
+ls /var/log/
+```
+El servidor ya está configurado. A continuación, configuraremos el cliente.
+
+De nuevo, debemos asegurarnos de que `rsyslog` está instalador y funcionando:
+
+    sudo systemctl status rsyslog
+
+En nuestro entorno de ejemplo hemos implementado la resolución de nombre en el cliente añadiendo
+la línea `192.168.1.6 suse-server` a `/etc/hosts`. Así podemos referinos al servidor tanto por el
+nombre (`suse-server`) como por su dirección IP (`192.168.1.6`).
+
+Nuestro cliente Debian no viene con un fichero `remote.conf` en `/etc/rsyslog.d/`, así que
+aplicaremos nuestra configuración en `/etc/rsyslog.conf`. Escribiremos la siguiente línea al final
+del ficherp:
+
+    *.* @@suse-server:514
+
+Por último, reiniciamos `rsyslog`:
+
+    suso systemctl restart rsyslog
+
+Ahora, volvamos a nuestra máquina `suse-server` y comprobemos la existencia de `remotehosts` en
+`/var/log/`:
+
+    ls /var/log/remotehosts/debian
+
+Ya tenemos dos registros dentro de `/var/log/remotehosts` como se describe en nuestra plantilla.
+Para completar esta sección, ejecutaremos `tail -f 2019-09-17.notice.log` en `suse-server`
+mientras enviamos un registro manualmente desde nuestro cliente Debian y confirmamos que los
+mensajes se añaden al archivo de registro como se esperaba (la opción `-t` proporciona una
+etiqueta para nuestro mensaje):
+```sh
+tail -f /var/log/remotehosts/debian/2019-09-17.notice.log # server
+logger -t DEBIAN-CLIENT hi from 192.168.1.4 # client
+```
+
+#### Mecanismos de rotación de registros
+Los registros se rotan con regularidad, lo que sirve para los propósitos principales:
+- Evitar que los archivos de registro más antiguos utilicen más espacio de disco del necesario.
+- Mantenga los registros con una longuitud manejable para facilitar su consulta.
+
+La utilidad encargada de la rotación de los registros es `logrotate` y su trabajo incluye acciones
+como mover los archivos de registro a un nuevo nombre, archivarlos y/o comprimirlos, a veces
+anviarlos por correo al administrador del sistema y eventualmente borrarlos a medida que envejecen.
+Hay varias convenciones para nombrar estos archivos de registro rotados (añadiendo un sufijo
+con la fecha al nombre del archivo, por ejemplo); sin embargo, la práctica compun es simplemente
+añadir un sufijo con un número entero:
+```sh
+
+t@debian:~# ls /var/log/messages*
+/var/log/messages
+/var/log/messages.1
+/var/log/messages.2.gz
+/var/log/messages.3.gz
+/var/log/messages.4.gz
+```
+Expliquemos ahora lo que ocurririá en la próxima rotación del registro:
+
+1. `messages.4.gz` se eliminará.
+
+2. El contenido de `messages.3.gz` se trasladará a `messages.4.gz`.
+
+3. El contenido de `messages.2.gz` se trasladará a `messages.3.gz`.
+
+4. El contenido de `messages.1` se trasladará a `messages.2.gz`.
+
+5. El contenido de `messages` se trasladará a `messages.1` y `messages` estará vacío y listo para registrar nuevas entradas de registro.
+
+Observe que según las directivas `logrotate`, los tres archivos de registro más antiguos están
+comprimidos, mientras que los dos más recientes no lo están. Además, conservamos los registros
+de las últimas 4-5 semanas. Para leer los mensajes de hace una semana, consultaremos
+`messages.1` (y así sucesivamente).
+
+`logrotate` se ejecuta como un proceso automatizado o trabajo cron diariamente a través del
+script `/etc/cron.daily/logrotate` y lee el archivo de configuración `/etc/logrotate.conf`. Este
+archivo incluye algunas opciones globales y está bien comentado con cada opción introducida
+por una breve explicación de su propósito:
+```sh
+carol@debian:~$ sudo less /etc/logrotate.conf
+# see "man logrotate" for details
+# rotar los archivos de registro semanalmente
+weekly
+# mantener 4 semanas
+rotate 4
+# crear nuevos archivos de registro (vacíos) después de rotar los antiguos
+create
+# Descomente esto si quiere que sus archivos de registro se compriman
+#compress
+# los paquetes dejan la información de la rotación del registro en este directorio
+include /etc/logrotate.d
+(...)
+```
+Como puedes ver, también incluye los archivos de configuración en `/etc/logrotate.d` para
+paquetes especificos. Estos archivos contiene (en su mayoría) definiciones locales y especifican
+los archivos de registro a rotar (las definiciones locales tienen prioridad sobre las globales,
+y las definiciones posteriores anulan las anteriores). Lo que sigue es un extracto de una
+definición en `/etc/logrotate.d/rsyslog`:
+```sh
+/var/log/messages
+{
+    rotate 4
+    weekly
+    missingok
+    notifempty
+    compress
+    delaycompress
+    sharedscripts
+    postrotate
+        invoke-rc.d rsyslog rotate > /dev/null
+    endscript
+}
+```
+Como puede ver, cada directiva está separada de su valor por espacios en blanco y/o un singno de
+igualdad (opcional `=`). Sin embargo, las líneas entre `postrotate` y `endscript` deben aparecen en
+líneas solas. Las explicación es la siguiente:
+- **`rotate 4`**: conserva los registros de 4 semanas.
+- **`weekly`**: rota los archivos de registro semanalmente.
+- **`missingok`**: no emite un mensaje de error si falta el archivo de registro; simplemente pasa al siguiente.
+- **`notifempty`**: no gira el registro si está vacio.
+- **`compress`**: comprime los archivos de registro con `gzip` (por defecto).
+- **`delaycompress`**: pospone la compresión del archivo de registro anterior al siguinte ciclo de rotación (solo es efectivo cuando se utiliza en combinación con compress). Es útil cuando no se puede indicar a un programa que cierre su archivo de registro y, por tanto, podría seguir escribiendo en el archivo anterior durante algún tiempo.
+- **`sharedscripts`**: relacionado con los scripts prerotate y postrotate. Para evitar que un script se ejecute varias veces, ejecute los scripts solo una vez, independientemente de cuántos archivos de registro coincidan con un patrón determinado (por ejemplo, `/var/log/mail/*`). Además, si los scripts salen con errores, las acciones restantes no se ejecutarán para ningún registro.
+- **`postrotate`**: indica el inicio de un script postrotate.
+- **`invoke-rc.d rsyslog rotate > /dev/null`**: utiliza `/bin/sh` para correr `invoke-rc.d rsyslog rotate > /dev/null` después de rotar los registros.
+- **`endscript`**: infica el final del script postrotate.
+
+#### Kernel Ring Buffer
+ Kernel Ring Buffer
+Dado que el kernel genera varios mensajes antes de que `rsyslogd` esté disponible en el arranque,
+se hace necesario un mecanismo para registrar esos mensajes. Aquí es donde entra en juego el
+kernel ring buffer. Es una estructura de datos de tamaño fijo y, por lo tanto, a medida que
+crece con nuevos mensajes, los más antiguos desaparecen.
+
+El comando `dmesg` imprime el kernel ring buffer. Debido al tamaño del buffer, este comando se
+utiliza normalmente en combinación con la utilidad de filtrado de texto `grep`. Por ejemplo,
+para mensajes relacionado con los dispositivos del Bus Serie Universal:
+
+    dmesg | grep -i "usb"
+
+pg 314
