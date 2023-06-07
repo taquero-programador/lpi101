@@ -1557,7 +1557,7 @@ Además de la opción `-e`, el comando `crontab` tiene otras opciones útiles:
 
 #### Crear crones de sistema
 A diferencia de los crontabs de usuario, los crontabs de sistema se actualizan usando un
-editor: por lo tanto, no es necesario ejecutar el comadno `crontab` para editar `/etc/crontab` y
+editor: por lo tanto, no es necesario ejecutar el comando `crontab` para editar `/etc/crontab` y
 los archivos en `/etc/cron.d/`. Recuerde que cuando edite los crontabs del sistema, debe
 especificar la cuenta que se usará para ejecutar el trabajo cron (normalmente root).
 
@@ -2003,7 +2003,7 @@ usar el siguiente comando:
 
 La opción `-f ISO-8859-1` (o `--from-code=ISO-8859-1`) establece la codificación del archivo
 original y la opción `-t UTF-8` (o `--to-code=UTF-8`) establece el del archivo convertido. Todas
-las codificaciones soportadas por el comando `iconv` se listan con el comadno `iconv -l` o
+las codificaciones soportadas por el comando `iconv` se listan con el comando `iconv -l` o
 `iconv --list`. En lugar de usar la redirección de la salida, como en el ejemplo, también puede
 usar la opción `-o converted.txt` o `--output converted.txt`.
 
@@ -2897,4 +2897,584 @@ para mensajes relacionado con los dispositivos del Bus Serie Universal:
 
     dmesg | grep -i "usb"
 
-pg 314
+#### Fundamentos de `systemd`
+Introducido por primera vez en Fedora, `systemd` ha sustituido progresivamente a SysV Init como
+gestor de sistemas y servicios en la mayoría de las principales distribuciones de Linux.
+Entre sus puntos fuertes están los siguientes:
+- Facilidad de configuración: archivos de unidad en comparación a los scripts SysV Init.
+- Gestión versátil: adeémas de demonios de procesos, también gestiona dispositivos, sockets y puntos de montaje.
+- Compatibilidad con SysV Init y Upstart.
+- Carga paralela durante el arranque: los servicios se cargan en paralelo, en lugar de que SysV Init los cargue secuencialmente.
+- Cuenta con un servico de registro llamado journal que presenta las siguientes ventajas:
+    - Centraliza todos los registros en un solo lugar.
+    - No requiere rotación de registros.
+    - Los registros pueden ser deshabilitados, cargados en RAM o hechos persistentes.
+
+#### Unidades y objetivos
+`systemd` opera sobre unidades (*units*). Una unidad es cualquier recurso que `systemd` puede
+gestionar (por ejemplo, red, bluetooth, etc.). Las unidades, a su vez, se rigen por ficheros de
+unidades. Estos archivos de texto plano que se ubican en `/lib/systemd/system/` e incluyen los
+ajustes de configuración (en forma de secciones y directivas) para un recurso particular a ser
+gestionado. Hay varios tipos de unidades: `service`, `mount`, `automount`, `swap`, `timer`, `device`,
+`socket`, `path`, `snapshot`, `slice`, `scope` y `target`. Así cada nombre de archivo de unidad sigue
+el patrón `<nombre_de_recurso>.<tipo_de_unidad>` (por ejemplo, `reboot.service`).
+
+Un objetivo (target) es un tipo especial de unidad que se asemeja a los clásicos runlevels de
+de SysV Init. Esto se debe a que una unidad target reúne varios recuros para representar un
+estado particular del sistemas (por ejemplo, `graphical.target` es similar a `runlevel 5`, etc.).
+Para comprobar el objetivo actual de su sistema, utilice el comando `systemctl get-default`:
+
+    sudo systemctl get-default
+
+Por otro lado, los objetivos y los niveles de ejecución se diferencias en que los primeros se
+incluyen mutuamente, mientras que los segundos no. Así, un objetivo puede hacer que aparezcan
+otros objetivos, lo que no es posible con los niveles de ejecución.
+
+#### The System Journal: `systemd-journald`
+`systemd-journald` es el servicio del sistema que se encarga de recibir información de registro de
+diversas fuentes: mensajes del kernel, mensajes simples y estructurados del sistema, la salida
+estándar y errores estándar de los servicos, así como los registros de auditoría del subsistema
+del kernel. Su misión es la de crear y mantener un diario estructurado e indexado.
+
+Su archivo de configuración es `/etc/systemd/journald.conf` y, como cualquier otro servico, puede
+usar el comando `systemctl` para iniciarlo, reiniciarlo, pararlo o simplemente comprobar su estado:
+
+    sudo systemctl status systemd-journald
+
+Los archivos de configuración del tipo `journal.conf.d/*.conf`, que pueden incluir configuraciones
+específicas de los paquetes, también son posibles. Si se activa, el diario puede almacenar de
+forma persistente en el disco o de forma volátil en un sistema de archivos basados en la
+memoria RAM. El diario no es un archivo de texto plano, es binario. Por lo tanto, no puede
+utilizar herramientas de análisis de texto como `less` o `more` para leer su contenido; en su lugar
+se utiliza el comando `journalctl`.
+
+#### Consultado el contenido de journal
+`journalctl` es la utilidad que se emplea para consultar el journal en `systemd`. Tiene que ser
+`root` o usar `sudo` para invocarlo. Si si se consulta sin opciones, imprimirá todo el diario
+cronológicamente (con las entradas más antiguas listadas primero):
+
+    sudo jorunalctl
+
+Puede realizar consultas más específicas utilizando una serie de opciones:
+
+- **`-r`**: los mensajes del journal se imprimirán en orden inverso.
+- **`-f`**: imprimirá los mensajes más recientes del journal y seguirá imprimiendo las nuevas entradas a medida que se añadan a este, similar a `tail -f`.
+- **`-e`**: saltará al final del journal para que las últimas entradas sean visibles dentro del localizador.
+- **`-n <value>, --lines=<value>`**: imprimirá el valor de las líneas más recientes (por defecto será 10).
+- **`-k, --dmesg`**: equivale a utilizar el comando `dmesg`.
+
+#### Navegar y buscar a traves del journal
+Puede navegar por la salida de journal con:
+- PageUp, PageDown, y las teclas de flecha para moverse hacia arriba, abajo, izquierda y dereacha.
+- `>` para ir al final de la salida.
+- `<` para ir al principio de la salida.
+
+Puede buscar cadenas tanto hacia adelante como hacia atrás desde la posición de la vista actual:
+- Búsqueda hacia adelante: pulse `/` e introduzca la cadena a buscar, luego pulse Enter.
+- Búsqueda hacia atrás: pulse `?` e introduzca la cadena a buscar, luego pulse Enter.
+
+Para navegar por las conicidencias en las búsquedas, utilice `N` para ir a la siguiente ocurrencia
+y `Shift + N` para ir a la anterior.
+
+#### Filstrar los datos de journal
+El journal permite filtrar los datos del registro por diferentes criterios:
+
+**Número de aranque**
+
+**`--list-boost`**: enumera todos los arranques disponibles. La salida consta de tres columnas;
+la primera especifica el número de arranques (`0` se refiere al arranque actual, `-1` es el
+anterior, `-2` el anterior al anterior y así sucesivamente); la segunda columna es el ID del
+arranque; la tercera muestra las marcas de tiempo.
+
+**`-b, --boot`**: muestra todos los mensajes de arranque actual. Para ver los mensajes de registro de
+los arranques anteriores, solo tiene que añadir un párametro de desplazamiento. Por ejemplo,
+Para que se impriman los mensajes del arranque anterior, escribirá `journalctl -b -1`.
+Recuerde, sin embargo, que para recuperar la información de los registros anteriores, la
+persitencia del diario debe estar habilitada.
+
+**Prioridad**
+
+**`-p`**: curiosamente, también se puede filtrar por la gravedad/prioridad con la opción `-p`:
+
+    sudo journalctl -b -0 -p err
+
+#### Intervalo de tiempo
+Puede hacer que `journalctl` imprima solo los mensajes registrados dentro de un marco de tiempo
+específico utilizando las opciones `--since` y `--until`. La especificación de la fecha debe seguir
+el formato `AAAA-MM-DD HH:MM:SS`. Se asumirá que es medianoche si se omite el componente del
+tiempo. Del mismo modo, si se omite la fecha, se asume el día actual. Por ejemplo, para ver los
+mensajes registrado desde las 19:00 hasta las 19:01, se escribirá:
+
+    sudo journalctl --since "19:00:00" --until "19:01:00"
+
+Del mismo modeo, puede utilizar una especificación de tiempo ligeramente diferente:
+`"integer time-unit ago"`. Por lo tanto, para ver los mensajes registrador hace dos minutos escribirá
+`sudo journalctl --since "2 minutes ago"`. También es posible utilizar `+` y `-` para especificar tiempos relativos a la hora actual, por lo que `--since "-2 minutes"` y `--since "2 minutes ago"` son...
+
+Además de las expresiones numéricas, puede especificar una serie de palabras clave:
+
+- **`yesterday`**: a partir de la medianoche del día anterior al día actual.
+- **`today`**: a partir de la medianoche del día actual.
+- **`tomorrow`**: a partir de la medianoche del día siguiente al día actual.
+- **`now`**: la hora actual.
+
+Para ver todos los mensajes desde la pasada medianoche hasta hoy al as 21:00 horas:
+
+    sudo journalctl --since "today" --until "21:00:00"
+
+**Programa**
+
+Para ver los mensajes de journal relacionados con un ejecutable específico se utiliza la
+siguiente sintaxis `journalctl /path/to/executable`:
+
+    sudo journalctl /usr/sbin/sshd
+
+**Unidad**
+
+Recuerda que una unidad es cualquier recurso manejado por `systemd` y también puedes filtrar
+por ellos.
+
+- **`-u`**: muestra mensajes sobre la unidad específica:
+```sh
+sudo journalctl -u ssh.service
+```
+
+**Campos**
+
+El journal también se puede filtrar por campos específicos mediante cualuiera de las siguientes
+sintaxis:
+- **`<field-name>=<value>`**
+- **`_<field-name>=<value>_`**
+- **`__<field-name>=<value>`**
+    - **`PRIOROTY=`**: uno de los ocho posibles valores de prioridad de `syslog` formateado como una cadena decimal: `sudo journalctl PRIOROTY=3`.
+    - **`SYSLOG_FACILITY=`**: cualquiera de los posibles números de código de instalación formateados como una cadena decimal. Por ejemplo, para ver todos los mensajes de nivel de usuario: `sudo journalctl SYSLOG_FACILITY=1`.
+    - **`_PID=`**: muestra los mensajes producidos por un ID de proceso específico. Para ver todos los mensajes producidos por `systemd`, se debe escribir: `sudo journalctl _PID=1`.
+    - **`_BOOT_ID`**: basándose en su ID de arranque, se puede distinguir los mensajes de un arranque específico, por ejemplo: `sudo journalctl _BOOT_ID=83df3e8653474ea5aed19b41cdb45b78`.
+    - **`_TRANSPORT`**: mostrar los mensajes recibidos de un transporte específico. Los valores posibles son: `audit` (subsistema de auditoría del kernel), `driver` (generado internamente), `syslog` (soskcet syslog), `journal` (rotocolo de diario nativo), `stdout` (salida estándar o error estándar de los servicios), `kernel` (biffer de anillo del kernel, lo mismo que `dmsesg`, `journalctl -k` o `journalctl --dmesg`): `sudo journalctl _TRANSPORT=journal`.
+
+#### Combinando campos
+Los campos no son mutuamente excluyentes, por lo que puede utilizar más de uno es la misma
+consulta. Sin embargo, solo se mostrarán los mensajes que coincidan con el valor de ambos
+campos simultáneamente:
+
+    sudo journalctl PRIOROTY=3 SYSLOG_FACILITY=0
+
+A menos que utilice el separado `+` para combinar dos expresiones a la manera de un OR lógico:
+
+    sudo journalctl PRIOROTY=3 + SYSLOG_FACILITY=0
+
+Por otro lado, puede proporcionar dos valores para el mismo campo y se mostrarán todas las
+entradas que conicidan con cualquiera de los dos valores:
+
+    sudo journalctl PRIOROTY=1 PRIOROTY=3
+
+#### Estradas manuales en el diario del sistema: `systemd-cat`
+Al igual que el comando `logger` se utiliza para enviar mensajes desde la línea de comandos al
+registro del sistema, el comando `systemd-cat` tiene un propósito similar (pero más completo)
+con el diario del sistema. Nos permite enviar la entrada estándar (stdin), la salida (stdout) y
+el error (stderr) al diario.
+
+Si se invoca si parámetros, enviará todo lo que lea de stdin al diario. Una vez que haya terminado,
+pulse `Ctrl + C`:
+
+    systemd-cat
+
+Si se le pasa la salida de un comando canalizado, este se enviará también al diario:
+
+    echo "This a message from journal" | systemd-cat
+
+Si va seguido de un comando, la salida de ese comando también se enviará al diario, junto con
+stderr (si lo hay):
+
+    systemd-cat echo "This a message from journal"
+
+También existe la posibilida de especificar un nivel de prioridad con la opción `-p`:
+
+    systemd-cat -p emerg echo "This a message from journal"
+
+Para ver las últimas cuatro líneas del diario utilice:
+
+    sudo journalctl -n 4
+
+#### Almacenamiento persistente del diario
+Tiene tres opciones en cuanto a la ubicación del diario:
+- El registro del diario puede ser desactivoado por completo (aunque la redirección a otras instalaciones como la consola sigue siendo posible).
+- Mantenerlo en memoria (lo que lo hace volátil) y deshacerse de los registros con cada reinicio del sistema. En este escenario, el directorio `/run/log/journal` será creado y utilizado.
+- Hacerlo persistente para que escriba los registros en el disco. En este caso, los mensajes de registro irán al directorio `/var/log/journal`.
+
+El comportamiento por defecto es el siguiente: `/var/log/journal/` no existe, los registros se
+guardarán de forma volátil en un directorio en `/run/log/journal/` y, por lo tanto, se perderán al
+reiniciar. El nombre del directorio (`/etc/machine-id`) es una cadena hexadeciaml de re caracteres
+en minúsculas terminada en una nueva línea:
+
+    ls /run/log/journal/journal/8821e1fdf176445697223244d1dfbd73/
+
+Si intentas leerlo con `less` recibirás una advertencia, así que en su lugar utiliza el comando
+`journalctl`:
+
+    journalctl
+
+Si `/var/log/journal/` existe, los registros se almacenarán allí de forma predeterminada. Si se
+elimina este directorio, `systemd-journald` no lo recreará, sino que escribirá en `/run/log/journal/`.
+Tan pronto como creemos `/var/log/journal/` de nuevo y reiniciemos el demonio, el registro
+persistente se restablecerá:
+```sh
+sudo mkdir /var/log/journal
+sudo systemctl restart systemd-journald
+sudo journalctl
+```
+Además de lo que acabamos de mencionar, la forma en que el demonio del diario se ocupa del
+almacenamiento del registro puede cambiarse después de la instalación ajustando su archivo de
+configuración: `/etc/systemd/journald.conf`. La opción clave es `Storage=` y puede tener los
+siguientes valores:
+- **`Storage=volatile`**: los datos del registro se almacenarán exclusivamente en la memoria en `/run/log/journal/`. Si no está ŕesente, se creará el directorio.
+- **`Storage=persistent`**: por defecto, los datos de registro se almacenarán en el disco en `/var/log/journal/` con un retorno a la memoria (`/run/log/journal/`) durante las primeas etapas de arranque y si el disco no es escribible. Ambos directorio se crearán si es necesario.
+- **`Storage=auto`**: `auto` es similar a `persistent`, pero en este caso el directorio `/var/log/journal/` no se crearan si no fuese necesario. Esta es la opción por defecto.
+- **`Storage=none`**: todos los datos de registro serán descartados. Sin embargo, el reenvío a otros objetivos como la consola, el buffer de registro del kernel o un socket sigue siendo posible.
+
+Por ejemplo, para que `systemd-journald` cree `/var/log/journal/` y cambie al almacenamiento
+persistente, debe editar `/etc/systemd/journald.conf` y establecer `Storage=persistent`, guardar
+el archivo y reiniciar el demonio con `sudo systemctl restart systemd-journald`. Para asegurar
+de que el reinicio ha sido perfecto, siempre puede revisar comprobar el estado del demonio:
+
+    sudo systemctl status systemd-journald
+
+> Los archivos del diario en `/var/log/journal/<machine-id>/` o `/run/log/journal/<machine-id>/` tienen el sufijo `.journal` (por ejemplo, `system.journal`). Sin embargo, si se encuentran que están corruptos o el demonio se detiene de forma poco limpia, se renombrarán añadiendo `~` (por ejemplo, `system.journal~`) y el demonio empesará a escribir en un archivo nuevo y limpio.
+
+#### Eliminación de datos antiguos del diario: tamaño del diario
+Los registros se guardan el archivos de diario cuyos nombres terminan en `.journal` o `.journal~` y
+se encuentran en el directorio apropiado (`/run/log/journal/` o `/var/log/journal/` según se haya
+configurado). Para comprobar cuánto espacio de disco ocupan actualmente los archivos de diario
+(tanto los archivados como los activos), utilice el parámetro `--disk-usage`:
+
+    sudo journalctl --disk-usage
+
+Los registros de `systemd` opcuapn por defecto un máximo del 10% del tamaño del sistema de archivos
+donde se almacenan. Por ejemplo, en un sistema de archivos de 1GB no ocuparán más de 100MB.
+Una vez alcanzado este límite, los registros antiguos empezarán a desaparecer para mentenerse
+cerca de este valor.
+
+Sin embargo, la aplicación del límite de tamaño de los archivos de diario almacenados puede
+gestionarse ajustando una serie de opciones de configuración en `/etc/systemd/journald.conf`.
+Estas dos opciones de dividen en dos categorías dependiendo del tipo de sistema de archivos
+utilizado: persistente (`/var/log/journal/`) o en memoria (`/run/log/journal/`). La primera utiliza
+opciones que llevan como prefijo la palabra `System` y solo se aplicarán si el registro persistente
+está correctamente habilitado y una vez que el sistema haya arrancado por completo. Los nombres
+de las opciones de la segunda comienzan cn la palabra `Runtime` y se aplicarán en los siguientes
+escenarios:
+- **`SystemMaxUse=, RuntimeMaxUse=`**: controlan la cantidad de espacio en disco que puede ocupar el diario. Por defecto es el 10% del tamaño del sistema de archivo, pero puede modificarse (por ejemplo, `SystemMaxUse=500M`) siempre que no supere un máximo de 4GiB.
+- **`SystemKeepFree=, RuntimeKeepFree=`**: controlan la cantidad de espacio en disco que debe quedar libre para otros usuarios. Por defecto es el 15% del tamaño del sistema de archivos, pero puede modificarse (por ejemplo, `SystemkeepFree=500M`) siempre que no supere un máximo de 4GiB.
+
+En cuanto a la precedencia de `*MaxUse` y `*KeepFree`, `systemd-journald` satisfará ambos valores
+utilizando el menor de los dos. Asimismo, tenga en cuenta que solo se eliminan los ficheros de
+diario archivados (en contraposición a los arctivos).
+
+- **`SystemMaxFilesSize=, RuntimeMaxFilesSize=`**: controlan el tamaño máximo al que pueden crecer los archivos individuales del diarios. El valor por defecto es 1/8 de `*MaxUse`. La reducción se realiza de forma sincrónica y los valores pueden especificarse en bytes o utilizando K, M, G, T, P, E para Kibibytes, Mebibytes, Gibibyte, Tebibytes y Exbibytes, respectivamente.
+- **`SystemMaxFiles=, RuntimeMaxFiles=`**: establece el número máximo de ficheros de diario individuales y archivados a almacenar (los ficheros de diario activos no se ven afectados). El valor predeterminado es 100.
+
+Además del borrado y la rotación de los mensajes de registro basados en el tamaño, `systemd-journald`
+también permite criterios basados en el tiempo utilizando las dos opciones siguientes:
+`MaxRetentionSec=` y `MaxFileSec=`.
+
+#### Limpiando el journal
+Puede limpiar manualmente los ficheros de diario archivados en cualquier momento con cualquiera
+de las tres opciones siguientes:
+- **`--vacuum-time=`**: esta opción basada en el tiempo eliminará todos los mensajes de los archivos de diario con una marca de tiempo más antigua que el marco temporal especificado. Los valores deben escribirse con cualquiera de los siguientes sufijos `s`, `m`, `h`, `days` (o `d`), `months`, `weeks` (o `w`) y `years` (o `y`). Por ejemplo, para eliminar todos los mensajes de los ficheros de diario archivados que tengan más de un mes de antigüedad: `sudo journalctl --vacuum-time=1months`.
+- **`--vacuum-size=`**: esta opción basada en el tamaño borrará los ficheros de diario archivados hasta que ocupen un valor inferior al tamaño especificado. Los valores deben escribirse con cualquiera de los siguientes sufijos: `K`, `M`, `G` o `T`. Por ejemplo, para eliminar los ficheros de diario archivados hasta que estén por debajo del 100 Mebibites: `sudo journalctl --vacuum-size=100M`.
+- **`--vacuum-files=`**: esta opción se encargará de que no queden más ficheros de diario archivados que el número especificado. El valor es un número entero. Por ejemplo, para limiar el número de ficheros de diario archivados a 10: `sudo journalctl --vacuum-files=10`.
+
+La aspiración solo elimina los archivos del diario archivados. Si quiere deshacerse de todo
+(incluidos los archivos de diario activos), debe utilizar una señal (`SIGUSR2`) que solicite la
+rotación inmediate de los archivos de diarios con la opción `--rotate`. Otras señales importantes
+pueden ser invocadas con las siguientes opciones:
+- **`--flush (SIGUSR2)`**: solicite el volcado de los archivos del diario desde `/run/` a `/var/` para que el diario sea persistente. Requiere que el registro persistente esté habilitado y que `/var/` esté montado.
+- **`--sync (SIGRTMIN+1)`**: se utiliza para solicitar que todos los datos del registro no escritos se escriban en disco.
+
+> para comprobar la consistencia interna del archivo del diario, utilice `sudo journalctl --verify`. Verá una barra de progreso mientras se realiza la comprobación y se mostrará posibles problemas.
+
+#### Recuperación de datos del diario de un sistema de rescate
+Como administrador del sistema puede encontrarse en una situación en la que necesite acceder a los
+archivos del diario en el disco duro de una máquina defectuosa a través de un sistema de rescata
+(un CD de arranque o una llave USB que contenga una distribución de Linux en vivo).
+
+`journalctl` busca los archivos del diario en `/var/log/journal/<machine-id>/`. Debido a que los ID
+de las máquinas en los sistemas de rescate y en los sistemas defectuosos serán diferentes, debe
+utilizar la siguiente opción:
+
+**-D </path/to/dir>, --directory=</path/to/dir>**: con esta opción, especificamos una ruta de
+directorio donde `journalctl` buscará los archivos del diario en lugar de las ubicaciones por defecto
+del tiempo de ejecución y del sistema.
+
+Por lo tanto, es necesario que monte el `rootfs` del sistema defectuoso (`/dev/sda1`) en el sistema
+de archivos en modo rescate y proceda a leer los archivos del diario así:
+
+    sudo journalctl -D /media/carol/faultu.system/var/log/journal/
+
+Otras opciones que pueden ser útiles en este escenario son:
+- **`-m, --merge`**: combina las entradas de todos los diarios disponibles en `/var/log/journal/`, incluidos los remotos.
+- **`--file`**: monstrará las entradas de un archivo específico, por ejemplo: `sudo journalctl --file /var/log/journal/64319965bda04dfa81d3bc4e7919814a/user-1000.journal`.
+- **`--root`**: se pasa como argumento una ruta de directorio que significa el directorio raíz `journalctl` buscará allí los archivos del diario (por ejemplo, `sudo journalctl --root /faulty.system/`).
+
+#### Reenvío de datos de registro a un demonio `syslog` tradicional
+Los datos de registro del diario pueden ponerse a disposición de un demonio `syslog` tradicional:
+- Reenvío de mensajes al fichero socket `/run/systemd/journal/syslog` para que lo lea `syslog`. Esta facilidad se activa con la opción `ForwardToSyslog=yes`.
+- Tener un demonio `syslog` que se compore como `journalctl`, por lo tanto leyendo los mensajes de registro directamente de los archivos del diario. En este caso, la opción relevante es la de `Storage`; debe tener un valor distinto de `nono`.
+
+## Conceptos básicos del Agente de Transferencia de Correo
+En los sistema operativos tipo Unix, como Linux, cada usuario tiene su propia bandeja de entrada:
+una unicación especial en el sistema de archivos a la que no pueden acceder otros usuario que no
+sean root y que almacena los mensajes de correo electrónico personal del usuario. Los nuevos
+mensajes entrantes son añadidos a la bandeja de entrada del usuario por *Mail Transfer Agent*
+(MTA). El MTA es un programa que se ejecuta como un servicio del sistema y que recoge los mensajes
+enviados por otras cuentas locales, así como los mensajes recibidos de la red, enviados desde
+cuentas de usuarios remotos.
+
+El mismo MTA es también responsable de enviar mensajes a la red, si la dirección de destino se
+refiere a una cuenta remota. Para esto, utiliza una ubicación del sistema de archivos como buzón
+de salida de correo para todos los usuarios del sistema: tan pronto como un usuario coloque
+un nuevo mensaje en el buzón de salida, el MTA identificará el nodo de red de destino a
+partir del nombre de dominio dao por la dirección del correo de destino (después del signo @)
+intentará transferir el mensaje al MTA remoto utilizando el protocolo simple de tranferencia
+de correo (SMTP). SMTP se diseño tomando en cuenta las redes poco fiables, por lo que intentará
+establecer rutas de entraga alternativas si el no principal de destino del correo es inalcanzable.
+
+#### MTA local y remoto
+Las cuentas de usuario tradicionales en máquinas conectadas a la red constituyen el escenario de
+intercambio de correo más sencillo, en este, cada nodo de la red ejecuta su propio demonio
+MTA y no requiere ningún otro software aparte del MTA para enviar y recibir mensajes de correo.
+En la práctica, sin embargo, es más común utilizar una cuenta de correo remota y no tener un
+servicio MTA local activo (es decir, utilizar una aplicación cliente de correo para acceder
+a la cuenta remota).
+
+A diferencia de las cuentas locales, una cuenta de correo remota (también llamada buzón remoto)
+requier la autenticación del usuario para concederle acceso al buzón y al MTA remoto (en este
+caso, llamado simplemente servidor SMTP). Mientras que el usuario que interactúa con el buzón
+y un MTA locales ya está identificado por el sistema, un sistema remoto debe verificar la
+identidad del usuario antes de manejar sus mensajes a través de IMAP o POP3.
+
+Cuando se ejecuta un demonio MTA en el sistema local, los usuarios locales puende enviar un
+correo a otros usuarios locales o a usuarios de una máquina remota, siempre que su sistema
+también tenga un servicio MTA que acepte conexiones de red. El puerto TCP 25 es el estándar para
+la comunicación SMTP, pero también puede utilizar otros puertos, dependiendo del esquema de
+autenticación y/o cifrado que se utilice (si lo hay).
+
+Dejando de lado las topologías que implican el acceso a buzones remotos, se puede implementar una
+red de intercambio de correo entre cuentas de usuario ordinarias de Linux siempre que todos los
+nodos de la red tengan un MTA activo que sea capaz de realizar las siguientes tareas:
+- Mantener la cola de salida de los mensajes a enviar. Para cada mensaje en cola, el MTA local evaluará el MTA de destino a partir de la dirección del destinatario.
+- Comunicarse con demonios MTA remotos utilizando SMTP. El MTA local debe ser capaz de utilizar el Protocolo Simple de Transferencia de Correo (SMTP) a través de la pila TCP/IP para recibir, enviar y redirigir mensajes de/a otros demonios MTA remotos.
+- Mantener una baneja de entrada individual para cada cuenta local. El MTA suele almacenar los mensajes en el formato *mbox*: que es el único archivo de texto que contiene todos los mensajes de correo en secuencia.
+
+Normalmente, las direcciones de correo especifican un nombre de dominio como ubicación, por ejemplo
+`lpi.org` en `info@lpi.org`. En este caso, el MTA del remitente consultará al servicio DNS al registro
+MX correspondiente. El registro DNS MX contiene la dirección IP del MTA que gestiona el correo
+para ese dominio. Si el mismo dominio tiene más de un registro MX especificado en el DNS, el MTA
+debe intentar ponerse en contacto con ellos según sus valores de prioridad. Si la dirección del
+destinatario no especifica u nombre de dominio o el dominio no tiene un registro MX, la parte
+que sigue al símbolo `@` se tratará como el host del MTA de destino.
+
+Hay que tener en cuenta los aspectos de seguridad si los hosts MTA van a ser visibles para los
+hosts de Internet. Por ejemplo, es posible que un ususrio desconocido utilice el MTA local para
+hacerse pasar por otro usuario y enviar correos potencialmente dañinos. Un MTA que retransmite
+ciegamente un correo se conoce como retrasmisión abierta, cuando puede ser utilizado como
+intermediario para disfrazar potencialmente el verdadero remitente del mensaje. Para evitar estos
+usos indebidos, la recomendación es aceptar conexiones solo de dominios autorizados e
+implemetar un esquema de autenticación seguro.
+
+#### MTAs de Linux
+El MTA tradicional disponible para los sistemas Linux es *Sendmail*, un MTA de porpósito general muy
+flexible utilizado por muchos sistemas operativos tipo Unix. Otros MTA comunes son *Postfix*,
+*qmail* y *Exim*. La razón principal para elegir un MTA alternativo es implementar características
+avanzadas más facilmente, ya que configurar servidores de correo peronalizados en Sendmail puede
+ser una tarea complicada. Además, cada distribución puede tener su MTA preferido, con configuraciones
+predefinidas. Todos los MTA pretender ser sustitutos de Sendmail, por lo que todas las
+aplicaciones compatibles con Sendmail deberían funcionar independientemente del MTA que se utilice.
+
+Si el MTA está funcionando, pero no acepta conexiones de red, solo podrás entregar mensajes de
+correo en la máquina local. Para el MTA `sendmail`, el archivo `/etc/mail/sendmail.mc` debe ser
+modificado para acpetar conexiones no locales. Para ello, la entrada sera la siguiente:
+
+    DAEMON_OPTIONS(`Port=smtp,Addr=127.0.0.1, Name=MTA')dnl
+
+Debe modificarse a la dirección de red correcta y el servicio debe reiniciarse. Algunas
+distribuciones de Linux, como Debian, pueden ofrecer herramientas de configuración para ayudar
+a poner en marcha el servidor de correo con un conjunto predefinido de características de
+uso común.
+
+Una vez que el MTa está funcionando y aceptando conexiones de la red, los nuevos mensajes de
+correo se le pasan comandos SMTP que se envían a través de una conexión TCP. El comando `nc`
+(una utilidad de red que lee y escribe datos genéricos a través de la red) puede utilizarse para
+enviar comandos SMTP directamente al MTA. Si el comando `nc` no está disponible, se instalará
+con el paquete *ncat* o *nmap-ncat*, dependiendo del sistema de gestión de paquetes que se utilice.
+Escribir comando SMTP directamente al MTA le ayudará a entender mejor el protocolo y otros
+conceptos generales del correo, pero también pueden ayudar a diagnosticar problemas en el proceso
+de entrega del correo.
+
+Si, por ejemplo, el usuario `emma` en el host `lab1.campus` quiere enviar un mensaje al usuario
+`dave` en el host `lab2.campus`, entonces puede usar el comando `nc` para concetarse directamente al
+MTA `lab2.campus`, asumiendo que está escuchando en el puerto TCP 25:
+```sh
+nc lab2.campus 25
+220 lab2.campus ESMTP Sendmail 8.15.2/8.15.2; Sat, 16 Nov 2019 00:16:07 GMT
+HELO lab1.campus
+250 lab2.campus Hello lab1.campus [10.0.3.134], pleased to meet you
+MAIL FROM: emma@lab1.campus
+250 2.1.0 emma@lab1.campus... Sender ok
+RCPT TO: dave@lab2.campus
+250 2.1.5 dave@lab2.campus... Recipient ok
+DATA
+354 Enter mail, end with "." on a line by itself
+Subject: Recipient MTA Test
+Hi Dave, this is a test for your MTA.
+.
+250 2.0.0 xAG0G7Y0000595 Message accepted for delivery
+QUIT
+221 2.0.0 lab2.campus closing connection
+```
+Una vez establecida la conexión, el MTA remoto se identifica y está listo para recibir comandos MTA.
+El primer comando SMTP del ejemplo, `HELO lab1.campus`, indica que `lab1.campus` es el indicador del
+intercambio. Los dos siguientes comandos, `MAIL FROM: emma@lab1.campus` y `RCPT TO: dave@lab2.campus`,
+indican el remitente y el destinatario. El mensaje de correo propiamente dicho comienza después
+del comando `DATA` y termina con un punto en una línea por sí mismo. Para añadir un campo `subject`
+al correo, debe estar en la primera línea después del comando `DATA`, como se muestra en el ejemplo.
+Cuando se utiliza el campo de asunto, debe haber una línea vacía que lo separe del contenido del
+correo. El comando `QUIT` termina la conexión con el MTA en el host `lab2.campus`.
+
+En el host `lab2.campus`, el usuario `dave` recibirá un mensaje similar a `You have a new mail in /var/spool/mail/dave`
+tan pronto como entre en una sesión de shell. Este archivo contendraá el mensaje de correo
+en bruto enviado por `emma` así como las cabeceras añadidad por el MTA:
+```sh
+cat /var/spool/mail/dave
+From emma@lab1.campus
+Sat Nov 16 00:19:13 2019
+Return-Path: <emma@lab1.campus>
+Received: from lab1.campus (lab1.campus [10.0.3.134])
+by lab2.campus (8.15.2/8.15.2) with SMTP id xAG0G7Y0000595
+for dave@lab2.campus; Sat, 16 Nov 2019 00:17:06 GMT
+Date: Sat, 16 Nov 2019 00:16:07 GMT
+From: emma@lab1.campus
+Message-Id: <201911160017.xAG0G7Y0000595@lab2.campus>
+Subject: Recipient MTA Test
+Hi Dave, this is a test for your MTA.
+```
+La cabecera `Received`: muestra que el mensaje de `lab1.campus` fue recibido directamente por
+`lab2.campus`. Por defecto, los MTAs solo aceptan mensajes a destinatarios locales. El siguiente
+error probablemente ocurrirá si el usuario `emma` intenta enviar un correo al usuario `henry` en
+el host `lab3.campus`, pero utilizando el MTA `lab2.campus` en lugar del MTA apropiado `lab3.campus`:
+```sh
+nc lab2.campus 25
+220 lab2.campus ESMTP Sendmail 8.15.2/8.15.2; Sat, 16 Nov 2019 00:31:44 GMT
+HELO lab1.campus
+250 lab2.campus Hello lab1.campus [10.0.3.134], pleased to meet you
+MAIL FROM: emma@lab1.campus
+250 2.1.0 emma@lab1.campus... Sender ok
+RCPT TO: henry@lab3.campus
+550 5.7.1 henry@lab3.campus... Relaying denied
+```
+Los números de respuesta SMTP que empiezan por 5, como el mensaje `Relaying denied`, indican un
+error. Hay sistuaciones legítimas en las que la retrasmisión es deseable, como cuando los hosts
+que envían y reciben correos no están conectados todo el tiempo: se puede configurar un MTA
+intermedio para que acepte los correos destinados a otros hosts, actuando como un servidor
+SMTP de retrasmisión que puede reenviar mensajes entre MTAs.
+
+La posibilidad de enrutar el tráfico de correo a través de servidores SMTP intermedios desaconseja
+el intento de conectarse direactemente al host inidicado por la dirección de correo del
+destinatario, como se muestra en los ejemplos anteriores. Además, las direcciones suelen tener
+de dominio como ubicación (después de la `@`), por lo que el nombre real del host MTA
+correspondiente debe ser recuperado a través de DNS. Por lo tanto, se recomienda delegar la tarea
+de identificar el host de destino apropiado al MTA local o al servidor SMTP remoto, cuando se
+utilizan buzones remotos.
+
+Sendmail proporciona el comando `sendmail` para realizar muchas operaciones relacionadas con el
+correo, incluyendo la asistencia en la composición de nuevos mensajes. También requiere que el
+usuario escriba las cabeceras del correo a mano, pero de una forma más amigable que utlizando
+los comandos SMTP directamente. Así que un método más adecuado para el usuario `emma@lab1.campus`
+envíe un mensaje de corre a `dave@lab2.campus` sería:
+```sh
+sendmail dave@lab2.campus
+From: emma@lab1.campus
+To: dave@lab2.campus
+Subject: Sender MTA Test
+Hi Dave, this is a test for my MTA.
+.
+```
+También en este caso, el punto en una línea por sí mismo termina el mensaje. El mensaje debería ser
+enviado inmediatamente al destinatario, a menos que el MTA local no se haya podido contactar con el
+MTA remoto. El comando `mailq`, si es ejecutado como root, mostrará todos los mensajes no
+entregados. Si, por ejemplo, el MTA de `ñab2.campus` no ha responido, el comando `mailq` monstrará
+el mensaje no entregado y la causa del fallo:
+```sh
+mailq
+/var/spool/mqueue (1 request)
+-----Q-ID----- --Size-- -----Q-Time----- ------------Sender/Recipient-----------
+xAIK3D9S000453
+36 Mon Nov 18 20:03 <emma@lab1.campus>
+(Deferred: Connection refused by lab2.campus.)
+<dave@lab2.campus>
+Total requests: 1
+```
+La ubicación por defecto de la cosa de salida es `/var/spool/mqueue/`, pero diferentes MTAs pueden
+utilizar diferentes ubicaciones en el directorio `/var/spool/`. Postfix, por ejemplo, creará un
+árbol de directorios en `/var/spool/postfix/` para gestionar la cola. El comando `mailq` es
+qeuivalente a `sendmail -bp`, debe estar presente independientemente del MTA instalado en el sistema.
+Para asegurar la compatibilidad con versiones anteriores, la mayoría de los MTAs proporcionan
+estos comandos tradicionales de administración de correo.
+
+Si el host principal de destino del correo (cuando se proporciona desde un registro DNS MX
+para el dominio) es inalcanzable, el MTA intentará ponerse en contacto con las entradas con menor
+prioridad (si hay alguna especificada). Si ninguna de ellas es alcanzable, el mensaje permancerá
+en la cola de la bandeja de salida local para ser enviado más tarde. Si se configura para ello,
+el MTA puede comprobar periódicamente la disponibilidad de los hosts remotos y realizar un nuevo
+intento de entraga. Si se utiliza un MTA compatible con Sendmail, ser realizará inmediatamente
+un nuevo intento con el comando `sendmail -q`.
+
+Sendmail almacenará los mensajes entrantes en un archivo con el nombre del propietario de la
+bandeja de entrada correspondiente, por ejemplo `/var/spool/mail/dave`. Otros MTA, como Postfix,
+pueden almacenar los mensajes de correo entrantes en ubicaciones como `/var/mail/dave`, pero el
+contenido del archivo es el mismo. En el ejemplo, el comando `sendmail` se utilizó en el host del
+remitente para crear el mensaje, por lo que las cabeceras de los mensajes sin procesar muestran
+que el correo siguió pasos adicionales antes de llegar al destino final:
+```sh
+cat /var/spool/mail/dave
+From emma@lab1.campus
+Mon Nov 18 20:07:39 2019
+Return-Path: <emma@lab1.campus>
+Received: from lab1.campus (lab1.campus [10.0.3.134])
+    by lab2.campus (8.15.2/8.15.2) with ESMTPS id xAIK7clC000432
+    (version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NOT)
+    for <dave@lab2.campus>; Mon, 18 Nov 2019 20:07:38 GMT
+Received: from lab1.campus (localhost [127.0.0.1])
+    by lab1.campus (8.15.2/8.15.2) with ESMTPS id xAIK3D9S000453
+    (version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NOT)
+    for <dave@lab2.campus>; Mon, 18 Nov 2019 20:03:13 GMT
+Received: (from emma@localhost)
+    by lab1.campus (8.15.2/8.15.2/Submit) id xAIK0doL000449
+    for dave@lab2.campus; Mon, 18 Nov 2019 20:00:39 GMT
+Date: Mon, 18 Nov 2019 20:00:39 GMT
+Message-Id: <201911182000.xAIK0doL000449@lab1.campus>
+From: emma@lab1.campus
+To: dave@lab2.campus
+Subject: Sender MTA Test
+
+Hi Dave, this is a test for my MTA.
+```
+De abajo a arriba, las líneas que comienzan con `Received:` muestran la ruta seguida por el mensaje.
+El mensaje fue enviado por el usuario `emma` con el comando `sendmail dave2@lab2.campus` emitido en
+`lab1.campus`, como se indica en la primera cabecera `Received:`. A continuación, todavía en
+`lab1.campus`, el MTA utiliza ESMTPS (un superconjunto del SMTP, que añade extensiones de cifrado)
+para enviar el mensaje el MTA en `lab2.campus`, como se indica en la última cabecera (superior)
+`Received:`.
+
+El MTA termina su trabajo una vez que el mensaje se guarda en la bandeja de entrada del usuario.
+Es habitual realizar algún tipo de filtrado de correo, como el bloqueo de spam o la aplicación
+de reglas de filtrado definidas por el usuario. Estas tareas son ejecutadas por aplicaciones de
+terceros, que trabajan conjuntamente con el MTA. El MTA podría, por ejemplo, llamar a la utilidad
+*SpamAssassian* para marcar los mensajes sospechosos utilizando sus funciones de análisis de texto.
+
+Aunque es posible, no es conveniente leer el archivo del buzón directamente. Se recomienda utilizar
+en su lugar un programa cliente de correo (por ejemplo Thunderbird, Evolution o KMail), que
+analizará el archivoy gestionará adecuadamente los mensajes. Estos programas también ofrecen
+funciones adicionales, como accesos directos comunes, subdirectorios de la bandeja de entrada, etc.
+
+#### El comando `mail` y los agentes de usuario de correo (MUA)
+pg352
