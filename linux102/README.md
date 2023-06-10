@@ -3477,4 +3477,469 @@ analizará el archivoy gestionará adecuadamente los mensajes. Estos programas t
 funciones adicionales, como accesos directos comunes, subdirectorios de la bandeja de entrada, etc.
 
 #### El comando `mail` y los agentes de usuario de correo (MUA)
-pg352
+Es posible escribir un mensaje de correo directamente en su formato crudo, pero es mucho más
+práctico utilizar una applicación cliente (también conocida como MUA *Agente de Usuario de Correo*)
+para acelerar el proceso y evitar errores. El MUA se encarga del trabajo bajo el capó, es decir,
+el cliente de correo presenta y organiza los mensajes recibidos y maneja la comunicación
+adecuada con el MTA después de que el usuario compone un correo.
+
+Hay muchos tipos distintos de agentes de usuario de correo. Las aplicaciones de escritorio, como
+Mozilla Thunderbird y Evolution de Gnome soportan cuentas de correo tanto locales como remotas.
+Inlcuso las interfaces de Webmail pueden considerarse un tipo de MUA, ya que interviene la
+interacción entre el usuario y el MTA subyacente. Sin embargo, los clientes de correo no se
+limitan a las interfaces gráficas. Los clientes de correo de consola se utilizan ampliamente para
+acceder a los buzones no integrados en una interfaz gráfica y para automatizar las tareas
+relacionadas con el correo dentro de los scripts de shell.
+
+Originalmente, el comando `mail` de Unix solo estaba pensado para compartir mensajes entre usuarios
+del sistema local. Cuando los intercambios de correo en red se hicieron más importantes, se crearon
+otros programas para hacer frente al nuevo sistema de entraga y sustituyeron gradualmente `mail`.
+
+Hoy en día, el comando `mail` más utilizado es el proporcionado por el paquete *mailx*, que es
+compatible con todas las características modernas del correo. En la mayoría de las distribuciones
+de Linux, el comando `mail` es solo un enlace simbólico al comando `mailx`. otras implementaciones,
+como el paquete *GNU MAilutils*, proporcionan básicamente las mismas características que `mailx`.
+Sin embargo, existen ligeras diferencias entre ellas, especialmente en lo que respecta a las
+opciones de línea de comandos.
+
+Independientemente de su implementación, todas las variantes modernas del comando `mail` funcionan
+en dos modos: modo normal y modo de envío. Si se proporciona un dirección de correo como argumento
+al comando `mail`, este entrará en modo de envío, de lo contrario entrará en modo normal (lectura).
+En el modo normal, los mensajer recibidos se listan con un índice numérico para cada uno, de modo
+que el usuario puede referirse a ellos individualmente cuando escribe comando en el prompt
+interactivo. El comando `print 1` puede utilizarse para mostrar el contenido del mensaje número 1,
+por ejemplo. Los comandos interactivos puden ser abreviados, por lo que el comando `print`,
+`delete` y `reply` pueden ser reemplazados por `p`, `d` o `r`, respectivamante. El comando `mail`
+siempre considerará el último mensaje recibido o el último visto cuando se omita el número de índice
+del mensaje. El comando `quit` o `q` terminará el programa.
+
+El modo *send mode* es especialmente útil para enviar mensajes de correo automatizados. Puede
+utilizarse, para enviar un correo al administrador del sistema si un script de mantenimiento
+programado no realiza su tarea. En el modo de envío, `mail` utilizará el contenido de la entrada
+estándar como cuerpo del mensaje:
+
+    mail -s "Maintenance fail" henry@lab3.campus <<<"The maintenance script failed at `date`"
+
+En este ejemplo, se añadió la opción `-s` para incluir un campo de asunto al mensaje. El cuerpo del
+mensaje fue proporcionado por la redirección de *Hereline* a la entrada estándar, pero el contenido
+de un archivo o salida de un comando también podría ser canalizados al stdin del programa. Si no
+se proporciona ningún contenido mediante una redirección a la entrada estándar, el programa
+esperará a que el usuario introduzca el cuerpo del mensaje. En este caso, la puslación de la tecla
+`Ctrl + D` finalizará el mensaje. El comando `mail` saldrá inmediatamente después de que el mensaje
+se añada a la cola de salida.
+
+#### Personalización de la entraga
+Por defecto, las cuentas de correo en un sistema Linux están asociadas a las cuentas estándares del
+sistema. Por ejemplo, Si el usuario Carol tiene el nombre de usuario `carol` en el host `lab2.campus`
+entonces su dirección de correo será `carol@lab2.campus`. Esta asociación uno a uno entre las cuentas
+del sistema y los buzones del correo puede ser extenida por métodos estándares proporcionados por
+la mayoría de las distribuciones de Linux, en particular el mecanismo de enrutamiento de correo
+proporcionado por el archivo `/etc/aliases`.
+
+Un alias de correo es un destinatario de correo "virtual" cuyos mensajes recibidos se redirigen a
+buzones locales existentes o a otros tipos de destinos de almacenamiento o procesamiento de
+mensajes. Los alias son útiles, por ejemplo, para colocar los mensajes enviados a
+`postmaster@lab2.campus` en el buzón de Caro, que es un buzón local ordinario en el sistema
+`lab2.campus`. Para ello, se debe añadir la línea `postmaster: carol` al fichero `/etc/aliases`
+en `lab2.campus`. Después de modificar el archivo `/etc/aliases`, se debe ejecutar el comando
+`newaliases` para actualizar la base de datos de alias del MTA y hacer efectivos los cambios. Los
+comandos `sendmail -bi` o `sendmail -I` también pueden utilizarse para actualizar la base de datos de
+alias. Los alias se definen por línea, con el formato `<alias>:<destino>`. Además de los buzones
+locales ordinarios, indicados por el nombre de usuario correspondiente, existen otros tipos
+de destino:
+- Una ruta completa (que comienza con `/`) a un archivo. Los mensajes enviados al alias correspondiente se añadirán al archivo.
+- Un comando para procesar el mensaje. El `<destino>` debe comenzar con un carácter de tubería y si el comando contiene caracteres especiales (como espacios en blanco), debe ir entre comillas dobles. Por ejemplo, el alias `subscribe: |subscribe.sh en lab2.campus` reenviará todos los mensajes enviados a `suscribe@lab2.campus` a la entrada estándar del comando `suscribe.sh`. Si sendamil se ejecuta en modo shell restringido, los comandos permitidos (o los enlaces a ellos) deben estar en `/etc/smrsh/`.
+- Un archivo de inclusión. Un solo alias puede tener múltiples destinos (separados por coma), por lo que puede ser más práctico mantenerlos en un archivo externo. La palabra clave `:include:` debe indicar la ruta del archivo, como en `:include:/var/local/destinos`.
+- Una dirección externa. los alias también pueden reenviar mensajes a direcciones de correo externas.
+- Otro alias.
+
+Un usuario local sin privilegios puede definir alias para su propio correo editando el archivo
+`.forward` en su directorio personal. Como los alias solo pueden afectar a su propio buzón, solo
+es necesaria la parte de `<destination>`. Para reenviar todos los correos entrantes a una dirección
+externa, por ejemplo, el usuario `dave` en `lab2.campus` podría crear el siguiente archivo
+`~/.forward`:
+```sh
+$ cat ~/.forward
+emma@lab1.campus
+```
+Reenviará todos loe mensajes de correo enviados a `dave@lab2.campus` a `emma@lab1.campus`. Al igual
+que con el fichero `/etc/aliases`, se pueden añadir (una por línea) otras reglas de redirección a
+`.forward`. Sin embargo, el archivo `.forward` debe ser escribible solo po su propietario y no es
+necesario ejecutar el comando `newaliases` después de modificarlo.
+
+## Gestión de la impresión y de las impresoras
+En Linux, así como en muchos otros sistemas operativos, la pila de software *Common Unix Printing System*
+(CUPS) permite imprimir y gestionar las impresoras desde un equipo. A continuación se muestra un
+esquema muy simplificado de cómo se imprime un archivo en Linux utilizando CUPS:
+1. Un usuario envía un archivo para ser impreso.
+
+2. El demonio de CUPS, `cupsd`, lo envía al spools el trabajo de impresión. Este trabajo de impresión recibe un número de trabajo por poarte de CUPS, junto con información sobre la cola de impresión que contiene el trabajo, así como el nombre del documento a imprimir.
+
+3. CUPS utiliza fisltros que están instalados en el sistema para generar un archivo con formato que la impresora puede utilizar.
+
+4. A continuación, CUPS envía el archivo formateado a la impresora para su impresión.
+
+#### El servicio CUPS
+La mayoría de las instalaciones de escritorio de Linux tendrán los paquetes CUPS ya instalados. En
+las instalaciones mínimas de Linux los paquetes CUPS pueden no estarlo. Una intalación básica de
+CUPS puede realizarse en un sistema Debian así:
+
+    sudo apt install cups
+
+En los sistemas Fedora el proceso de instalación es igual de sencillo:
+```sh
+sudo dnd install cups
+sudo systemctl start cups.service
+```
+
+Como muchos otros demonios de Linux, CUPS depende de un conjunto de archivos de configuración para
+su operación. A continuación se listan los principales que son de interés para el administrador
+del sistema:
+- **`/etc/cups/cupsd.conf`**: este archivo contiene los ajustes de configuración para el servicio CUPS. Si está familiarizado con el archivo de configuración del servidor web Apache, el archivo de configuración de CUPS le parecerá bastane similar, ya que utiliza una sintaxis muy parecida. El archivo `cupsd.conf` contiene ajustes para cosas como el control del acceso a la diferentes colas de impresión de un sistema, si la interfaz web de CUPS está o no habilitada, así como el nivel de registro que el demonio utilizará.
+- **`/etc/printcap`**: este es el archivo heredado que fue utilizado por el protocolo LPD (Line Printer Daemon) antes de la llegada de CUPS. CUPS todavía creará este archivo en los sistemas para la  compatibilidad heredada y es a menudo un enlace simbólico a `/run/cups/printcap`. Cada línea de este archivo contiene una impresora a la que el sistema tiene acceso.
+- **`/etc/cups/printers.conf`**: este archivo contiene cada una de las impresoras configuradas para ser utilizadas por el sistemas CUPS. Cada impresora y su cola de impresión asociada en este archivo está encerrada dentro de una sección `<Printer></Printer>`. Este archivo proporciona los listados individuales de impresoras que se encuentras en `/etc/printecap`.
+
+> No se debe realizar modificaciones en el archivo `/etc/cups/printers.conf` en la línea de comandos mientras el servicio CUPS está en funcionamiento.
+
+- **`/etc/cups/pdd/`**: no se trata de un archivo de configuración, sino de un directorio que contiene los arcivos *PostScript Printer Description* (PPD) de las impresras que los utilizan. Las capacidades operativas de cada impresora se almacena en un archivo PPD (que termina con la extensión `.ppd`). Estos archivos son de texto plano y siguen un formato específico.
+
+El servicio CUPS también utiliza el registro de la misma manera que el servicio Apache 2. Los
+registros se almacenan en `/var/log/cups/` y contiene un `access_log`, `page_log` y un `error_log`.
+El `access_log` mantiene un registro de los accesos a la interfaz web CUPS, así como las acciones
+realizadas en ella, como la gestión de impresoras. El `page_log` mantiene un registro de los trabajos
+de impresión que se han enviado a las cosas de impresión gestionadas por la instalación de CUPS.
+El `error_log` contendrá mensajes sobre los trabajos de impresión que han fallado y otros errores
+registrados por la interfaz web.
+
+#### Uso de la interfa web
+El archivo de configuración `/etc/cups/cupsd.conf` determina si la interfaz web del sistema CUPS está
+habilitada. La opción de configuración tiene el siguiente aspecto:
+```sh
+# Web interface setting...
+WebInterface Yes
+```
+Si la interfaz web está habilitada, entonces CUPS puede ser gestionado desde un navegador web en la
+URL, por defecto `http://localhost:631`. Por defecto, un usuario del sistema puede ver las impresoras
+y las colas de impresión, pero cualquier forma de modifiación de la configuración requiere un
+usuario con acceso de root para autenticarse con el servicio web. La sección de configuración dentro
+del archivo `/etc/cups/cupsd.conf` para restringir el acceso a las capacidades administrativas se
+parecerá a lo siguiente:
+```sh
+# All administration operations require an administrator to authenticate...
+<Limit CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class
+CUPS-Set-Default>
+    AuthType Default
+    Require user @SYSTEM
+    Order deny,allow
+</Limit>
+```
+A continuación se desglosan esas opciones:
+
+**`AuthType Default`**: utilizará una solicitud de autenticación básica cuando una acción requiera de
+acceso root.
+
+**`Require user @SYSTEM`**: indica que se requerirá un usuario con privilegios administrativos para la
+operación. Esto podría cambiarse a `@nombredelgrupo` donde los miembros de `nombredelgrupo` pueden
+administrar el servicio CUPS o se podría porporcionar a los usuarios individuales una lista como
+en `Requiere user carol, tim`.
+
+**`Order deny,allow`**: se emplea de forma muy parecida a la opción de configuración de Apache 2 donde
+la acción es denegada por defecto a menos que un usuario (o miembro de un grupo) esté autenticado.
+
+La interfaz web para CUPS se puede descativar deteniendo primero el servicio CUPS, cambiando la
+opción `WebInterface` de `Yes` a `No`, y luego reiniciando el servicio CUPS.
+
+La interfaz web CUPS está construida como un sitio web básico con pestañas de navegación para
+varias secciones del sistema CUPS. Las pestañas de la interfaz web incluyen lo siguiente:
+
+**Home**: la página de inicio mostrará la versión actual de CUPS que está instalada. También
+desglosa CUPS en secciones como:
+
+   **CUPS for Users**: proporciona una descripción de CUPS, opciones de línea de comando para trabajar
+   con impresoras y colas de impresión, y un enlace de foro de usuarios de CUPS.
+
+   **CUPS for Administrators**: proporciona enlaces en la interfaz para instalar y gestionar
+   impresoras y enlaces a información sobre cómo trabajar con impresoras en una red.
+
+   **CUPS for Developers**: proporciona enlaces para desarrollar el propio CUPS, así como crear
+   archivos PPD para las impresoras.
+
+**Administration**: la página de administración también está dividida en secciones:
+
+   **Printers**: aquí un administrador puede añadir nuevas impresoras al sistemas, localizar las
+   impresoras conectadas al sistema y gestionar las que ya están instaladas.
+
+   **Classes**: las clases son un mecanismo que permite añadir impresoras a grupos con políticas
+   específicas. Por ejemplo, una clase puede contener un grupo de impresoras que pertenecen a una
+   planta específica de un edificio en la que solo pueden imprimir los usuarios de un departamento
+   concreto. Otra clase puede tener limitaciones en el número de páginas que un usuario puede
+   imprimir. Las clases no se crean por defecto en una instalación de CUPS y tiene que ser
+   definidas por un administrador. Esta es la sección de la interfaz web de CUPS donde se pueden
+   crear y gestionar nuevas clases.
+
+   **Jobs**: aquí es donde un administrador puede ver todos los trabajos de impresión que están
+   actualmente en cola para todas las impresoras que esta instalación CUPS gestiona.
+
+   **Server**: aquí es donde un administrador puede hacer cambios en el archivo `/etc/cups/cupsd.conf`.
+   Además, hay otras opciones de configuración disponibles a través de casillas de verificación,
+   como permitir que las impresoras conectadas a esta instalación de CUPS se compartan en una red,
+   la autenticación avanzada y permitir la administración remota de impresoras.
+
+**Classes**: si las clases están configuradas en el sistema, aparecerán en esta página. Cada clase de
+impresora tendrá opciones para gestionar todas las impresoras de la clase a la vez, así como para
+ver todos los trabajos que están en la cola para las impresoras de esta clase.
+
+**Help**: esta pestaña proporciona enlaces para toda la documentación disponible para CUPS que está
+instalada en el sistema.
+
+**Jobs**: la pestaña trabajos permite buscar trabajos de impresión individuales, así como listar
+todos los trabajos de impresión actuales gestionados por el servidor.
+
+**Printers**: la pestaña impresoras muestra todas las impresoras gestionadas actualmente por el
+sistema, así como un resumen rápido del estado de cada impresora. Se puede hacer clic en cada una
+de las impresoras de la lista y el administrador accedará a la página en la que se puede gestionar
+la impresora en cuestión. la información de las impresoras en esta pestaña proviene del archivo
+`/etc/cups/printers.conf`.
+
+#### Instalación de una impresora
+Añadir una cola de impresión al sistema es un proceso sencillo  dentro de la interfaz web de CUPS:
+
+1. Haga clic en la pestaña de **Administración** y luego en el botón **Agregar impresora**.
+
+2. La siguiente página ofrecerá varias opciones dependiendo de como está contactada la impresora a su sistema. Si se trata de una impresora local, seleccione la opción más releveante, como el puerto al que está conectado la impresora o el software de impresión de teceros que pueda ser instalado. CUPS también intentará detectar las impresoras que están conectadas a la red y las mostrará. También puede elegir una opción de conexión directa a una impresora de red en función de los protocolos de impresión en red que admita la impresora. Seleccione la opción adecuada y haga clic en **Continuar**.
+
+3. La sigueiente página le permitirá proporcionar un nombre, una descripción y una ubicación (como "oficina trasera" o "escritorio principal", etc.) para la impresora. Si desea compartir esta impresora a través de la red, puede seleccionar la casilla de verificación para esta opción en esta página también. Una vez introducida la configuración, haga clic en el botón **Continuar**.
+
+4. En la siguiente página se puede seleccionar la marca y el modelo de la impresora. Esto permite a CUPS buscar en su base de datos instalada localmente los controladores y archivos PPD más adecuados para utilizar con la impresora. Si tiene un archivo PPD proporcionado por el fabricante de la impresora, busque una ubicación y seleccionelo para utilizarlo aquí. Una vez hecho esto, haga clic en el botón **Agregar impresora**.
+
+5. La última página es donde se establecen las opciones por defecto, como el tamaño de la página que utilizará la impresora y la resolución de los caracteres impresos en la página. Haga clic en el botón **Establecer opciones por defecto** y su impresora ya está instalada en el sistema.
+
+La cola de una impresora también puede instalarse utilizando los comandos LPD/LPR heredados. Aquí
+hay un ejemplo usando el comando `lpadmin`:
+
+    sudo lpadmin -p ENVY-4510 -L "office" -v socket://192.168.150.25 -m everywhere
+
+Vamos a desglosar el comando para ilustrar las opciones utilizadas aquí:
+- Dado que la adición de una impresora al sistema requiere un usuario con privilegios administrativos, anteponemos el comando `lpadmin` la palabra `sudo`.
+- La opción `-p` es el destino de los trabajos de impresión. Es esencialmente un nombre amigable para que el usuario sepa dónde aterrizarán los trabajos de impresión. Típicamente puede proporcionar el nombre de la impresora.
+- La opción `-L` es la ubicación de la impresora. Esto es opcional, pero es útil en caso de que tenga que gestionar varias impresoras en diferentes lugares.
+- La opción `-v` es para la URI del dispositivo de impresión. El URI del dispositivo es lo que la cola de impresión de CUPS necesita para enviar los trabajos de impresión realizados a una impresora específica. En nuestro ejemplo, estamos utilizando una ubicación de red empleando la dirección IP proporcionada.
+- La última opción `-m`, se establece como "everywhere". Esto establece el modelo de la impresora para que CUPS determine qué archivo PPD debe utilizar. En las versiones modernas de CUPS, es mejor utilizar "everywhere" para que CUPS pueda comprobar la URI del dispositivo (establecida con la opción anterior `-v`) para determinar automáticamente el archivo PPD correcto a utilizar para la impresora. En situaciones modernas, CUPS simplemente utilizará IPP.
+
+Es mejor que CUPS determine automáticamente qué archivo PPD debe utilizar para una cola de impresión
+en particular. Sin embargo, el comando (heredado) `lpinfo` puede ser utilizado para consultar los
+archivos PPD instalados localmente para ver cuáles están disponibles. Simplemente proporcione la
+opción `--make-and-model` para la impresora que desea instalar y la opción `-m`:
+```sh
+lpinfo --make-and-model "HP Envy 4510" -m
+hplip:0/ppd/hplip/HP/hp-envy_4510_series-hpijs.ppd HP Envy 4510 Series hpijs, 3.17.10
+hplip:1/ppd/hplip/HP/hp-envy_4510_series-hpijs.ppd HP Envy 4510 Series hpijs, 3.17.10
+hplip:2/ppd/hplip/HP/hp-envy_4510_series-hpijs.ppd HP Envy 4510 Series hpijs, 3.17.10
+drv:///hpcups.crv/hp-envy_4510_series.ppd HP Envy 4510 Series, hpcups 3.17.10
+everywhere IPP Everywhere
+```
+Tenga en cuenta que el comando `lpinfo` está obsoleto.
+
+> Las futuras versiones de CUPS han dejado de lados los controladores y en su lugar se centrerán en el uso de IPP (Protocolo de Impresión de Internet) y los formatos de archivo estándar. La salida del comando anterior ilustra esto con la capacidad de impresión `everywhere IPP everywhere`. IPP puede realizar las misma tareas para las que se utiliza un controlador de impresión. IPP, al igual que la interfaz web de CUPS, utiliza el puerto `631` con el protocolo TCP.
+
+Se puede establecer una impresora por defecto utilizando el comando `lpoptions`. De esta manera, si
+la mayoría (o todos) los trabajos de impresión se envian a una impresora en particular, la
+especificada con el comando `lpoptions` será la predeterminada. Solo hay que especificar la
+impresora junto con la opción `-d`:
+
+    lpoptions -d ENVY-4510
+
+#### Gestión de impresoras
+Una vez instalada una impresora, el administrador puede utilizar la interfaz web para gestionar
+las opciones disponibles para la impresora. Un enfoque más directo para la gestión de una
+impresora es mediante el uso del comando `lpadmin`.
+
+Una opción es permitir que una impresora sea compartida en la red. Esto se puede conseguir con la
+opción `printer-is-shared`, y especificando la impresora con la opción `-p`:
+
+    sudo lpadmin -p FRONT-DESK -o printer-is-shared=true
+
+Un administrador también puede configurar una cola de impresión para que solo acepte trabajos de
+impresión de usuarios específicos con cada usuario separado por una coma:
+
+    sudo lpadmin -p FRONT-DESK -u allow:carol,frank,grace
+
+A la inversa, solo se podría denegar el acceso a una cola de impresión específica a determinados
+usuarios:
+
+    sudo lpadmin -p FRONT-DESK -u deny:dave
+
+Los grupos de usuarios también pueden utilizarse para permitir o denegar el acceso a la cola de
+una impresora siempre que el nombre del grupo se encuentre precedido de un arroba (`@`):
+
+    sudo lpadmin -p FRONT-DESK -u deny:@sales,@marketing
+
+Una cola de impresión también puede tener una política de error en caso de encontrar problemas para
+imprimir un trabajo. Con el uso de políticas, un trabajo de impresión puede ser abortado
+(`abort-job`) o puede haber otro intento de impresión en un momento posterior (`retry-job`).
+Otras políticas incluyen la capacidad de deterner la impresora inmediatamente después de detectar
+un fallo (`retry-current-job`). A continuación se muestra un ejemplo en el que la política de la
+impresora se establece para abortar el trabajo de impresión si se produce un error en la impresora
+`FRONT-DESK`:
+
+    sudo lpadmin -p FRONT-DESK -o printer-error-policy=abort-job
+
+#### Envío de trabajos de impresión
+Muchas aplicaciones de escritorio le permitirán enviar trabajos de impresión desde un elemento del
+menú o utilizando el atajo del teclado `Ctrl+p`. Si se encuentra en un sistema Linux que no utiliza
+un entorno de escritorio, todavía puede enviar archivos a una impresora por medio de los comandos
+LPD/LPR heredados.
+
+El comando `lpr` (line printer remote) se utiliza para enviar un trabajo de impresión a la cola de
+impresión. La forma básica de utilizar el comando, es colocar el nomre de archivo junto con el
+comando `lpr`:
+
+    lpr report.txt
+
+El comando anterior enviará el archivo `report.txt` a la cola de impresión por defecto del sistema
+(identificada por el archivo `/etc/cups/printers.conf`).
+
+Si una instalación de CUPS tiene varias impresoras instaladas, se puede utilizar el comando
+`lpstat` para imprimir una lista de impresoras disponibles utilizando la opción `-p` y la opción `-d`
+indicará cuál es la impresora por defecto:
+
+    lpstat -p -d
+
+Así, en nuestro ejemplo, el archivo `report.txt` se enviará a la impresora `ENVY-4510`, ya que está
+configurada por defecto. Si el archivo necesita ser impreso en una impresora diferente,
+especifique la impresora junto con la opción `-P`:
+
+    lpr -P FRONT-DEK report.txt
+
+Cuando se envía un trabajo de impresión a CUPS, el demonio averiguará qué backend es el más
+adecuado para manejar la tarea. CUPS puede hacer uso de varios controladores de impresoras, filtros,
+monitores de puerto de hardware y otro software para renderizar adecuadamente el documento.
+Habrá ocasiones en las que un usuario que imprima un documento necesitará hacer modificaciones a
+cómo debe imprimirse el documento. Muchas aplicaciones gráficas facilitan esta tarea. También hay
+opciones de línea de comandos que pueden ser utilizadas para cambiar la forma en que un documento
+debe ser impreso. Cuando se envía un trabajo de impresión a través de la línea de comandos,
+podría utilizar `-o` (de opciones) junto con términos específicos para ajustar el diseño del
+documento para su impresión. A continuación se presenta una breve lista de las opciones más
+utilizadas:
+
+**`landscape`**: el documento se imprime con la página girada 90 grados en el sentido de la agujas del
+reloj. La opción `orientation-rquested=4` conseguirá el mismo resultado.
+
+**`two-sided-long-edge`**: la impresora imprimirá el docuemento en modo vertical em ambas carar del
+papel, siempre que la impresora admita esta capacidad.
+
+**`two-sided-short-edge`**: la imprresora imprimirá el documento en modo apaisado en ambas paras del
+papel, siempre que la impresora admita esta capacidad.
+
+**`media`**: la impresora imprimirá el trabajo en el tamaño de soporte especificado. Los tamaños de
+soporte disponibles para un trabajo de impresión dependen de la impresora, pero aquí hay una lista
+de tamaños comunes:
+
+Opción de tamaño | Próposito
+--|--
+`A4` | ISO A4
+`Letter` | US Letter
+`Legal` | US Legal
+`DL` | ISO DL Envelope
+`COM10` | US #10 Envelope
+
+**`collate`**: intercalar el documento impresro. Esto es útil si tiene un documento de varias páginas
+que se imprimirá más de una vez, ya que todas las páginas de cada documento se imprimirán en orden.
+Configure esta opción como `true` para activarla o `false` para desactivarla.
+
+**`page-ranges`**: esta opción se puede utilizar para seleccionar una sola página a imprimir, o un
+conjunto específico de páginas a imprimir de un documento. Un ejemplo sería el siguiente
+`-o page-ranges=5-7,9,15`. Esto imprimirá las páginas 5,6 y 7 y lueglo las páginas 9 y 15.
+
+**`fit-to-page`**: imprima el documento de forma que el archivo se ajuste al papel. Si el archivo que
+se va a imprimir no proporciona información sobre el tamaño de la página, es posible que el trabajo
+impreso se escale de forma incorrecta y que partes del documento se salgan de la página o que
+documento se escale demasiado.
+
+**`outputorder`**: imprime el documento en orden `inverso` o `normal` para comenzar la impresión en la
+página uno. Si una imprsora imprime sus páginas boca abajo, el orden por defecto es
+`-o outputorder=normal` mientras que las impresoras que imprimen con sus páginas hacia arriba
+imprimirán con `-o outputorder=reverse`.
+
+Tomando una muestra de las opciones anteriores, se puede construir el siguiente comando de
+ejemplo:
+
+    lpr -P ACCOUNTING-LASERJET -o landscape -o media=A4 -o two-sided-short-edge finance-report.pdf
+
+Se puede imprimir más de una copia de un documento utilizando la opción de número con el siguiente
+formato: `-#N` donde `N` es igual al número de copias a imprimir. A continuación se muestra un ejemplo
+con la opción de intercalar en el que se deben imprimir siete copias de un informe en la impresora
+por defecto:
+
+    lpr -#7 -o collate=true status-report.pdf
+
+Además del comando `lpr`, también se puede utilizar el comando `lp`. Muchas de las opciones que se
+utilizan con el comando `lpr` también se pueden utiizar con el comando `lp`, pero hay algunas
+diferencias. Así es como podemos ejecutar el comando `lpr` del ejemplo anterior utilizando la
+sintaxis del comando `lp` y especificando también la impresora de destino con la opción `-d`:
+
+    lp -d ACCOUNTING-LASERJET -n 7 -o collate=true status-report.pdf
+
+#### Gestión de los trabajos de impresión
+Cada trabajo de impresión enviado a la cola de impresión recibe un ID de trabajo de CUPS. Un
+usuario puede ver los trabajos de impresión que ha enviado con el comando `lpq`. Pasando la opción
+`-a` se mostrarán las colas de todas las impresoras  que están gestionadas por la instalación de
+CUPS:
+
+    lpa -a
+
+El mismo comando `lpstat` utilizado anteriormente también tiene una opción para ver las colas de
+impresión. La opción `-o` por sí misma mostrará todas las coas de impresión, o se puede especificar
+una cola de impresión por su nombre:
+
+    lp -p
+
+El ID del trabajo de impresión se le añadirá el nombre de la cola a la que se envío el trabajo, el
+nombre del usuario que lo envió, el tamaño del archivo y la hora a la que se envió.
+
+Si un trabajo de impresión se atasca en una impresora o un usuario desea cancelar su trabajo de
+impresión, utilice el comando `lprm` junto con el ID de trabajo encontrado en el comando `lpq`:
+
+    lprm 20
+
+Todos los trabajos de una cola de impresión pueden ser eliminados a la vez con un solo guión `-`:
+
+    lprm -
+
+Alternativamente, el comando `cancel` de CUPS también podría ser utilizado por un usuario para detener
+su trabajo de impresión actual:
+
+    cancel
+
+Un trabajo de impresión específico puede ser cancelado por su ID de trabajo precedido por el nombre
+de la impresora:
+
+    cancel ACCOUNTING-LASERJET-20
+
+Un trabajo de impresión también puede moverse de una cola de impresión a otra. Esto suele ser útil
+en caso de que un impresora deje de responder o el documento a imprimir requiera características
+disponibles en una impresora diferente. Tenga en cuenta que este procedimiento suele requerir un
+usuario con privilegios elevados. Utilizando el mismo trabajo de impresión del ejemplo anterior,
+podríamos moverlo a la cola de la impresora `FRONT-DESK`:
+
+    sudo lpmove ACCOUNTING-LASERJET-20 FRONT-DESK
+
+#### Eliminación de impresoras
+Para eliminar una impresora, a menudo es útil listar todas las impresoras que están actualmente
+gestionadas por el servicio CUPS. Esto se puede hacer con el comando `lpstat`:
+
+    lpstat -v
+
+La opción `-v` no solo muestra las impresoras, sino también dónde (y cómo) están conectadas. Es buena
+práctica rechazar primero cualquier trabajo nuevo que vaya a la impresora y así proporcionar una
+razón de por qué la impresora no aceptará nuevos trabajos. Esto se puede hacer con lo siguiente:
+
+    sudo cupsreject -r "Printer to be removed" FRONT-DESK
+
+Para eliminar una impresora, utilizamos el comando `lpadmin` con la opción `-x` para eliminar la
+impresora:
+
+    sudo lpadmin -x FRONT-DESK
+
+## Fundamentos de redes
+411
