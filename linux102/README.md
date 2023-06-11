@@ -3942,4 +3942,540 @@ impresora:
     sudo lpadmin -x FRONT-DESK
 
 ## Fundamentos de redes
-411
+#### La interfaz de red
+*Interfaz de red* es el término con el que el sistema operativo se refiere al canal de comunicación
+configurado para trabajar con el hardware de red conectado al sistema, como un dispositivo
+Ethernet o Wi-Fi. La excepción a esto es la interfaz *loopback*, que el sistema operativo utiliza
+cuando necesita establecer una conexión consigo mismo, pero el propósito principal de una interfaz
+de red es proporcionar una ruta a través de la cual se pueden enviar datos locales y recibir datos
+remotos. A menos que la interfaz de res esté correctamente configurada, el sistema operativo no
+podrá comunicarse con otras máquinas de la red.
+
+En la mayoría de los casos, la configuración correcta de la interfaz se define por defecto o se
+personlaiza durante la instalación del sistema operativo. Sin embargo, a menudo es necesario revisar
+o incluso modificar estos ajustes  cuando la comunicación no funciona correctamente o cuando el
+comportamiento de la interfaz requiere una personalización.
+
+Hay muchos comandos de Linux para listar qué interfaz de res están presentes en el sistema, pero no
+todos están disponibles en todas las distribuciones. El comando `ip`, es parte del conjunto básico de
+herramientas de red incluidas en todas las distribuciones de Linux y puede ser utilizado para listar
+las interfaces de red. El comando completo para mostrar las interfaces de red es `ip link show`:
+
+    ip link show
+
+Si esta disponible, también se puede utilizar el comando `nmcli device`:
+
+    nmcli device
+
+Las computadras de escritorio y las portátiles con Linux suelen tener dos o tres interfaces de red
+predefinidas, una para la interfaz virtual de bulce invertido y las otras asignadas la hardware de
+red por el sistema. Los servidores y dispositivos de red con Linux, en cambio, pueden tener
+decenas de interfaces de red, pero los mismos principios se aplican a todos ellos. La abstracción
+proporcionada por el sistema operativo permite configurar las interfaces de red utilizando los mismo
+métodos, independientemente del hardware subyacente. Sin embargo, conocer los detalles sobre el
+hardware subyacente de una interfaz puede ser útil para entender mejor lo que ocurre cuando la
+comunicación no funciona como se espera. En un sistema en el que hay muchas interfaces de red
+disponibles, podría ser obvio cuál corresponde a wi-fi y al ethernet. Por esta razón, Linux utiliza
+una convención de nomeclatura de interfaces que ayuda a identificar qué interfaz de red a cada
+dispositivo y puerto.
+
+#### Nombres de interfaces
+Las antiguas distribuciones de Linux nombraban las interfaces de red ethernet como `eth0`, `eth1`, `etc.`, numeradas según el orden en que el kernel identifica los dispositivos. Las interfaces
+inalámbricas se llamaban `wlan0`, `wlan1`, `etc.` Sin embargo, esta convención de nomeclatura, no 
+aclara qué puerto ethernet específico coincide con la interfaz `eth0`, por ejemplo. Dependiendo de
+cómo se detectara el hardware, era incluso posible que dos interfaces de red intercambiaran sus
+nombres después de un reinicio.
+
+Para superar esta ambigüedad, los sistemas Linux más recientes emplean una convención de
+nomeclatura predecible para las interfaces de res, estableciendo una relación más estrecha entre
+el nombre de la interfaz y la conexión de hardware subyacente.
+
+En las distribuciones de Linux que utilizan el esquema de nomeclatura systemd, todos los nombre de
+interfaz comienzan con un prefijo de dos caracteres que significa el tipo de interfaz:
+- **`en`**: Ethernet
+- **`ib`**: InfiniBand
+- **`sl`**: Serial line IP (slip)
+- **`wl`**: Wireless local area network (WLAN)
+- **`ww`**: Wireless wide area network (WWAN)
+
+De mayor a menor prioridad, el sistema operativo utiliza las siguientes reglas para nombrar y
+numerar las interfaces de red:
+
+1. Nombra la interfaz según el indice proporcionado por la BIOS o por el firmware de los dispositivos integrados, por ejemplo, `eno1`.
+
+2. Desgina la interfaz según el índice de la ranura PCI express, tal y como lo indica la BIOS o el firmware, por ejemplo, `ens1`.
+
+3. Nombra la interfaz según su dirección en el bus correspondiente, por ejemplo, `enp3s5`.
+
+4. Designa la interfaz con la dirección MAC de la misma, por ejemplo, `enx78e7d1ea46da`.
+
+5. Nombra la interfaz utilizando la convención heredada, por ejemplo, `eth0`.
+
+Es correcto suponer, que la interfaz de res `enp3s5` se denominó así porque no se ajustaba a los dos
+primeros métodos de denominación, por lo que se utilizó en su lugar su dirección en el bus y la ranura
+correspondiente. La dirección del dispositivo `03:05.0`, encontrada en la salida del comando `lspci`,
+revela el dispositivo asociado.
+
+Las interfaces de red son creadas por el propio kernel de Linux, pero hay muchos comandos que se
+pueden utilizar para interactuar con ellas. Normalmente, la configuración se realiza de forma
+automática y no es necesario cambiar la configuración manualmente. Sin embargo, con el nombre de la
+interfaz, es posible indicarle al kernel cómo proceder para configurarla si es necesario.
+
+#### Gestión de interfaces
+A lo largo de los años, se han desarrollado varios programas para interactuar con las características
+de red proporcionadas por el núcleo de Linux. Aunque el antiguo comando `ifconfig` todavía se puede
+utilizar para realizar configuraciones y consultas simples de las interfaces, ahora está obsolteo
+debido a su limitado soporte de las interfaces que no son Ethernet. El comando `ifconfig` fue
+sustituido por el comando `ip`, que es capaz de gestionar muchos otros aspectos de las interfaces
+TCP/IP, como rutas y túneles.
+
+Las muchas capacidades del comando `ip` puede ser excesivas para la mayoría de las tareas ordinarias,
+por lo que existen comandos auxiliares para facilitar la activación y configuración de las interfaces
+de red. Los comandos `ifup` y `ifdown` pueden utilizarse para configurar las interfaces de red
+basándose en las definiciones de las interfaces que se encuentran en el fichero
+`/etc/network/interfaces`. Aunque pueden ser invocados manualmente, estos comandos se ejecutan
+normalmente de forma automática durante el arranque del sistema.
+
+Todas las interfaces de red gestionadas por `ifup` y `ifdown` deben estar listadas en el fichero
+`/etc/network/interfaces`. El formato utilizado en el fichero es sencillo: las líneas que comienzan
+con la palabra `auto` se utilizan para identificar las interfaces físicas que se van a activar
+cuando se ejecute `ifup` con la opción `-a`. El nombre de la interfaz debe seguir a la palabra `auto`
+en la misma línea. Todas las interfaces marcadas como `auto` se activan en el momento del aranque,
+en el orden en que aparecen en la lista.
+
+La configuración real de la interfaz se escribe en otra línea, empezando por la palabra `iface`,
+seguida del nombre de la interfaz, el nombre de la familia de direcciones que utiliza la interfaz y
+el nombre del método utilizado para configurar la interfaz. El siguiente ejemplo muestra un fichero
+de configuración básico para las interfaces `lo` (loopback) y `enp3s5`:
+```sh
+auto lo
+iface lo inet loopback
+auto enp3s5
+iface enp3s5 inet dhcp
+```
+La familia de direcciones debe ser `inet` para redes TPC/IP, pero también hay soporte para redes IPX
+(`ipx`), y redes IPv6 (`inet6`). Las interfaces Loopback utilizan el método de configuración
+`loopback`. Con el método `dhcp`, la interfaz utilizará la configuración IP proporcionada por el
+servidor DHCP de la red. Los ajustes de la configuración de ejemplo permiten la ejecución del comando
+`ifup` utilizando el nombre de la interfaz `enp3s5` como argumento:
+```sh
+# ifup enp3s5
+Internet Systems Consortium DHCP Client 4.4.1
+Copyright 2004-2018 Internet Systems Consortium.
+All rights reserved.
+For info, please visit https://www.isc.org/software/dhcp/
+Listening on LPF/enp3s5/00:16:3e:8d:2b:5b
+Sending on LPF/enp3s5/00:16:3e:8d:2b:5b
+Sending on Socket/fallback
+DHCPDISCOVER on enp3s5 to 255.255.255.255 port 67 interval 4
+DHCPOFFER of 10.90.170.158 from 10.90.170.1
+DHCPREQUEST for 10.90.170.158 on enp3s5 to 255.255.255.255 port 67
+DHCPACK of 10.90.170.158 from 10.90.170.1
+bound to 10.90.170.158 -- renewal in 1616 seconds.
+```
+En este ejemplo, el método elegido para la interfaz `enp3s5` fue `dhcp`, por lo que el comando `ifup`
+llamó a un programa cliente DHCP para obtener la configuración IP del servidor DHCP. Del mismo modo,
+el comando `ifdown enp3s5` se puede utilizar para apagar la interfaz.
+
+En redes sin servidor DHCP, se puede utilizar el metodo `static` en su lugar y proporcionar la
+configuración IP manualmente en `/etc/network/interfaces`. Por ejemplo:
+```sh
+iface enp3s5 inet static
+    address 192.168.1.2/24
+    gateway 192.168.1.1
+```
+Las interfaces que utilizan el método `static` no necesitan una direactiva `auto` correspondiente, ya
+que se activan siempre que detecten el hardware de la red.
+
+Si la misma interfaz tiene más de una entrada `iface`, entonces todas las direcciones y opciones
+configuradas se aplicarán al abrir esa interfaz. Esto es útil para configurar tanto direcciones IPv4
+como IPv6 en la misma interfaz, así como para configurar múltiples direcciones del mismo tipo en
+una sola interfaz.
+
+#### Nombres locales y remotos
+Una configuración TCP/IP que funcione es solo el primer paso hacia la plena usabilidad de la red.
+Además de poder identificar los nodos de la red por sus números IP, el sistema debe se capaz de
+identificarlos con nombres más fáciles de entender por los seres humanos.
+
+El nombre con el que se identifica el sistema es personalizable y es una buena práctica deinirlo,
+incluso si la máquina no está destinada a unire a la red. El nombre local suele coincidir con el
+nombre de la red de la máquina, pero no es necesariamente cierto siempre. Si el fichero
+`/etc/hostname` existe, el sistema operativo utilizará el contenido de la primera línea como nombre
+local, que a partir de entonces se llamará simplemente *hostname*. Las líneas que comienzan con
+`#` dentro de `/etc/hostname` son ignoradas.
+
+El fichero `/etc/hostname` puede editarse directamente, pero el nombre de la máquina también puede
+definirse con el comando `hostnamectl`. Cuando se suministra con el subcomando `set-hostname`, el
+comando `hostnamectl` tomará el nombre dado como argumento y lo escribirá en `/etc/hostname`:
+```sh
+sudo hostnamectl set-hostname storage
+sudo cat /etc/hostname
+```
+El nombre de host definido en `/etc/hostname` es el nombre de host estático, es decir, el nombre que
+se utiliza para inicializar el nombre de host del sistema en el arranque. El nombre de host estático
+puede ser una cadena de forma libre de hasta 64 caracteres. Sin embargo, se recomienda que conste
+solo de caracteres ASCII en minúsculas y sin espacios ni puntos. También debe limitarse al formato
+permitido para las etiquetas de nombres de dominio DNS, aunque esto no es un requisito estricto.
+
+El comando `hostnamectl` puede establecer otros tipos de nombres de host además del nombre de host
+estático:
+
+**Pretty hostname**: a diferencia del nombre de host estático, este otro nombre puede incluir todo
+tipo de caracteres especiales. Se puede utilizar para establecer un nombre más descriptivo para el
+equipo, por ejemplo, "LAN Shared Storage":
+
+    sudo hostnamectl --pretty set-hostname "LAN Shared Storage"
+
+**Transient hostname**: se utiliza cuando el nombre de host estático no está establecido o cuando es
+el nombre `localhost` por defecto. El nombre de host transitorio es normalmente el nombre establecido
+junto con otras configuraciones automáticas, pero también puede ser modificado por el comando
+`hostnamectl`, por ejemplo:
+
+    sudo hostnamectl --transient set-hostname generic-host
+
+Si no se utiliza la opción `--pretty` ni `--transient`, los tres tipos de nombres de host se
+establecerán con el nombre dado. Para establecer el nombre de host estático, pero no los "pretty"
+y "transient", se debe utilizar la opción `--static`. En todos los casos, solo el nombre de host
+estático se almacena en el fichero `/etc/hostname`. El comando `hostnamectl` tamnién se puede utilizar
+para mostrar varios bits de información dscriptiva y de identidas sobre el sistema en ejecución:
+
+    hostnamectl status
+
+Esta es la opción por defecto del comando `hostnamectl`, por lo que el subcomando `status` puede ser
+omitodo. En cuanto al nombre de los nodos de la red remota, hay dor formas básicas que el sistema
+operativo puede implementar para hacer coincidir nombres y números IP: utilizar una fuente local
+o utilizar un servidor remoto para traducir los nombres en números IP y viceversa. Los métodos
+pueden ser complementariosentre sí y su orden de prioridad se define en el fichero de configuración
+*Name Service Switch*: `/etc/nsswitch.conf`. Este fichero es utilizado por el sistema y las
+aplicaciones para determinar no solo las fuentes de coinicidencia nombre-IP, sino también las
+fuentes de las que pueden obtener información de servicios de nombres en una serie de categorías,
+llamadas bases de datos.
+
+La base de datos hosts lleva la cuenta del mapeo entre nombres de host y direcciones IPs. La línea
+dentro de `/etc/nsswitch.conf` que comienza con `hosts` define los servicios responsables de
+proporcionar las asociaciones para ello:
+
+    hosts: files dns
+
+En esta entrade de ejemplo, `files` y `dns` son los nombres de los servicos que especifican cómo
+funcionará el proceso de búsqueda de nombres de host. En primer lugar, el sistema buscará
+coincidencias en los archivos locales, y luego preguntará al servicio DNS por las coincidencias.
+
+El archivo local para la base de datos de hosts es `/etc/hosts`, un simple archivo de texto que asocia
+direcciones IP con nombres de hosts, una línea por dirección IP, por ejemplo:
+
+    127.0.0.7   localhost
+
+El número de IP `127.0.0.1` es la dirección por defecto de la interfaz loopback, de ahí su asociación
+con el nombre `localhost`.
+
+También es posible vincular alias opcionales a la misma IP. Los alias pueden proporcionar
+ortografías alnternativas, nombre de host más cortos y deben añadirse al final de la línea, por
+ejemplo:
+
+    192.168.1.10    foo.mydmomain.org   foo
+
+Las reglas de formato para el archivo `/etc/hosts` son:
+- Los campos de la entrada están separados por cualquier número de espacios en blanco y/o caracteres de tabulación.
+- El texto desde un carácter `#` hasta el final de la línea es un comentario y se ignora.
+- Los nombres de host solo pueden contener caracteres alfanuméricos, signos menos y puntos.
+- Los nombres de host deben comenzar con un carácter alfabético y terminar con un carácter alfanumérico.
+
+Las direcciones IPv6 también pueden añadirse a `/etc/hosts`. La siguiente entrada se refiere a la
+dirección IPv6 loopback:
+
+    ::1 localhost ip6-localhost ip6-loopback
+
+Tras la especificación del servicio `files`, la especificación `dns` indica al sistema que solicite a 
+un servicio DNS la asociación nombre/IP deseada. El conjunto de rutinas responsables de este método
+se llama *resolver* y su fichero de configuración es `/etc/resolv.conf`. El siguiente ejemplo muestra
+un `/etc/resolv.conf` genérico que contiene entradas para los servidores DNS públicos de Google:
+```sh
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+```
+Como se muestra en el ejemplo, la palabra clave `nameserver` indica la dirección IP del servidor DNS.
+Solo se requiere un servidor de nombres, pero se pueden indicar hasta tres servidores de nombres.
+Los complementarios se utilizaran como reserva. Si no hay entradas de servidor de nombres, el
+comportamiento por defecto es utilizar el servidor de nombres de la máquina local.
+
+El resolvedor puede configurarse para añadir automáticamente el dominio a los nombres antes de
+consultarlos en el servidor de nombres. Por ejemplo:
+```sh
+nameserver 8.8.4.4
+nameserver 8.8.8.8
+domain mydomain.org
+search mydomain.net mydomain.com
+```
+La entrada `domain` establece `mydomain.org` como nombre de dominio local, por lo que las consultas de
+nombres dentro de este dominio podrán utilizar nombres cortos relativos al dominio local. La
+entrada `search` tiene un propósito similar, pero acepta una lista de dominios para probar cuando se
+proporciona un nombre corto. Por defecto, solo contiene el nombre del dominio local.
+
+Linux es compatible con prácticamente todas las tenologías de res utilizadas para conectar
+servidores, contenedores, máquinas virtuales, ordenadores de sobremesa y dispositivos móviles.
+Las conexiones entre todos estos nodos de red pueden ser dinámicas y heterogéneas, por lo que
+requieren una gestión adecuada por parte del sistema operativo que se ejecuta con ellos.
+
+En el pasado, las distribuciones desarrollaban sus propias soluciones pesonalizadas para gestionar
+la infraestructura de red dinámica. Hoy en día, herramientas como NetworkManager y systemd ofrecen
+funciones más completas e integradas para satisfacer todas las demandas específicas.
+
+La mayoría de las distribuciones de Linux adoptan el demonio de servicio NetworkManager para
+configurar y controlar las conexiones de red del sistema. El propósito de NetworkManager es hacer
+que la configuración de la red sea lo más sencilla y automática posible. Cuando se utiliza DHCP,
+por ejemplo, NetworkManager organiza los cambios de ruta, la obtención de direcciones IP y las
+actualizaciones de la lista local de servidores DNS, si es necesario. Cuando se dispone de
+conexiones por cable e inalámbricas, NetworkManager da prioridad por defecto a la conexión por
+cable e intentará mantener al menos una conexión activa todo el tiempo, siempre que sea posible.
+
+Por defcto, el demonio NetworkManager controlas las interfaces de red no mencionadas en el fichero
+`/etc/network/interfaces`. Lo hace para no interferir con otros métodos de configuración que puedan
+estar presentes también, modificando asó colo las interfaces desatendidas.
+
+El servicio NetworkManager se ejecuta en segundo plano con privilegios de root y desencadena las
+acciones necesarias para mantener el sistema en línea. los usuarios normales pueden crear y modidicar
+las conexiones de red con aplicaciones cliente que, aunque no tengan privilegios de root, son
+capaces de comunicarse con el servicio subyacente para realizar las acciones solicitadas.
+
+Las aplicaciones cliente para NetworkManager están disponibles tanto para la línea de comandos como
+para el entorno gráfico. Para este último, la aplicacione cliente viene como un accesorio del
+entorno de escritorio (bajo nombrec, como nm-tray, network-manager-gnome, nm-applet o plasma-nm) y
+suele ser accesible a através de un icono indicador en la esquina de la barra del escritorio o
+desde la utilidad de configuración del sistema.
+
+En la línea de comandos, el propio NetworkManager proporciona dos programas cliente: `nmcli` y
+`rmtui`. Ambos programas tienen las mismas características básicas, pero `rmtui` tiene una interfaz
+basada en curses mientras que `nmcli` es un comando más completo que también puede ser utilizado con
+scripts. El comando `nmcli` separa todas las propiedades relacionadas con la red controladas por
+NetworkManager en categorías llamadas *objects*:
+
+**`general`**: el estado y las operaciones generales de NetworkManager.
+
+**`networking`**: control general de la red.
+
+**`radio`**: conmutadores de radio de NetworkManager.
+
+**`connection`**: las conexiones de NetworkManager.
+
+**`device`**: dispositivos gestionados por NetworkManager.
+
+**`agent`**: agente secreto NetworkManager o agente polkit.
+
+**`monitor`**: supervisar los cambios del NetworkManager.
+
+El nombre del objeto es el argumento principal del comando `nmcli`. Para mostrar el estado general
+de la conectividad del sistema, por ejemplo, se debe dar como argumento el objeto `general`:
+
+    nmcli general
+
+La columna `STATE` indica si el sistema está conectado a una red o no. Si la conexión está limitada
+debido a una mala configuración externa o a restricciones de acceso, la columna `CONNECTIVITY` no
+informará del estado de conectividad `full`. Si aparece `Portal` en la columna `CONNECTIVITY`,
+significa que requiere pasos adicionales para la autenticación (normalmente a través del navegador
+web) para completar el proceso de conexión. Las columnas restantes informan en estado de las
+conexiones inalámbricas (si la hay), ya sea WIFI o WAN (Wide Wireless Area Network, es decir,
+redes celulares). El sufijo `HW` indica que el estado corresponde al dispositivo de red y no a la
+conexión de red del sistema, es decir, indica si el hardware está activado o desactivado para
+ahorrar energía.
+
+`nmcli` también necesita un argumento de comando para ejecutarse. El comando `status` se utiliza por
+defecto si no hay ningún argumento de comando, por lo que el comando `nmcli general` se interpreta
+en realidad como `nmcli general status`.
+
+No es necesario realizar ninguna acción cuando el adaptador de red se conecta directamente al punto
+de acceso a través de cables, pero las rdes inalámbricas requieren una mayor interacción para
+aceptar nuevos miembors. `nmcli` facilita el proceso de conexión y guarda la configuración para
+conectarse automáticamente en el futuro, por lo que es muy útil para los ordenadores portátiles
+o cualquier otro aparato móvil.
+
+Antes de conectarse al wi-fi, es conveniente listar primero las redes disponibles en el área local.
+Si el sistema tiene un adaptador wi-fi en funcionamiento, entonces el objeto `device` lo utilizará
+para escanear las redes disponibles con el comando `nmcli device wifi list`:
+
+    nmcli device wifi list
+
+La mayoría de los usuarios probablemente utilizarán el nombre de la columna `SSID` para identificar
+la red de interés. Por ejemplo, el comando `nmcli` puede conectarse a la red llamada
+`Hypnotoad` utilizando de nuevo el objeto `device`:
+
+    nmcli devide wifi connect Hypnotoad
+
+Si el comando se ejecuta dentro de un emulador de terminal en el entorno gráfico, aparecerá un
+cuadro de diálogo solicitando la frase de acceso a la red. Cuando se ejecuta en una consola de solo
+texto, la contraseña puede ser proporcionada junto con los otros argumentos:
+
+    nmcli device wifi connect Hypnotoad password MyPassword
+
+Si la red wi-fi oculta su nombre SSID, `nmcli` aún puede conectarse a ella con los argumentos extra
+`hidden yes`:
+
+    nmcli device wifi connect Hypnotoad password MyPassword hidden yes
+
+Si el sistema tiene más de un adaptador wi-fi, se puede indicar el que se va a utilizar con `ifname`.
+Por ejemplo, para conectarse usando el adaptador llamado `wlo1`:
+
+    nmcli device wifi connect Hypnotoad password MyPassword ifname wlo1
+
+Después de que la conexión tenga éxito, NetworkManager le dará el nombre del SSID correspondiente
+(si es una conexión wi-fi) y lo conservará para futuras conexiones. Los nombres de las conexiones
+y sus UUIDs son listados por el comando `nmcli connection show`:
+
+    nmcli connection show
+
+Se muestra el tipo de cada conexión (que puede ser `ethernet`, `wifi`, `tun`, `gsm`, `bridge`, etc.)
+así como al dispositivo al que están asociados. Para realizar acciones sobre una conexión concreta,
+hay que proporcionar su nombre o UUID. Para desactivar la conexión `Hypnotoad`, por ejemplo:
+
+    nmcli connection down Hypnotoad
+
+Igualmente, el comando `nmcli connection up Hypnotoad` puede ser utilizado para traer la conexión,
+ya que ahora está guardada por NetworkManager. El nombre de la interfaz también se puede utilizar
+para desconectar, pero en este caso se debe utilizar el objeto `device` en su lugar:
+
+    nmcli device disconnect wlo1
+
+El nombre de la interfaz también puede ser utilizada para restablecer la conexión:
+
+    nmcli device connect wlo1
+
+Tenga en cuenta que el UUID de la conexión cambia cada vez que se abre la conexión, por lo que es
+preferible utilizar su nombre para mantener la coherencia.
+
+Si el adapatador inalámbrico está disponible, pero no se está utilizando, entonces se puede apagar
+para ahorrar energía. Esta vez, el objeto `radio` debe ser pasado a `nmcli`:
+
+    nmcli radio wifi off
+
+Por su puesto, el dispositivo se puede volver a encender con el comando `nmcli radio wifi on`.
+
+Una vez establecidas las conexiones no será necesario ninguna interacción manual en el futuro, ya
+que NetworkManager identifica las redes conocidas disponibles y se conecta automáticamente a ellas.
+Si es necesario, NetworkManager tiene plugins que pueden ampliar sus funcionalidades, como el plugin
+para soportar conexiones VPN.
+
+#### `systemd-networkd`
+Los sistemas que ejecutan systemd pueden utilizar opcionalmente sus demonios incorporados para
+gestionar la conectividad de red: `systemd-networkd` para controlar las interfaces de red y
+`systemd-resolved` para gestionar la resolución de nombres locales. Estos servicios son compatibles
+con los métodos de configuración heredados de Linux, pero la configuración de las interfaces de red
+en particular tiene características que valen la pena conocer.
+
+Los archivos de configuración utilizados por systemd-networkd para configurar las interfaces de red
+pueden encontrarse en cualquiera de los tres directorio siguientes:
+
+**`/lib/systemd/network`**: el directorio de la red del sistema.
+
+**`/run/systemd/network`**: el directorio de red volátil de ejecución.
+
+**`/etc/systemd/network`**:  el directorio de red de la administración local.
+
+Los archivos se procesan en orden lexicográfico, por lo que se recomienda comenzar sus nombres con
+números para facilitar la laectura y el ordenamiento.
+
+Los archivos en `/etc` tienen la mayor prioridad, mientras que los archivos en `/run` tiene prioridad
+sobre los archivos con el mismo nombre en `/lib`. Esto significa que si los archivos de configuración
+en diferentes directorios tienen el mismo nombre, entonces systemd-networkd ignorará los archivos
+con menor prioridad. Separar los archivos de esta manera es una forma de cambiar la configuración
+de la interfaz sin tener que modificar los archivos originales: se pueden colocar modificaciones
+en `/etc/systemd/network` para anular las de `/lib/systemd/network`.
+
+El propósito de cada archivo de configuración depende de su sufijo. Los archivos que terminan en
+`.netdev` son utilizados por systemd-networkd para crear dispositivos de red virtuales, como los
+dispositivos bridge o tun. Los archivos que terminan en `.link` establecen configuraciones de bajo
+nivel para la interfaz de red correspondiente. systemd-networkd detecta y configura los
+dispositivos de red automáticamente a medida que aparecen (además de ignorar los dispositivos ya
+configurados por otros medios) por lo que no es necesario añadir estos archivos en la mayoría de las
+situaciones.
+
+El sufijo más importantes es `.network`. Los archivos que utilizan este sufijo pueden utilizarse para
+configurar direcciones y rutas de red. Al igual que con los otros tipos de archivos de configuración,
+el nombre del archivo define el orden en el que se procesará el archivo. La interfaz de red a la que
+se refiere el fichero de configuración se define en la sección `[Match]` dentro del mismo.
+
+Por ejemplo, la interfaz de red ethernet `enp3s5` puede ser seleccionada dentro del archivo
+`/etc/systemd/network/30-lan.network` utilizando la entrada `Name=enp3s5` en la sección `[Match]`:
+```sh
+[Match]
+Name=enp3s5
+```
+También se acepta una lista de nombres separados por espacios en blanco para hacer coincidir muchas
+interfaces de red con este mismo archivo a la vez. Los nombres pueden contener globos de estilo
+shell, como `es*`. otras entradas proporcionan varias reglas de coincidencia, como la selección de
+un dispositivo de red por su dirección MAC:
+```sh
+[Match]
+MACAddress=00:16:3e:8d:2b:5b
+```
+La configuración del dispositivo se encuentra en la sección `[Network]` del archivo. Una modificación
+de red estática solo requiere las entradas `Address` y `Gateway`:
+```sh
+[Match]
+MACAddress=00:16:3e:8d:2b:5b
+
+[Network]
+Address=192.168.0.100/24
+Gateway=192.168.0.1
+```
+Para utilizar el protocolo DHCP en lugar de direcciones IP estáticas, se debe utilizar la entrada
+`DHCP`:
+```sh
+[Match]
+MACAddress=00:16:3e:8d:2b:5b
+
+[Network]
+DHCP=yes
+```
+El servicio systemd-networkd intentará obtener tanto direcciones IPv4 como IPv6 para la interfaz de
+red. Para utilizar solo para IPv4, se debe utilizar `DHCP=ipv4`. Del mismo modo, `DHCP=ipv6` ingorará
+la configuración de IPv4 y utilizará únicamente la dirección IPv6 proporcionada.
+
+Las redes inalámbricas protegidas por contraseña también pueden ser configuradas por systemd-nerworkd,
+pero el adaptador de red debe de estar ya autenticado en la red antes de que systemd-networkd pueda
+configurarlo. La autenticación la realiza WPA supplicant, un programa dedicado a configurar
+adaptadores de red para redes protegidas por contraseña.
+
+El primer paso es crear el archivo de credenciales con el comando `wpa_passphrase`:
+
+    wpa_passphrase MyWifi > /etc/wpa_supplicant/wpa_supplicant-wlo1.conf
+
+Este comando tomará la frase de contraseña para la red inalámbrica `MyWifi` de la entrada estándar
+y almacenará su hash en el archivo `/etc/wpa_supplicant/wpa_supplicant-wlo1.conf`. Tenga en cuenta
+que el nombre del archivo debe contener el nombre apropiado de la interfaz inalámbrica, de ahí
+el `wlo1` en el nombre del archivo.
+
+El gestor systemd lee los archivos de frases de paso WPA en `/etc/wpa_supplicant/` y crea el servicio
+correspondiente para ejecutar WPA supplicant y poner en marcha la interfaz. El archivo de frases de
+paso creado en el ejemplo tendrá entonces una unidad de servicio correspondiente llamada
+`wpa_supplicant@wlo1.service`. El comando `sudo systemctl start wpa_supplicant@wlo1.service`
+asociará el adaptador inalámbrico con el punto de acceso remoto. El comando
+`sudo systemctl enable wpa_supplicant@wlo1.service` hace que la asociación sea automática durante el
+arranque. Finalmente, un archivo `.network` que coincida con la interfaz `wlo1` debe estar presente en
+`/etc/systemd/network/`, ya que systemd-networkd lo utilizará para configurar la interfaz tan pronto
+como el supplicant WPA finalice la asociación con el punto de acceso.
+
+#### Sobre el comando `ip`
+El comando `ip` es una utilidad bastante reciente que se utiliza para ver y configurar casi todo lo
+relacionado con las configuraciones de red. 
+
+Opciones para tener ayuda de los comandos de `ip`:
+```sh
+man ip
+man ip-address
+ip address help
+```
+
+#### Revisión de máscaras de red y enrutamiento
+IPv4 e IPv6 son lo que se concoe como protocolos enrutados. Esto significa que están diseñados de
+tal manera que los diseñadores de redes pueden controlar el flujo de tráfico. Ethernet no es un
+protocolo enrutable. Esto significa que si se conecta un grupo de dispositivos usnado solo
+Ethernet, hay muy poco que se pueda hacer para controlar el flujo de tráfico de la red. Cualquier
+medida para controlar el tráfico acabaría siendo similar a la de los protocolos enrutables y de
+enrutamiento actuales.
+
+Los protocolos enrutables permiten a los disesañores de redes segmentarlas para reducir los
+requisitos de procesamiento de los dispositivos de conectividad, proporcionar redundancia y
+gestionar el tráfico.
+
+Las direcciones IPv4 e IPv6 tienen dos secciones.
+443
