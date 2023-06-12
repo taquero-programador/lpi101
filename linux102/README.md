@@ -4084,7 +4084,7 @@ iface enp3s5 inet static
     address 192.168.1.2/24
     gateway 192.168.1.1
 ```
-Las interfaces que utilizan el método `static` no necesitan una direactiva `auto` correspondiente, ya
+Las interfaces que utilizan el método `static` no necesitan una directiva `auto` correspondiente, ya
 que se activan siempre que detecten el hardware de la red.
 
 Si la misma interfaz tiene más de una entrada `iface`, entonces todas las direcciones y opciones
@@ -4477,5 +4477,197 @@ Los protocolos enrutables permiten a los disesañores de redes segmentarlas para
 requisitos de procesamiento de los dispositivos de conectividad, proporcionar redundancia y
 gestionar el tráfico.
 
-Las direcciones IPv4 e IPv6 tienen dos secciones.
-443
+Las direcciones IPv4 e IPv6 tienen dos secciones. El primer conjunto de bits constituye la sección
+de red, mientras que el segundo conjunto constituye la parte del host. El número de bits que
+componen la parte de red viene determinado por la máscara de red (también llamada máscara de
+subred). a veces también se denomina longitud de prefijo. Independientemente de cómo se llame, es
+el número de bits que la máquina trata como la parte de red de la dirección. Con IPv4, a veces se
+especifica en notación decimal con puntos.
+
+A continuación se muestra un ejemplo utilizando IPv4. Observe cómo los dígitos binarios mantienen su
+valor de posición en los octetos incluso cuando se divide por la máscara de red.
+```sh
+192.168.130.5/20
+
+    192         168     130     5
+    11000000 10101000 10000010 00000101
+
+20 bits = 11111111 11111111 11110000 00000000
+
+Network = 192.168.128.0
+Host    = 2.5
+```
+La parte de una red en una dirección es utilizada por las máquinas IPv4 o IPv6 para buscar en su
+tabla de enrutamiento la interfaz por la que debe enviarse un paquete. Cuando un host IPv4 o IPv6
+con el enrutamiento activado recibe un paquete que no es para el propio host, intenta hacer
+coincidir la parte de la red del destino con una red en la tabla de enrutamiento. Si se ubica una
+entrada que coincida, envía el paquete al destino especificado en la tabla e enrutamiento. Si no se
+encuentra ninguna entrada y se ha configurado una entrada por defecto, se envía a la ruta por defecto.
+Si no se localiza ninguna entrada y no se ha configurado ninguna ruta por defecto, el paquete se
+descarta.
+
+#### Configurar una interfaz
+`ifconfig` o `ip`. El programa `ifconfig`, aunque sigue siendo ampliamanete utilizado, se considera
+una herramienta herdedada y puede no estar disponible en los sistemas más nuevos.
+
+> En las nuevas distribuciones de Linux, la instalación del paquete `net-tools` le proporcionará los comandos de red heredados.
+
+Antes de configurar una interfaz, debe saber qué interfaces están disponibles. Hay varias formas
+de hacerlo. Una forma es utilizar la opción `-a` de `ifconfig`:
+
+    ifconfig -a
+
+Otra forma es con `ip`. A veces verá ejemplos con `ip addr`, `ip a`, y algunos con `ip address`, son
+sinónimos. Oficialmente, el subcomando es `ip address`. Esto significa que si desea ver la página del
+manual, debe utilizar `man ip-address` y no `man ip-addr`.
+
+El subcomando `link` para `ip` listará los enlaces de interfaz disponibles para su configuración:
+
+    ip link
+
+Asumiendo que el sistema de archivos `sys` esté montado, también puede listar el contenido de
+`/sys/class/net`:
+
+    ls /sys/class/net
+
+Para configurar una interfaz con `ifconfig`, debe iniciar la sesión como root o utilizar una
+herramienta como `sudo` para ejecutar el comando con privilegos de root:
+
+    ifconfig enp1s0 192.168.50.50/24
+
+La versión de Linux de `ifconfig` es flexible con la forma de especificar la máscara de subred:
+```sh
+ifconfig eth2 192.168.50.50 netmask 255.255.255.0
+ifconfig eth2 192.168.50.50 netmask 0xffffff00
+ifconfig enp0s8 add 2001:db8::10/64
+```
+Revise que con IPv6 usted ha utilizado la palabra clave `add`. Si no se precede una dirección IPv6
+con `add`, recibirá un mensaje de error.
+
+El siguiente comando configura una interfaz con `ip`:
+```sh
+ip addr add 192.168.5.5/24 dev enp0s8
+ip addr add 2001:db8::10/64 dev enp0s8
+```
+Con `ip`, se utiliza el mismo comando tanto para IPv4 como para IPv6.
+
+#### Configuración de opciones de bajo nivel
+El comando `ip link` se utiliza para configurar la interfaz de bajo nivel o los ajustes de protocolo
+como VLANs, ARP, o MTUs, o deshabilitar una interfaz.
+
+Una tarea común para `ip link` es desactivar o activar una interfaz. Esto también se puede hacer con
+`ifconfig`:
+```sh
+sudo ip link set dev enp0s8 down
+ip link show dev enp0s8
+...
+sudo ifconfig enp0s8 up
+ip link show dev enp0s8
+```
+A veces puede ser necesario ajustar la MTU de una interfaz. Al igual que con la habilitación/deshabilitación
+de interfaces, esto puede hacerse con `ifconfig` o `ip link`:
+```sh
+sudo ip link set enp0s8 mtu 2000
+ip link show dev enp0s3
+...
+sudo ifconfig enp0s3 mtu 1500
+ip link show dev enp0s3
+```
+
+#### La tabla de enrutamiento
+Los comandos `route`, `netstat -r` o `ip route` pueden ser utilizados para ver sus tablas de rutas. Si
+desea modificar sus rutas, debe utilizar `route` o `ip route`. A continuación se muestras ejemplos de
+visualización de una tabla de enrutamiento:
+```sh
+netstat -r
+...
+ip route
+...
+route
+```
+No hay ningua salida relativa a IPv6. Si desea ver su tabla de enrutamiento para IPv6, debe utilizar
+`route -6`, `netstat -6r`, o `ip -6 route`.
+
+Parte de la salida del comando `route` anterior se explica por sí misma. La columna `Flag`
+proporciona alguna información sobre la ruta. La columan flags, `U` indica que la ruta está activa.
+`!` significa que la ruta ha sido rechazada, es decir, una ruta con una bandera `!` no será utilizada.
+`n` significa que la ruta no ha sido cacheada. El kernel mantiene una caché de rutas para búsquedas
+más rápidas por separado de todas las rutas conocidas. `G` indica una puerta de enlace. La columna
+`Metric` o `Met` no es utilizada por el kernel. Se refiere a la distancia administrativa al objetivo.
+Esta distancia administrativa es utilizada por los protocolos de enrutamiento para determinar las
+rutas dinámicas. La columna `Ref` es el recuento de referencias, o el número de usos de una ruta. Al
+igual que `Metric`, no es utilizada por el kernel de Linux. La coumna `Use` muestra el número de
+búsquedas de una ruta.
+
+En la salida de `netstat -r`, `MSS` indica el tamaño máximo de segmentos para las conexiones TCP sobre
+esa ruta. La columna `Window` muestra el tamaño predeterminado de la ventana TCP. La columna `irtt`
+muestra el tiempo de ida y vuelta de los paquetes en esta ruta.
+
+La salida de `ip route` o `ip -6 route` es la siguiente:
+
+1. Destino.
+
+2. Dirección opcional seguida de interfaz.
+
+3. El protocolo de enrutamiento utilizado para añadir la ruta.
+
+4. El ámbito de la ruta. Si se omite, se trata de un ámbito global o de una puerta de enlace.
+
+5. La métrica de la ruta. Esta es utilizada por los protocolos de enrutamiento dinámico para determinar el coste de la ruta. La mayoría de los sistemas no la utilizan.
+
+6. Si es una ruta IPv6, la preferencia de ruta es RFC4191.
+
+Ejemplo de IPv4:
+
+    default via 10.0.2.2 dev enp0s3 proto dhcp metric 100
+
+1. El destino es la ruta por defecto.
+
+2. La dirección de la puerta de enlace es `10.0.2.2` alcanzable a través de la interfaz `enp0s3`.
+
+3. Ha sido añadido a la ruta de enrutamiento por DHCP.
+
+4. Se ha omitodo em ámbito, por lo que es global.
+
+5. La ruta tiene un valor de coste de `100`.
+
+6. No hay preferencia de ruta IPv6.
+
+Ejemplo de IPv6:
+
+    fc0::/64 dev enp0s8 proto kernel metric 256 pref medium
+
+1. El destino es `fc0::/64`.
+
+2. Es alncazable a través de la interfaz `enp0s8`.
+
+3. Ha sido añadido automáticamente por el kernel.
+
+4. Se ha omitido el ámbito, por lo que es global.
+
+5. La ruta tiene un valor de coste `256`.
+
+6. Tiene una preferencia IPv6 de `media`.
+
+#### Gestión de rutas
+Las rutas pueden ser gestionadas utilizando `route` o `ip route`. A continuación se muestra un ejemplo
+de cómo añadir añadir y eliminar una ruta utilizando el comando `route`. Con `route`, debe utilizar
+la opción `-6` para IPv6:
+```sh
+ping6 -c 2 2001:db8:1::20
+route -6 add 2001:db8:1::/64 gw 2001:db8::3
+ping6 -c 2 2001:db8:1::20
+route -6 del 2001:db8:1::/64 gw 2001:db8::3
+ping6 -c 2 2001:db8:1::20
+```
+Ahora utilizando el comando `ip route`:
+```sh
+ping6 -c 2 2001:db8:1:20
+ip route add 2001:db8:1::/64 via 2001:db8::3
+ping6 -c 2 2001:db8:1:20
+ip route del 2001:db8:1::/64 via 2001:db8::3
+ping6 -c 2 2001:db8:1::20
+```
+
+#### Probar las conexiones con `ping`
+457
