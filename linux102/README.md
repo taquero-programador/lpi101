@@ -4670,4 +4670,169 @@ ping6 -c 2 2001:db8:1::20
 ```
 
 #### Probar las conexiones con `ping`
-457
+Los comandos `ping` y `ping6` pueden utilizarse para enviar una solicitud de eco ICMP a una dirección
+IPv4 o IPv6, respectivamenet. Una petición de eco ICMP envía una pequeña cantidad de datos a la
+dirección de destino. Si la dirección de destino es alcanzable, enviará un mensaje de respuesta de
+echo ICMP de vuelta al remitente con los mismos datos que le fueron enviados:
+```sh
+ping -c 3 192.168.50.2
+...
+ping6 -c 3 2001:d8::10
+```
+La opción `-c` se utiliza para especificar el número de paquetes a enviar. Si imite esta opción,
+`ping` y `ping6` continuarán enviando paquetes hasta que lo detengas, normalmente con la combinación
+de teclado `Ctrl+C`.
+
+Que no pueda hacer un ping a un host no significa que no pueda conectarse a él. Muchas organizaciones
+tienen cortafuegos o listas de control de acceso al router que bloquean todo lo que no sea el
+mínimo necesario para que sus sistemas funciones. Esto incluye las peticiones y respuestas de eco
+ICMP. Dado que estos paquetes pueden incluir datos arbitrarios, un atacante inteligente podría
+utilizarlos para exfiltrar datos.
+
+#### Traceroute
+Los programas `traceroute` y `traceroute6` puede utlizarse para mosrar la ruta que sigue un paquete
+para llegar a su destino. Lo hacen enviando múltiples paquetes al destino, incrementando el campo
+*Time-To-Live* (TTL) de la cabecera IP con cada paquete subsiguiente. Cada router a lo largo del
+camino responderá con un mensaje ICMP de TTL excedido:
+
+    traceroute 192.168.1.20
+
+Por defecto, `traceroute` envía 3 paquetes UDP con datos basura al puerto `33434`, incrementandólo
+cada vez que envía un paquete. Cada línea de salida del comando es una interfaz de router por la que
+atreviesa el paquete. El tiempo mostrado en cada línea es el tiempo de ida y vuelta de cada paquete.
+La dirección IP es la dirección de la interfaz de router en cuestión. Si `traceroute` puede, utiliza
+el nombre DNS de la interfaz de router. A veces verá `*` en lugar de un tiempo. Cuando esto sucede,
+significa que `traceroute` nunca recibió el mensaje de TTL excedido para este paquete. Cuando se
+empieza a ver esto, suele indicar que la última respuesta es el último salto de la ruta.
+
+Si tiene acceso a `root`, la opción `-I` hará que `traceroute` utilice peticiones de eco ICMP en lugar
+de un paquete UDP. Esto suele ser más efectivo que el UDP porque es más probable que el host de
+destino responsa a una petición de eco ICMP que al paquete UDP:
+
+    sudo traceroute -I learning.lpi.org
+
+Algunas organizaciones bloquean las peticiones y respuestas de eco ICMP. Para evitarlo, puede
+utilizar TCP. Al utilizar un puerto TCP abierto conocido, puede garantizar que el host de destino
+responderá. Para usar TCP, utilice la opción `-T` junto con la `-p` para especificar el puerto. Al
+igual que con las peticiones de eco ICMP, debe tener acceso `root` para hacer esto:
+
+    sudo traceroute -m 60 -T -p 80 learning.lpi.org
+
+Al igual que `ping`, `traceroute` tiene sus limitaciones. Es posible que los cortafuegos y los routers
+bloqueen paquetes enviados o devueltos por `traceroute`. Si tiene cceso `root`, hay opciones que
+pueden ayudar a obtener resultados precisos.
+
+#### Búsqueda de MTU con `tracepath`
+El comando `tracepath` es similar a `traceroute`. La diferencia es que rastrea los tamaños de las
+*Unidades Máximas de Transmisión* (MTU) a lo largo de la ruta. MTU es un ajuste configurado en una
+interfaz de red o una limitación de hardware de la unidad de datos de protocolos más grande que
+puede trasmitir o recibir. El programa `tracepath` funciona de la misma manera que `traceroute` en
+el sentido de que incrementa el TTL con cada paquete. Se diferencia de que envía un datagrama UDP
+muy grande. Es casi inevitable que el datagrama sea más grande que el dispositivo con la MTU más
+pequeña de la ruta. Cuando el paquete llega a este dispositivo, este suele responder con un
+paquete de destino inalcanzable. El paquete ICMP de destino inalcanzable tiene un campo para la MTU
+del enlace por el que enviaría el paquete si pudiera. `tracepath` envía entonces todos los paquetes
+subsiguientes con este tamaño:
+
+    tracepath 192.168.1.20
+
+Para IPv6:
+
+    tracepath6 2001:db8::11
+
+La salida es similar a `traceroute`. La ventaja de `tracepath` es que en la última línea muestra la
+MTU más paqueña de todo el enlace. Esto puede ser útil para solucionar problemas de conexiones que
+no pueden manejar fragmentos.
+
+Al igual que con las herramientas de solución de problemas anteriores, existe la posibilidad de
+que los equipos bloqueen sus paquetes.
+
+#### Crear conexiones arbitrarias
+El programa `nc`, conocido como netcat, puede enviar o recibir datos arbitrarios a través de una
+conexión de red TCP o UDP. Los siguientes ejemplos deberían dejar claro su funcionalidad.
+
+A continuación se muestra un ejemplo de configuración de un listener en el puerto `1234`:
+
+    nc -l 1234
+
+La salida de `LPI Example` aparece después del siguiente ejemplo, que está configurando un remitente
+netcat para enviar un paquete a `net2.example.net` en el puerto `1234`. La opción `-l` se utiliza para
+especificar que se desea que `nc` reciba datos en lugar de enviarlos:
+
+    nc net2.example.net
+
+Pulse `Ctrl+C` en cualquiera de los dos sistemas para detener la conexión.
+
+    nc -u -e /bin/bash -l 1234
+
+La opción `-u` es para UDP. La opción `-e` indica a netcat que envíe todo lo que recibe a la entrada
+estándar del ejecutable que le sigue. En este ejemplo: `/bin/bash`.
+
+    nc -u net2.example.net 1234
+
+La salida del comando `hostname` coincide con la del host que escucha y la salida del comando
+`pwd` con la de un directorio.
+
+#### Ver conexiones y oyentes actuales
+Los programas `netstat` y `ss` pueden utilizarse para ver el estado de sus oyentes y conexiones
+actuales. Al igual que `ifconfig`, `netstat` es una herramienta heredada. Tanto `netstat` como `ss`
+tienen salidas y opciones similares. Aquí están algunas opciones disponibles para ambos programas:
+
+**`-a`**: muetra todos los sockets.
+
+**`-l`**: presenta los sockets en escucha.
+
+**`-p`**: muestra el proceso asociado a la conexión.
+
+**`-n`**: evita la búsqueda de nombres tanto para los puertos como para las direcciones.
+
+**`-t`**: presenta las conexiones TCP.
+
+**`-u`**: muestra la conexiones UDP.
+
+Los ejemplos siguientes muestran la salida de un conjunto de opciones comúnmente utilizadas para
+ambos programas:
+```sh
+sudo netstat -tunlp
+...
+sudo ss -tunlp
+```
+La columna `Rec-Q` es el número de paquetes que un socket ha recibido pero no ha pasado a su programa.
+La columan `Send-Q` es el número de paquetes que un socket ha enviado y que no han sido reconocidos
+por el receptor. El resto de las columnas se explica sí mismas.
+
+#### Proceso de resolución de nombres
+los programas que resuelven nombres a números casi siempre utilizan funciones proporcionadas para
+la biblioteca estándar en C, que en los sistemas Linux es el glibc del proyecto GNU. Lo primero
+que hacen estas funciones es leer el archivo `/etc/nsswitch.conf` para obtener instrucciones sobre
+cómo resolver ese tipo de nombre. Una vez que el proceso lee `/etc/nsswitch.conf`, busca el
+nombre de la manera especificada. Dado que `/etc/nsswitch.conf` soporta plugins, lo que viene a
+continuación puede ser cualquier cosa. Una vez que la función ha terminado de buscar el nombre o
+el número, devuele el resultado al proceso que lo ha llamado.
+
+#### Clases de DNS
+El DNS tiene tres clases de registrs, IN, HS y CH. La clase IN es para las direcciones de Internet
+que utilizan la pila TCP/IP. CH es para ChaosNet, que es una tecnología de red que tuvo una corta
+vida y ya no está en uso. La clase HS es para Hesiod. Hesiod es una forma de almacenar cosas como
+password y entradas de grupo como DNS.
+
+#### Comprendiendo el archivo `/etc/nsswitch.conf`
+A continuación se muestra un ejemplo sencillo de `/etc/nsswitch.conf` de su página man:
+```sh
+    passwd: compat
+    group: compat
+    shadow: compat
+    hosts: dns [!UNAVAIL=return] files
+    networks: nis [NOTFOUND=return] files
+    ethers: nis [NOTFOUND=return] files
+    protocols: nis [NOTFOUND=return] files
+    rpc: nis [NOTFOUND=return] files
+    services: nis [NOTFOUND=return] files
+    # This is a comment. It is ignored by the resolution functions.
+```
+El archivo está orgaizado en columnas. Las columnas del extremo izquierdo es el tipo de base de
+datos de nombres. El resto de las columnas son los métodos que las funciones de resolución deben    utilizar para buscar un nombre. los métodos van seguidos de las funciones de izquierda a derecha.
+Las columnas con `[]` se utilizan para proporcionar alguna lógica condicional limitada a la columna
+inmediatamente a la izquierda de la misma.
+
+
