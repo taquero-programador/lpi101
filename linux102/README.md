@@ -7,7 +7,7 @@ comandos introducidos por el usuario, por lo tanto, los administradore de sistem
 hábiles en su uso. Como probablemente sabemos, el Bourne Again Shell (*Bash*) es el shell de
 facto en la gran mayoría de las distribuciones de Linux.
 
-ol momento que el sistema operativo inicia, lo primero que el Bash (o cualquier otro shell)
+Al momento que el sistema operativo inicia, lo primero que el Bash (o cualquier otro shell)
 realiza, es ejecutar una serie de scripts de inicio. Estos scripts personalizan el entorno de
 sesión. Existen varios scripts para todo el sistema operativo, así también para usuarios
 específicos. En estos scripts podemos elegir las preferencias o configuraciones que mejor se
@@ -5236,3 +5236,246 @@ Por último `nmap`, o el network mapper. Otra utilidad muy potente, este escáne
 especificando una dirección IP o un nombre de host:
 
     nmap localhost
+
+Aparte de un solo host, `nmap` le permite escanear:
+
+**Múltiples hosts**: separándolos con espacios (por ejemplo: `nmap localhost 192.168.12.15`).
+
+**Rangos de hosts**: utilizando un guión (por ejemplo: `192.168.1.3-20`).
+
+**Subredes**: utilizando un comodín o una notación CIDR (por ejemplo: `nmap 192.168.1.*` o
+`nmap 192.168.1.0/24`). Puede excluir determinados hosts (por ejemplo: `nmap 192.168.1.0/24 --exclude 192.168.1.7`).
+
+Para escanear un puerto concreto, utilice la opción `-p` seguida del número de puerto o del nombre
+del servicio (`nmap -p 22` y `nmap -p ssh` le darán la misma salida):
+
+    nmap -p 22 localhost
+
+También puede escanear varios puertos o rangos de puertos utilizando comas y guines, respectivamente:
+
+    nmap -p ssh,80 localhost
+
+Otras dos opciones importantes y útiles de `nmap` son:
+- **`-F`**: ejecuta un escaneo rápido en los 100 puertos más comunes.
+- **`-v`**: obtiene una salida más detallada (`-vv` imprimirá una salida con más información).
+
+#### Límites en los inicios de sesión de los usuarios, los procesos y el uso de la memoria
+Los recursos en un sistema Linux no son ilimitados, por lo que debe asegurar un buen equilibrio
+entre los límites de los usuarios sobre los recursos y el correcto funcionamiento del sistema
+operativo. `ulimit` puede ayudarle en este sentido.
+
+`ulimit` se ocupa de los límites soft y hard, especificados por las opciones `-S` y `-H`, respectivamente.
+Si se ejecuta sin opciones ni argumentos, `ulimit` mostrará los bloques de archivos con límites
+flexibles del usuario actual:
+
+    ulimit
+
+Con la opción `-a`, `ulimit` monstrará todos los límites flexibles actuales (lo mismo que `-Sa`); para
+mostrar todos los límites estricto actuales, utilice `-Ha`:
+
+    ulimit -Ha
+
+Los recursos del shell disponibles se especifican mediante opciones como:
+- **`-b`**: tamaño máximo del búfer en el socker.
+- **`-f`**: tamaño máximo de los archivos escritos por el shell y sus hijos.
+- **`-l`**: tamaño máximo que se puede bloquear en la memoria.
+- **`-m`**: tamaño máximo del conjunto residente (RSS), la porción actual de memoria que tiene un proceso en la memoria principal (RAM).
+- **`-v`**: cantidad máxima de la memoria virtual.
+- **`-u`**: número máximo de procesos disponibles para un solo usuario.
+
+Así, para mostrar los límites se utilizará `ulimit` seguido de `-S` (flexible) o `-H`(estricto) y la
+opción de recuros; si no se suministra ni `-S` ni `-H`, se monstrarán los limites felxibles:
+```sh
+carol@debian:~$ ulimit -u
+10000
+carol@debian:~$ ulimit -Su
+10000
+carol@debian:~$ ulimit -Hu
+15672
+```
+Del mismo modo, para establecer nuevos límites en un recurso concreto se especificara `S` o `H`,
+seguido de la opción de recurso correspondiente y el nuevo valor. Este valor puede ser un número o
+las palabras especiales `soft` (límite flexible actual), `hard` (límite estricto actual) o `unlimited`
+(sin limites). Sino se especifica ni `S` ni `H`, se establecerán ambos límites. Por ejemplo, leamos
+primero el valor del tamaño máximo actual de los archivos escritos por el shell y sus hijos:
+```sh
+root@debian:~# ulimit -Sf
+unlimited
+root@debian:~# ulimit -Hf
+unlimited
+```
+Ahora, cambiemos el valor de `unlimited` a `500` bloques sin especificar ni `-S` ni `-H`. Observe cómo
+se modifican tanto los límites flexibles como los estrictos:
+```sh
+root@debian:~# ulimit -f 500
+root@debian:~# ulimit -Sf
+500
+root@debian:~# ulimit -Hf
+500
+```
+por último, disminuirimes solo el límite flexible a `200` bloques:
+```sh
+root@debian:~# ulimit -Sf 200
+root@debian:~# ulimit -Sf
+200
+root@debian:~# ulimit -Hf
+500
+```
+Los límites estrictos solo pueden ser aumentados por el usuario root. Por otro lado, los usuarios
+regulares pueden disminuir los límites estrictos y aumentar los limites flexibles hasta el valor de
+los límites duros. para hacer que los nuevos valores de los límites sean persistentes a través de
+los reinicios, debe escribirlos en el archivo `/etc/security/limits.conf`. Este es también el archivo
+utilizado por el administrador para aplicar restricciones a terminados usuarios.
+
+#### Tratar con usuarios registrados
+Otro de los trabajos como administrador de sistemas implica llevar un registro de los usuarios
+conectados. Hay tres utilidades que pueden ayudar con estas tareas: `last`, `who` y `w`.
+
+`last` imprime un listado de los últimos usuarios conectados con la información más reciente en la
+parte superior:
+```sh
+root@debian:~# last
+carol pts/0 192.168.1.4 Sat Jun 6 14:25 still logged in
+reboot system boot 4.19.0-9-amd64 Sat Jun 6 14:24 still running
+mimi pts/0 192.168.1.4 Sat Jun 6 12:07 - 14:24 (02:16)
+reboot system boot 4.19.0-9-amd64 Sat Jun 6 12:07 - 14:24 (02:17)
+(...)
+wtmp begins Sun May 31 14:14:58 2020
+```
+Considerando el listado truncado, obtenemos información sobre los dos últimos usuarios del sistema.
+Las dos primeras líneas nos hablan del usuario `carol`; las dos siguientes, del usuario `mimi`. La
+información es la siguiente:
+
+1. El usuario `carol` en la terminal `pts/0` desde el host `192.168.1.4` inició su sesión el `sábado 6 de junio ala 14:25` y todavía está conectado. El sistema, que utiliza el kernel `4.19.0.9-amd64`, se inició (`reboot system boot`) el `sábado 6 de junio a las 14:24` y sigue funcionando.
+
+2. El usuario `mini` en la terminal `pts/0` desde el host `192.168.1.4` inició su sesión el `sábado 6 de junio a las 12:07` y cerró la sesión a las `14:24` (la sesión duro un total de [`02:16`] horas). El sistema que utiliza el kernel `4.49.0.9-amd64`, se inició el `sábado 6 de junio a las 14:24` (estuvo funcionando durante [`02:17`] horas).
+
+Puede pasarle a `last` un nombre de usuario para que solo muestre las entradas de ese usuario:
+
+    last carol
+
+Las utilidades `who` y `w` se centran en los usuarios actualmente conectados y son bastante similares.
+La primera muestra quién está conectado, mientras que la segunda también muestra información
+sobre lo que está haciendo.
+
+Cuando se ejecuta sin opciones, `who` mostrará cuatro columnas correspondientes al usuario conectado,
+el terminal, la fecha, la hora y el nombre de host:
+```sh
+root@debian:~# who
+carol pts/0 2020-06-06 17:16 (192.168.1.4)
+mimi pts/1 2020-06-06 17:28 (192.168.1.4)
+```
+`who` acepta una serie de opciones, entre las que podemos destactar las siguientes:
+- **`-b, --boot`**: muestra la hora del último arranque del sistema.
+- **`-r, --runlevel`**: muestra el nivel de ejecución actual.
+- **`-H, --heading`**: imprime los títulos de las columnas
+
+En comparación con `who`, `w` da una salida más detallada:
+
+    w
+
+La línea superior ofrece información sobre la hora actual (`17:56:12`), el tiempo que lleva el
+sistema en funcionamiento (`up 40 min`), el número de usuarios conectados en ese momento
+(`2 usuarios`) y los números de la media de carga (`media de carga: 0,04, 0,12, 0,09`). Estos valores
+se refieren al número de trabajos en la cola de ejecución promediados en los últimos 1,5 y 15
+minutos, respectivamente.
+
+A continuación, encontrará ocho columnas; vamos a desglosarlas:
+
+**`USER`**: nombre de inicio de sesión del usuario.
+
+**`TTY`**: nombre del terminal en el que se encuentra el usuario.
+
+**`FROM`**: host remoto desde el que el usuario está conectado.
+
+**`LOGIN@`**: hora de inicio de sesión.
+
+**`IDLE`**: tiempo de inactividad.
+
+**`JCPU`**: tiempo utilizado por todos los procesos conectados a la tty (incluidos los trabajos en
+en segundo plano que se están ejecutando actualmente).
+
+**`PCPU`**: tiempo utilizado por el proceso actual (el que se muestra bajo `WHAT`).
+
+**`WHAT`**: línea de comandos del proceso actual.
+
+Al igual que con `who` puede pasar el nombre de un usuario:
+
+    w bender
+
+#### Configuración y uso básico de `sudo`
+`su` permite cambiar a cualquier otro usuario del sistema siempre que se proporcione la contraseña
+del usuario de destino. En el caso del usuario `root`, tener su contraseña distribuida o conocida por
+(muchos) usuarios pone el riesgo el sistema y es muy mala práctica de seguridad. El uso básico
+de `su` es `su - user`. Sin embargo, al cambiar a `root`, el nombre de usuario de destino es opcional:
+
+    su -
+
+El uso del guión (`-`) garantia que se cargue el entorno del usuario de destino. Sin él, se mantendrá
+el entorno del usuario anterior:
+
+    su
+
+Por otro lado, está el comando `sudo`, con el que se puede ejecutar un comando como usuario `root` o
+cualquier otro usuario. Desde una perpectiva de seguridad, `sudo` es una opción mucho mejor que `su`
+ya que presenta dos ventajas principales: para ejecutar un comando como root, no se necesita la
+contraseña del usuario `root`, sino solo la del usuario que lo invoca en cumplimiento de una política
+de seguridad. la política de seguridad por defecto es `sudoers` como se especifica en
+`/etc/sudoers` y `/etc/sudoers.d/*`.
+
+1. `sudo` le permite ejecutar comando individuales con privilegios elevados en lugar de lanzar un nuevo subshell para root como hace `su`.
+
+El uso básico de `sudo` es `sudo -u user command`. Sin embargo, para ejecutar un comando como usuario
+root, la opción `-u user` no es necesario:
+
+    sudo whoami
+
+#### El archivo `/etc/sudoers`
+El archivo de configuración principal de `sudo` es `/etc/sudoers` (también existe el directorio
+`/etc/sudoers.d/`). Este es el lugar donde se determinan los privilegios de `sudo` de los usuarios.
+En otras palabras, aquí se especifica quién puede ejecutar qué comandos como qué usuarios en qué
+máquinas, así como otras configuraciones. La sintaxis utilizda es la siguiente:
+```sh
+carol@debian:~$ sudo less /etc/sudoers
+(...)
+# User privilege specification
+root    ALL=(ALL:ALL) ALL
+# Allow members of group sudo to execute any command
+%sudo   ALL=(ALL:ALL) ALL
+(...)
+```
+La especificación de privilegios para el usuario roos es `ALL=(ALL:ALL) ALL`. Esto se traduce como:
+el usuario root (`root`) puede iniciar sesión desde todas las máquinas (`ALL`), como todos los
+usuarios y todos los grupos (`(ALL:ALL)`), y ejecutar todos los comandos (`ALL`). Lo mismo ocurre
+con los miembros del grupo `sudo` (nótese cómo los nombres de los grupos se identifican con un
+signo de porcentaje precedente (`%`)).
+
+Así, para que el usuario `carol` pueda comprobar el estado de `apache2` desde cualquier host como
+cualquier usuario o grupo, añadirá la siguiente línea en el fichero `sudoers`:
+
+    carol ALL=(ALL:ALL) /usr/bin/systemctl status apache2
+
+Digamos que ahora quiere restringir sus hosts a 192.168.1.7 y permitir que `carol` ejecute
+`systemctl status apache2` como usuario `mimi`. Usted modificaría la línea de la siguiente manera:
+
+    carol 192.168.1.7=(mimi) /usr/bin/systemctl status apache2
+
+Ahora puede comprobar el estado del servidor web Apache como usuario `mimi`:
+
+    sudo -u mimi systemctl satus apache2
+
+Si `carol` fuese promovida a sysadmin y quisera darle todos los privilegios, el enfoque más fácil
+sería el de incluirla en el grupo especial `sudo` con `usermod` y la opción `-G` (también es posible
+querer usar la opción `-a`, que se asegura que el usuario no sea removido de cualquier otro grupo
+al que pudiera pertenecer):
+
+    sudo usermod -aG sudo carol
+
+En lugar de editar `/etc/sudoers` directamente, simplemente debe utilizar el comado `visudo` como
+root, que abrirá `/etc/sudoers` utilizando su editor de texto predefinido. Para cambiar el editor de
+texto por defecto, puedes añadir la opción `editor` como un ajuste `Defaults` en `/etc/sudoers`. Por
+ejemplo, para cambiar el editor a `nano`, añada la siguiente línea:
+
+    Defaults editor=/usr/bin/nano
+
+515
