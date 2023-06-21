@@ -4835,4 +4835,404 @@ datos de nombres. El resto de las columnas son los métodos que las funciones de
 Las columnas con `[]` se utilizan para proporcionar alguna lógica condicional limitada a la columna
 inmediatamente a la izquierda de la misma.
 
+Supongamos que un proceso intenta resolver el nombre de host `learning.lpi.org`. Haría una llamada
+a la biblioteca C apropiada (probablemente `gethostbyname`). Esta función leerá entonces
+`/etc/nsswitch.conf`. Como el proceso está buscando un nombre de host, encontrará la línea que
+comienza con `host`. Entonces intentará usara el DNS para resolver el nombre. La siguiente columna,
+`[!UNAVAIL=return]` significa que el servicio no está disponible, entonces no inente la siguiente
+fuente, es decir, si DNS está disponible, deje de intentar resolver el nombre de lhost aunque los
+servidores de nombres no puedan. Si el DNS no está disponible, entonces continúe con la siguiente
+fuente. En este caso, la siguiente fuentes es `files`.
 
+Cuando veas una columna con el formato `[resultado=action]`, significa que la búsqueda del resolver
+de la columna a la izquierda es `resultado`, entonces se realiza `action`. Si resultado es similar a
+un `!`, significa que el resultado no es igual a este, entonces se realiza `action`.
+
+Ahora supongamos que un proceso está intentando resolver un número de puerto a un nombere de servicio.
+Para ello, leerá la línea `servicios`. La primera fuente listadas es `NIS`. Estas siglas significan
+*Network Information Service* (a veces llamado yellow pages). Es un antiguo servicio que permitía la
+gestión centralizada de objetos como los usuarios. Ya no se usa mucho debido a su escasa seguridad.
+La siguiente columna `[NOTFOUND=return]` significa que si la búsqueda tiene éxito, pero no encuentra
+el servicio, debe dejar de buscar. Si la condición mencionada no se aplica, utilice los archivos
+locales.
+
+#### El archivo `/etc/resolv.conf`
+El archivo `/etc/resolv.conf` se utiliza para configurar la resolución de hosts mediante DNS. Algunas
+distribuciones tienen scripts de inicio, demonios y otras herramientas que escriben en este archivo.
+Tenga esto en cuenta cuando edite este archivo. Algunas herramientas, como Network Manager,
+dejarán un cometario en el archivo para informarle que los cambios manuales se sobreescribirán.
+
+El formato del archivo es bastante sencillo. En la columna de la izquerda se encuentra la opción
+`name`. El resto de las columnas en la misma línea son el valor de la opción.
+
+La opción más común es `nameserver`. Se utiliza para especificar la dirección IPv4 o IPv6 de un
+servidor DNS. Puede especificar hasta tres servidores de nombres. Si su `/etc/resolv.conf` no tiene
+la opción `nameserver`, su sistema utilizara por defecto el servidor de nombres de la máquina local.
+
+A continuación se muestra un archivo de ejemplo simple que es representativo de las configuraciones
+más comunes:
+```sh
+search lpi.org
+nameserver 10.0.0.53
+nameserver fd00:ffff::2:53
+```
+La opción `search` se utiliza para permitir las búsquedas de forma corta. En este ejemplo, se ha
+configurado un único dominio de búsqueda de `lpi.org`. Esto significa que cualquier intento de
+resolver un nombre de host sin uns porción de dominio trendrá `.lpi.org` añadido antes de la
+búsqueda. Por ejemplo, si intentara buscar un host llamado `aprendizaje`, el resolvedor buscaría
+`aprendizaje.lpi.org`. Puede tener configurado hasta seis dominios de busqueda.
+
+Otra opción común es la opción `domain`. Se utiliza para establecer el nombre de dominio local. Si
+esta opción no está presente, se utiliza por defecto todo lo que siga al primer `.` en el nombre de
+host de la máquina. Si el nombre de host contienen un `.`, se asume que el nombre de la máquina es
+parte del diminio raíz. Al igual que `search`, `domain` puede utilizarse para búsquedas de nombres cortos.
+
+Tenga en cuenta que `domain` y `search` son mutuamente excluyentes. Si ambos están presentes, se
+utiliza la última instancia del archivo.
+
+Hay varias opciones que se pueden establecer para afectar el comportamiento del resolver. Para
+establecerlas, utilice la palabra clave `options`, seguida del nombre de la opción a establecer, y si
+es aplicable, un `:` seguido del valor. A continuación se muestra un ejemplo de configuración de la
+opción de tiempo de espera, que es el tiempo en segundos que el resolvedor esperará a un servidor de
+nombres antes de rendirse:
+
+    option timeout:3
+
+Hay otras opciones en `resolv.conf`, pero estas son las más comunes.
+
+#### El archivo `/etc/hosts`
+El archivo `/etc/hosts` se utiliza para resolver nombres a direcciones IP y viceversa. Tanto IPv4 como
+IPv6 son comptaibles. Las columnas de la izquierda es la dirección IP, el resto son nombres asociados
+a esa dirección. El uso más común de `/etc/hosts` es para hosts y para direcciones donde el DNS no es
+posible, como las direcciones de loopback. En el ejemplo siguiente, se definen las direcciones IP
+de los componentes críticos de la infraestructura.
+
+Este es un ejemplo realista de un archivo `/etc/hosts`:
+```sh
+127.0.0.1   localhost
+127.0.1.1   proxy
+::1         localhost ip6-localhost ip6-loopback
+ff02::1     ip6-allnodes
+ff02::2     ip6-allrouters
+
+10.0.0.1    gateway.lpi.org gateway gw
+fd00:ffff::1 gateway.lpi.org gateway gw
+
+10.0.1.53   dns1.lpi.org
+fd00:ffff::1:53 dns1.lpi.org
+10.0.2.53   dns2.lpi.org
+fd00:ffff::2:53 dns2.lpi.org
+```
+
+#### `systemd-resolved`
+Systemd proporciona un servicio llamado `systemd-resolved`. Proporciona mDNS, DNS y LLMNR. Cuando se
+ejecuta, escucha las peticiones DNS en `127.0.0.53`. No proporciona un servidor DNS completo. Las
+peticiones DNS que recibe se buscan consultando los servidores configurados en `/etc/sysmted/resolv.conf`
+o `/etc/resolv.conf`. Si desea utilizar esto, use `resolve` para hosts en `/etc/nsswitch.conf`.
+Tenga en cuenta que el paquete del sistema operativo que tiene la biblioteca `systemd-resolved`
+puede no estar disponible por defecto.
+
+#### Herramientas de resolución de nombres
+Hay muchas herramientas disponibles para los usuarios de Linux para la resolución de nombres.
+
+#### El comando `getent`
+La utilidad `getent` se utiliza para mostrar las entradas de las bases de datos del servicio de
+nombre. Puede recuperar registros de cualquier fuente configurable por `/etc/nsswitch.conf`.
+
+para utilizar `getent`, siga el comando con el tipo de nombre que desea resolver y, opcionalmente,
+una entrada específica para buscar. Si solo se especifica el tipo de nombre, `getent` intentará
+monstar todas las entradas de ese tipo de datos:
+```sh
+$ getent hosts
+127.0.0.1 localhost
+127.0.1.1 proxy
+10.0.1.53 dns1.lpi.org
+10.0.2.53 dns2.lpi.org
+127.0.0.1 localhost ip6-localhost ip6-loopback
+$ getent hosts dns1.lpi.org
+fd00:ffff::1:53 dns1.lpi.org
+```
+A partir de la versión 2.2.5 de glibc, puede forzar a `getent` a utilizar una fuente de datos
+específica con la opción `-s`. El siguiente ejemplo lo demuestra:
+
+    getent -s files hosts learning.lpi.org
+
+#### El comando `host`
+`host` es un programa sencillo para buscar entradas DNS. Sin opciones, si a `host` se le da un nombre,
+devuelve los conjuntos de registro A, AAAA y MX. Si se le da una dirección IPv4 o IPv6, devuelve
+el registro PTR si hay uno disponible:
+```sh
+host wikipedia.org
+
+host 208.80.154.224
+```
+Si busca un tipo de registro específico, puede utilizar `host -t`:
+```sh
+host -t NS lpi.org
+
+host -y SOA lpi.org
+```
+`host` también puede utilizar para consultar un servidor de nombres específico si no desea utilizar
+los que se encuentran en `/etc/resolv.conf`. Simplementa añada la dirección IP o el nombre del
+servidor que desea utilizar como último argumento:
+
+    host -t MX lpi.org dns1.easydns.com
+
+#### El comando `dig`
+Otra herramienta para consultar servidores DNS es `dig`. Este comando es mucho más detallado que
+`host`. Po defecto, `dig` consulta los registros A. Probablemente es demaciado tedioso buscar una
+dirección IP o nombre de host. `dig` funcionará para búsquedas sencillas, pero es más adecuado para
+solucionar problemas de configuración del servidor DNS:
+```sh
+ig learning.lpi.org
+; <<>> DiG 9.11.5-P4-5.1+deb10u1-Debian <<>> learning.lpi.org
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 63004
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 3, ADDITIONAL: 5
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: ca7a415be1cec45592b082665ef87f3483b81ddd61063c30 (good)
+;; QUESTION SECTION:
+;learning.lpi.org. IN A
+;; ANSWER SECTION:
+learning.lpi.org.
+480
+|
+learning.lpi.org
+|
+208.94.166.198
+;; AUTHORITY SECTION:
+lpi.org. 86400 IN NS dns2.easydns.net.
+lpi.org. 86400 IN NS dns1.easydns.com.
+lpi.org. 86400 IN NS dns3.easydns.ca.
+dns1.easydns.com. 172682 IN A 64.68.192.10
+dns2.easydns.net. 170226 IN A 198.41.222.254
+dns1.easydns.com. 172682 IN AAAA 2400:cb00:2049:1::a29f:1835
+dns2.easydns.net. 170226 IN AAAA 2400:cb00:2049:1::c629:defe
+;; ADDITIONAL SECTION:
+;; Query time: 135 msec
+;; SERVER: 192.168.1.20#53(192.168.1.20)
+;; WHEN: Sun Jun 28 07:29:56 EDT 2020
+;; MSG SIZE
+rcvd: 266
+```
+Como puede ver, `dig` proporciona mucha información. La salida está dividida en secciones. La primera
+sección muestra información sobre la versión de `dig` instalada y la consulta enviada, junto con las
+opciones utilizada para el comando. A continuación muestra información sobre la consulta y la
+respuesta.
+
+La siguiente sección muestra información sobre las extenciones EDNS utilizdas y la consulta. En el
+ejemplo, se utiliza la extensión cookie. `dig` está buscando un registro A para `learninig.lpi.org`.
+
+La siguiente sección muestra el resultado de la consulta. El número de la segunda columna es el TTL
+del recurso en segundos. 
+
+El resto de la salida proporciona informacion sobre los servidores de nombre de dominio, incluyendo
+los registro NS del servidor junto con los registrosA y AAAA de los servidores en el registro NS del
+dominio.
+
+Al igual que `host`, puede especificar un tipo de registro con la opción `-t`:
+
+    dig -t SOA lpi.org
+
+El comando `dig` tiene muchas opciones para afinar tanto la salida como la consulta enviada al
+servidor. Estas opciones comienzan con `+`. Una de ellas es la opción `short`, que suprime toda la    salida excepto el resultado:
+
+    dig +short lpi.org
+
+Este es un ejemplo de cómo descativar la extensión de la cookie EDNS:
+
+    dig +nocookie -t MX lpi.org
+
+## Tareas de administración de seguridad
+#### Gestión de caducidad de contraseñas
+Puede emplear la utilidad `passwd` para cambiar su propia contraseña como usuario normal. Además,
+puede pasar la opción `-S` o `--status` para obtener información sobre el estado de su cuenta:
+```sh
+passwd -S
+carol P 12/07/2019 0 99999 7 -1
+```
+A continuación se desglosan los siete cmapos que se obtienen en la salida:
+
+**`carol`**: nombre de acceso del usuario.
+
+**`P`**: indica que el usuario tiene una contraseña válida; otros valores posibles son `L` para una
+contraseña bloqueada y `NP` para ninguna contraseña.
+
+**`12/07/2019`**: fecha del último cambio de contraseña.
+
+**`0`**: edad mínima en días (el número mínimo de días entre cambios de contraseña). Un valor de `0`
+significa que la contraseña puede cambiarse en cualquier momento.
+
+**`99999`**: edad máxima en días (el número máximo de días que la contraseña es válida). Un valor de
+`99999` desactivará la caducidad de la contraseña.
+
+**`7`**: período de advertencia en días (el número de días antes de la expiración de la contraseña
+que un usuario será advertido).
+
+**`-1`**: periodo de inactividad de la contraseña en días (el número de días inactivos después de la
+expiración de la contraseña antes de que la cuenta se bloquee). Un valor de `-1` eliminará la
+inactividad de la cuenta.
+
+Aparte de informar sobre el estado de las cuentas, se puede utilizar el comando `passwd` como root
+para llevar a cabo algunas tareas básicas de mantenimiento de cuentas. Puede bloquear y desbloquear
+cuentas, forzar a un usuario a cambiar su contraseña en el siguiente inicio de sesión y eliminar
+la contraseña de un usuario con las opciones `-l`, `-u`, `-e` y `-d`, respectivamente.
+
+Para probar estas opciones es conveniente introducir el comando `su` en este punto. A través de `su`
+se puede cambiar de usuario durante una sesión de inicio de sesión. Por ejemplo, usemos `passwd`
+como root para bloquear la contraseña de `carol`. Entonces cambiaremos a `carol` y comprobaremos el
+estado de nuestra cuenta para verificar que la contraseña ha sido bloqueada y no puede ser cambiada.
+Finalmente, volviendo al usuario root, desbloquearemos la cuenta de `carol`:
+```sh
+sudo passwd -l carol
+...
+sudo passwd -S carol
+...
+passwd
+...
+sudo passwd -u carol
+```
+También puede bloquear y desbloquear la contraseña de un usuario con el comando `usermod`:
+
+Bloquear la contraseña del usuario `carol`:
+
+    sudo usermod -L carol o --lock
+
+Desbloquear la contraseña del usuario `carol`:
+
+    sudo usermod -U carol o --unlock
+
+Además de `passwd` y `usermod`, el comando más directo para tratar la caducidad de contraseñas y
+cuentas es `chage` (chage age). Como root, puede pasarle a `chage` la opción `-l` seguido de un
+nombre de usuario para que se imprima en la pantalla la contraseña actual de ese usuario y la
+información de caducidad de la cuenta; como usuario normal, puede ver su propia información:
+
+    sudo chage -l user
+
+Ejecutado sin opciones y solo seguido de un nombre de usuario, `chage` se comportará de forma
+interactiva:
+
+    chage carol
+
+Las opciones para modificar los diferentes ajustes de `chage` son los siguientes:
+
+**`-m days username o --mindays day username`**: especifica el número mínimo de días entre cambios de
+contraseña (por ejemplo: `chage -m 5 carol`). Un valor de `0` permitirá al usuario cambiar su    contraseña en cualquier momento.
+
+**`-M days username o --maxdas days username`**: especifica el número máximo de días que la contraseña
+será válida (por ejemplo: `chage -M 30 carol`). Para desactivar la caducidad de la contraseña, es
+habitual dar a esta opción un valor de `99999`.
+
+**`-d days username o --lastday days username`**: especifica el número de días desde que la contraseña
+fue cambiada por última vez (por ejemplo: `chage -d 10 carol`). Un valor de `0` obligará al usuario a
+cambiar su contraseña en el siguiente inicio de sesión.
+
+**`-W days username o --wandays days username`**: especifica el número de días que se le recordará al
+usuario que su contraseña ha caducado.
+
+**`-I days username o --inactive days username`**: especifica el número de días inactivos después de
+la expiración de la contraseña (por ejemplo: `chage -I 10 carol`), lo mismo que `usermod -f` o
+`usermod --inactive`. Una vez que haya pasado ese número de días, la cuenta se bloqueará. Sin embargo,
+con un valor de `0`, la cuenta no se bloqueará.
+
+**`-E date username o --expiredate date username`**: especifica la fecha (o el número de días desde
+la época, el 1 de enero de 1970) en la que se bloqueará la cuenta. Normalmente se expresa en el
+formato `YYYY-MM-DD` (por ejemplo: `chage -E 2050-12-12 carol`).
+
+#### Descubrir los puertos abiertos
+Cuando se trata de vigilar los puertos abiertos, hay cuatro potentes utilidades presentes en la
+mayoría de los sistemas linux: `lsof`, `fuser`, `netstat` y `nmap`.
+
+`lsof` significa "listar archivos abiertos", lo cual no es poca cosa teniendo en cuenta que, para
+Linux, todo es un archivo. De echo, si escribe `lsof` en la terminal, obtendrá un gran listado de
+archivos regulares, archivos de dispositivos, sockets, etc. Para imprimir el listado de todos los
+archivos de red de "Internet", ejecute `lsof` con la opción `-i`:
+
+    sudo lsof -i
+
+Aparte del servicio `bootpc`, que es utilizado por DHCP, la salida muestra dos servicios que están
+escuchando conexiones, `ssh` y el servidor web Apache (`http`), así como dos conexiones ssh
+establecidas. puede especificar un host en particular con la notación `@ip-address` para
+comprobar sus conexiones:
+
+    sudo lsof -i@192.168.1.7
+
+Asimismo, puede filtrar por puerto pasando la opción `-i` (o `@ip-address`) al argumento `:port`.
+```sh
+sudo lsof -i :10222
+# or
+sudo lsof -i@192.168.0.10:10222
+```
+Los puertos múltiples se separan con comas y los rangos por guión:
+
+    sudo lsof -i@192.168.1.7:22,10222
+
+El siguiente de la lista de comandos de red es `fuser`. Su propósito principal es encontrar el usuario
+de un fichero, lo que implica saber qué proceso está accediendo a qué ficheros; también de alguna
+otra información como el tipo de acceso. Por ejemplo, para comprobar el directorio de trabajo actual,
+basta con ejecutar `fuser`. Sin embargo, para obtener un poco más de información, es conveniente
+utilizar la opción verbose (`-v` o `--verbose`):
+```sh
+fuser .
+
+fuser . -v
+```
+Desglosemos la salida:
+
+**`File`**: el archivo del que estamos obteniendo información.
+
+**`USER`**: el propietario del archivo (`root`).
+
+**`PID`**: el identificador del proceso (`580`).
+
+**`ACCESS`**: tipo de acceso (`..c..`). Uno de:
+- **`c`**: directorio actual
+- **`e`**: ejecutables que se llevan a cabo
+- **`f`**: abrir archivo (se omite en el modo de visualización por defecto)
+- **`F`**: abrir archivo para escribir (se omite en el modo de visualización por defecto)
+- **`r`**: directorio raíz
+- **`m`**: archivo mmap'ed o biblioteca compartida
+- **`.`**: marcador de posición (omitido en el modo de visualización por defecto)
+
+**`COMMAND`**: el comando afiliado al archivo (`bash`).
+
+Con la opción `-n` (o `--namespace`), puede encontrar información sobre los puertos/sockets de red.
+También debe proporcionar el protocolo de red y el número de puerto. Así para obtener información
+sobre el servidor web Apache ejecutará el siguiente comando:
+
+    sudo fuser -vn tcp 80
+
+Pasemos ahora a `netstat`. Esta es una herramienta de red muy versátil que se utiliza principalmente
+para imprimir "estadísitcas de red".
+
+Ejecutado sin opciones, `netstat` monstrará tanto las conexiones activas a Intenert ocomo los sockets
+de Unix. Debido al tamaño del listado, es posible que quiera canalizar su salida a través de `less`:
+
+    netstat | less
+
+Para listar solo los puertos y sockets de escucha, se utilizarán las opciones `-l` o `--listening`.
+Las opciones `-t`/`--tcp` y `-u`/`--udp` pueden añadirse para filtrar por protocolos TCP y UDP,
+respectivamente (también pueden combinarse en el mismo comando). Asimismo, `-e`/`--extend` mostrará
+información adicional:
+
+    sudo netstat -tulpne
+
+Si omite la opción `-l`, solo mostrará las conexiones establecidas:
+
+    sudo netstat -ute
+
+Si solo le interesa la información numérica relativa a los puertos y hosts, puede utilizar la opción
+`-n` o `--numeric` para imprimir solo los números de puerto y las direcciones IP. Observe cómo `ssh`
+se convierte en `22` al añadir `-n` al comando anterior:
+
+    sudo netstat -uten
+
+Como puede ver, es posible utilizar comando `netstat` muy útiles y productivos combinando algunas de
+sus opciones.
+
+Por último `nmap`, o el network mapper. Otra utilidad muy potente, este escáner de puertos se ejecuta
+especificando una dirección IP o un nombre de host:
+
+    nmap localhost
