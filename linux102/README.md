@@ -7,7 +7,7 @@ comandos introducidos por el usuario, por lo tanto, los administradore de sistem
 hábiles en su uso. Como probablemente sabemos, el Bourne Again Shell (*Bash*) es el shell de
 facto en la gran mayoría de las distribuciones de Linux.
 
-ol momento que el sistema operativo inicia, lo primero que el Bash (o cualquier otro shell)
+Al momento que el sistema operativo inicia, lo primero que el Bash (o cualquier otro shell)
 realiza, es ejecutar una serie de scripts de inicio. Estos scripts personalizan el entorno de
 sesión. Existen varios scripts para todo el sistema operativo, así también para usuarios
 específicos. En estos scripts podemos elegir las preferencias o configuraciones que mejor se
@@ -1557,7 +1557,7 @@ Además de la opción `-e`, el comando `crontab` tiene otras opciones útiles:
 
 #### Crear crones de sistema
 A diferencia de los crontabs de usuario, los crontabs de sistema se actualizan usando un
-editor: por lo tanto, no es necesario ejecutar el comadno `crontab` para editar `/etc/crontab` y
+editor: por lo tanto, no es necesario ejecutar el comando `crontab` para editar `/etc/crontab` y
 los archivos en `/etc/cron.d/`. Recuerde que cuando edite los crontabs del sistema, debe
 especificar la cuenta que se usará para ejecutar el trabajo cron (normalmente root).
 
@@ -2003,7 +2003,7 @@ usar el siguiente comando:
 
 La opción `-f ISO-8859-1` (o `--from-code=ISO-8859-1`) establece la codificación del archivo
 original y la opción `-t UTF-8` (o `--to-code=UTF-8`) establece el del archivo convertido. Todas
-las codificaciones soportadas por el comando `iconv` se listan con el comadno `iconv -l` o
+las codificaciones soportadas por el comando `iconv` se listan con el comando `iconv -l` o
 `iconv --list`. En lugar de usar la redirección de la salida, como en el ejemplo, también puede
 usar la opción `-o converted.txt` o `--output converted.txt`.
 
@@ -2897,4 +2897,2585 @@ para mensajes relacionado con los dispositivos del Bus Serie Universal:
 
     dmesg | grep -i "usb"
 
-pg 314
+#### Fundamentos de `systemd`
+Introducido por primera vez en Fedora, `systemd` ha sustituido progresivamente a SysV Init como
+gestor de sistemas y servicios en la mayoría de las principales distribuciones de Linux.
+Entre sus puntos fuertes están los siguientes:
+- Facilidad de configuración: archivos de unidad en comparación a los scripts SysV Init.
+- Gestión versátil: adeémas de demonios de procesos, también gestiona dispositivos, sockets y puntos de montaje.
+- Compatibilidad con SysV Init y Upstart.
+- Carga paralela durante el arranque: los servicios se cargan en paralelo, en lugar de que SysV Init los cargue secuencialmente.
+- Cuenta con un servico de registro llamado journal que presenta las siguientes ventajas:
+    - Centraliza todos los registros en un solo lugar.
+    - No requiere rotación de registros.
+    - Los registros pueden ser deshabilitados, cargados en RAM o hechos persistentes.
+
+#### Unidades y objetivos
+`systemd` opera sobre unidades (*units*). Una unidad es cualquier recurso que `systemd` puede
+gestionar (por ejemplo, red, bluetooth, etc.). Las unidades, a su vez, se rigen por ficheros de
+unidades. Estos archivos de texto plano que se ubican en `/lib/systemd/system/` e incluyen los
+ajustes de configuración (en forma de secciones y directivas) para un recurso particular a ser
+gestionado. Hay varios tipos de unidades: `service`, `mount`, `automount`, `swap`, `timer`, `device`,
+`socket`, `path`, `snapshot`, `slice`, `scope` y `target`. Así cada nombre de archivo de unidad sigue
+el patrón `<nombre_de_recurso>.<tipo_de_unidad>` (por ejemplo, `reboot.service`).
+
+Un objetivo (target) es un tipo especial de unidad que se asemeja a los clásicos runlevels de
+de SysV Init. Esto se debe a que una unidad target reúne varios recuros para representar un
+estado particular del sistemas (por ejemplo, `graphical.target` es similar a `runlevel 5`, etc.).
+Para comprobar el objetivo actual de su sistema, utilice el comando `systemctl get-default`:
+
+    sudo systemctl get-default
+
+Por otro lado, los objetivos y los niveles de ejecución se diferencias en que los primeros se
+incluyen mutuamente, mientras que los segundos no. Así, un objetivo puede hacer que aparezcan
+otros objetivos, lo que no es posible con los niveles de ejecución.
+
+#### The System Journal: `systemd-journald`
+`systemd-journald` es el servicio del sistema que se encarga de recibir información de registro de
+diversas fuentes: mensajes del kernel, mensajes simples y estructurados del sistema, la salida
+estándar y errores estándar de los servicos, así como los registros de auditoría del subsistema
+del kernel. Su misión es la de crear y mantener un diario estructurado e indexado.
+
+Su archivo de configuración es `/etc/systemd/journald.conf` y, como cualquier otro servico, puede
+usar el comando `systemctl` para iniciarlo, reiniciarlo, pararlo o simplemente comprobar su estado:
+
+    sudo systemctl status systemd-journald
+
+Los archivos de configuración del tipo `journal.conf.d/*.conf`, que pueden incluir configuraciones
+específicas de los paquetes, también son posibles. Si se activa, el diario puede almacenar de
+forma persistente en el disco o de forma volátil en un sistema de archivos basados en la
+memoria RAM. El diario no es un archivo de texto plano, es binario. Por lo tanto, no puede
+utilizar herramientas de análisis de texto como `less` o `more` para leer su contenido; en su lugar
+se utiliza el comando `journalctl`.
+
+#### Consultado el contenido de journal
+`journalctl` es la utilidad que se emplea para consultar el journal en `systemd`. Tiene que ser
+`root` o usar `sudo` para invocarlo. Si si se consulta sin opciones, imprimirá todo el diario
+cronológicamente (con las entradas más antiguas listadas primero):
+
+    sudo jorunalctl
+
+Puede realizar consultas más específicas utilizando una serie de opciones:
+
+- **`-r`**: los mensajes del journal se imprimirán en orden inverso.
+- **`-f`**: imprimirá los mensajes más recientes del journal y seguirá imprimiendo las nuevas entradas a medida que se añadan a este, similar a `tail -f`.
+- **`-e`**: saltará al final del journal para que las últimas entradas sean visibles dentro del localizador.
+- **`-n <value>, --lines=<value>`**: imprimirá el valor de las líneas más recientes (por defecto será 10).
+- **`-k, --dmesg`**: equivale a utilizar el comando `dmesg`.
+
+#### Navegar y buscar a traves del journal
+Puede navegar por la salida de journal con:
+- PageUp, PageDown, y las teclas de flecha para moverse hacia arriba, abajo, izquierda y dereacha.
+- `>` para ir al final de la salida.
+- `<` para ir al principio de la salida.
+
+Puede buscar cadenas tanto hacia adelante como hacia atrás desde la posición de la vista actual:
+- Búsqueda hacia adelante: pulse `/` e introduzca la cadena a buscar, luego pulse Enter.
+- Búsqueda hacia atrás: pulse `?` e introduzca la cadena a buscar, luego pulse Enter.
+
+Para navegar por las conicidencias en las búsquedas, utilice `N` para ir a la siguiente ocurrencia
+y `Shift + N` para ir a la anterior.
+
+#### Filstrar los datos de journal
+El journal permite filtrar los datos del registro por diferentes criterios:
+
+**Número de aranque**
+
+**`--list-boost`**: enumera todos los arranques disponibles. La salida consta de tres columnas;
+la primera especifica el número de arranques (`0` se refiere al arranque actual, `-1` es el
+anterior, `-2` el anterior al anterior y así sucesivamente); la segunda columna es el ID del
+arranque; la tercera muestra las marcas de tiempo.
+
+**`-b, --boot`**: muestra todos los mensajes de arranque actual. Para ver los mensajes de registro de
+los arranques anteriores, solo tiene que añadir un párametro de desplazamiento. Por ejemplo,
+Para que se impriman los mensajes del arranque anterior, escribirá `journalctl -b -1`.
+Recuerde, sin embargo, que para recuperar la información de los registros anteriores, la
+persitencia del diario debe estar habilitada.
+
+**Prioridad**
+
+**`-p`**: curiosamente, también se puede filtrar por la gravedad/prioridad con la opción `-p`:
+
+    sudo journalctl -b -0 -p err
+
+#### Intervalo de tiempo
+Puede hacer que `journalctl` imprima solo los mensajes registrados dentro de un marco de tiempo
+específico utilizando las opciones `--since` y `--until`. La especificación de la fecha debe seguir
+el formato `AAAA-MM-DD HH:MM:SS`. Se asumirá que es medianoche si se omite el componente del
+tiempo. Del mismo modo, si se omite la fecha, se asume el día actual. Por ejemplo, para ver los
+mensajes registrado desde las 19:00 hasta las 19:01, se escribirá:
+
+    sudo journalctl --since "19:00:00" --until "19:01:00"
+
+Del mismo modeo, puede utilizar una especificación de tiempo ligeramente diferente:
+`"integer time-unit ago"`. Por lo tanto, para ver los mensajes registrador hace dos minutos escribirá
+`sudo journalctl --since "2 minutes ago"`. También es posible utilizar `+` y `-` para especificar tiempos relativos a la hora actual, por lo que `--since "-2 minutes"` y `--since "2 minutes ago"` son...
+
+Además de las expresiones numéricas, puede especificar una serie de palabras clave:
+
+- **`yesterday`**: a partir de la medianoche del día anterior al día actual.
+- **`today`**: a partir de la medianoche del día actual.
+- **`tomorrow`**: a partir de la medianoche del día siguiente al día actual.
+- **`now`**: la hora actual.
+
+Para ver todos los mensajes desde la pasada medianoche hasta hoy al as 21:00 horas:
+
+    sudo journalctl --since "today" --until "21:00:00"
+
+**Programa**
+
+Para ver los mensajes de journal relacionados con un ejecutable específico se utiliza la
+siguiente sintaxis `journalctl /path/to/executable`:
+
+    sudo journalctl /usr/sbin/sshd
+
+**Unidad**
+
+Recuerda que una unidad es cualquier recurso manejado por `systemd` y también puedes filtrar
+por ellos.
+
+- **`-u`**: muestra mensajes sobre la unidad específica:
+```sh
+sudo journalctl -u ssh.service
+```
+
+**Campos**
+
+El journal también se puede filtrar por campos específicos mediante cualuiera de las siguientes
+sintaxis:
+- **`<field-name>=<value>`**
+- **`_<field-name>=<value>_`**
+- **`__<field-name>=<value>`**
+    - **`PRIOROTY=`**: uno de los ocho posibles valores de prioridad de `syslog` formateado como una cadena decimal: `sudo journalctl PRIOROTY=3`.
+    - **`SYSLOG_FACILITY=`**: cualquiera de los posibles números de código de instalación formateados como una cadena decimal. Por ejemplo, para ver todos los mensajes de nivel de usuario: `sudo journalctl SYSLOG_FACILITY=1`.
+    - **`_PID=`**: muestra los mensajes producidos por un ID de proceso específico. Para ver todos los mensajes producidos por `systemd`, se debe escribir: `sudo journalctl _PID=1`.
+    - **`_BOOT_ID`**: basándose en su ID de arranque, se puede distinguir los mensajes de un arranque específico, por ejemplo: `sudo journalctl _BOOT_ID=83df3e8653474ea5aed19b41cdb45b78`.
+    - **`_TRANSPORT`**: mostrar los mensajes recibidos de un transporte específico. Los valores posibles son: `audit` (subsistema de auditoría del kernel), `driver` (generado internamente), `syslog` (soskcet syslog), `journal` (rotocolo de diario nativo), `stdout` (salida estándar o error estándar de los servicios), `kernel` (biffer de anillo del kernel, lo mismo que `dmsesg`, `journalctl -k` o `journalctl --dmesg`): `sudo journalctl _TRANSPORT=journal`.
+
+#### Combinando campos
+Los campos no son mutuamente excluyentes, por lo que puede utilizar más de uno es la misma
+consulta. Sin embargo, solo se mostrarán los mensajes que coincidan con el valor de ambos
+campos simultáneamente:
+
+    sudo journalctl PRIOROTY=3 SYSLOG_FACILITY=0
+
+A menos que utilice el separado `+` para combinar dos expresiones a la manera de un OR lógico:
+
+    sudo journalctl PRIOROTY=3 + SYSLOG_FACILITY=0
+
+Por otro lado, puede proporcionar dos valores para el mismo campo y se mostrarán todas las
+entradas que conicidan con cualquiera de los dos valores:
+
+    sudo journalctl PRIOROTY=1 PRIOROTY=3
+
+#### Estradas manuales en el diario del sistema: `systemd-cat`
+Al igual que el comando `logger` se utiliza para enviar mensajes desde la línea de comandos al
+registro del sistema, el comando `systemd-cat` tiene un propósito similar (pero más completo)
+con el diario del sistema. Nos permite enviar la entrada estándar (stdin), la salida (stdout) y
+el error (stderr) al diario.
+
+Si se invoca si parámetros, enviará todo lo que lea de stdin al diario. Una vez que haya terminado,
+pulse `Ctrl + C`:
+
+    systemd-cat
+
+Si se le pasa la salida de un comando canalizado, este se enviará también al diario:
+
+    echo "This a message from journal" | systemd-cat
+
+Si va seguido de un comando, la salida de ese comando también se enviará al diario, junto con
+stderr (si lo hay):
+
+    systemd-cat echo "This a message from journal"
+
+También existe la posibilida de especificar un nivel de prioridad con la opción `-p`:
+
+    systemd-cat -p emerg echo "This a message from journal"
+
+Para ver las últimas cuatro líneas del diario utilice:
+
+    sudo journalctl -n 4
+
+#### Almacenamiento persistente del diario
+Tiene tres opciones en cuanto a la ubicación del diario:
+- El registro del diario puede ser desactivoado por completo (aunque la redirección a otras instalaciones como la consola sigue siendo posible).
+- Mantenerlo en memoria (lo que lo hace volátil) y deshacerse de los registros con cada reinicio del sistema. En este escenario, el directorio `/run/log/journal` será creado y utilizado.
+- Hacerlo persistente para que escriba los registros en el disco. En este caso, los mensajes de registro irán al directorio `/var/log/journal`.
+
+El comportamiento por defecto es el siguiente: `/var/log/journal/` no existe, los registros se
+guardarán de forma volátil en un directorio en `/run/log/journal/` y, por lo tanto, se perderán al
+reiniciar. El nombre del directorio (`/etc/machine-id`) es una cadena hexadeciaml de re caracteres
+en minúsculas terminada en una nueva línea:
+
+    ls /run/log/journal/journal/8821e1fdf176445697223244d1dfbd73/
+
+Si intentas leerlo con `less` recibirás una advertencia, así que en su lugar utiliza el comando
+`journalctl`:
+
+    journalctl
+
+Si `/var/log/journal/` existe, los registros se almacenarán allí de forma predeterminada. Si se
+elimina este directorio, `systemd-journald` no lo recreará, sino que escribirá en `/run/log/journal/`.
+Tan pronto como creemos `/var/log/journal/` de nuevo y reiniciemos el demonio, el registro
+persistente se restablecerá:
+```sh
+sudo mkdir /var/log/journal
+sudo systemctl restart systemd-journald
+sudo journalctl
+```
+Además de lo que acabamos de mencionar, la forma en que el demonio del diario se ocupa del
+almacenamiento del registro puede cambiarse después de la instalación ajustando su archivo de
+configuración: `/etc/systemd/journald.conf`. La opción clave es `Storage=` y puede tener los
+siguientes valores:
+- **`Storage=volatile`**: los datos del registro se almacenarán exclusivamente en la memoria en `/run/log/journal/`. Si no está ŕesente, se creará el directorio.
+- **`Storage=persistent`**: por defecto, los datos de registro se almacenarán en el disco en `/var/log/journal/` con un retorno a la memoria (`/run/log/journal/`) durante las primeas etapas de arranque y si el disco no es escribible. Ambos directorio se crearán si es necesario.
+- **`Storage=auto`**: `auto` es similar a `persistent`, pero en este caso el directorio `/var/log/journal/` no se crearan si no fuese necesario. Esta es la opción por defecto.
+- **`Storage=none`**: todos los datos de registro serán descartados. Sin embargo, el reenvío a otros objetivos como la consola, el buffer de registro del kernel o un socket sigue siendo posible.
+
+Por ejemplo, para que `systemd-journald` cree `/var/log/journal/` y cambie al almacenamiento
+persistente, debe editar `/etc/systemd/journald.conf` y establecer `Storage=persistent`, guardar
+el archivo y reiniciar el demonio con `sudo systemctl restart systemd-journald`. Para asegurar
+de que el reinicio ha sido perfecto, siempre puede revisar comprobar el estado del demonio:
+
+    sudo systemctl status systemd-journald
+
+> Los archivos del diario en `/var/log/journal/<machine-id>/` o `/run/log/journal/<machine-id>/` tienen el sufijo `.journal` (por ejemplo, `system.journal`). Sin embargo, si se encuentran que están corruptos o el demonio se detiene de forma poco limpia, se renombrarán añadiendo `~` (por ejemplo, `system.journal~`) y el demonio empesará a escribir en un archivo nuevo y limpio.
+
+#### Eliminación de datos antiguos del diario: tamaño del diario
+Los registros se guardan el archivos de diario cuyos nombres terminan en `.journal` o `.journal~` y
+se encuentran en el directorio apropiado (`/run/log/journal/` o `/var/log/journal/` según se haya
+configurado). Para comprobar cuánto espacio de disco ocupan actualmente los archivos de diario
+(tanto los archivados como los activos), utilice el parámetro `--disk-usage`:
+
+    sudo journalctl --disk-usage
+
+Los registros de `systemd` opcuapn por defecto un máximo del 10% del tamaño del sistema de archivos
+donde se almacenan. Por ejemplo, en un sistema de archivos de 1GB no ocuparán más de 100MB.
+Una vez alcanzado este límite, los registros antiguos empezarán a desaparecer para mentenerse
+cerca de este valor.
+
+Sin embargo, la aplicación del límite de tamaño de los archivos de diario almacenados puede
+gestionarse ajustando una serie de opciones de configuración en `/etc/systemd/journald.conf`.
+Estas dos opciones de dividen en dos categorías dependiendo del tipo de sistema de archivos
+utilizado: persistente (`/var/log/journal/`) o en memoria (`/run/log/journal/`). La primera utiliza
+opciones que llevan como prefijo la palabra `System` y solo se aplicarán si el registro persistente
+está correctamente habilitado y una vez que el sistema haya arrancado por completo. Los nombres
+de las opciones de la segunda comienzan cn la palabra `Runtime` y se aplicarán en los siguientes
+escenarios:
+- **`SystemMaxUse=, RuntimeMaxUse=`**: controlan la cantidad de espacio en disco que puede ocupar el diario. Por defecto es el 10% del tamaño del sistema de archivo, pero puede modificarse (por ejemplo, `SystemMaxUse=500M`) siempre que no supere un máximo de 4GiB.
+- **`SystemKeepFree=, RuntimeKeepFree=`**: controlan la cantidad de espacio en disco que debe quedar libre para otros usuarios. Por defecto es el 15% del tamaño del sistema de archivos, pero puede modificarse (por ejemplo, `SystemkeepFree=500M`) siempre que no supere un máximo de 4GiB.
+
+En cuanto a la precedencia de `*MaxUse` y `*KeepFree`, `systemd-journald` satisfará ambos valores
+utilizando el menor de los dos. Asimismo, tenga en cuenta que solo se eliminan los ficheros de
+diario archivados (en contraposición a los arctivos).
+
+- **`SystemMaxFilesSize=, RuntimeMaxFilesSize=`**: controlan el tamaño máximo al que pueden crecer los archivos individuales del diarios. El valor por defecto es 1/8 de `*MaxUse`. La reducción se realiza de forma sincrónica y los valores pueden especificarse en bytes o utilizando K, M, G, T, P, E para Kibibytes, Mebibytes, Gibibyte, Tebibytes y Exbibytes, respectivamente.
+- **`SystemMaxFiles=, RuntimeMaxFiles=`**: establece el número máximo de ficheros de diario individuales y archivados a almacenar (los ficheros de diario activos no se ven afectados). El valor predeterminado es 100.
+
+Además del borrado y la rotación de los mensajes de registro basados en el tamaño, `systemd-journald`
+también permite criterios basados en el tiempo utilizando las dos opciones siguientes:
+`MaxRetentionSec=` y `MaxFileSec=`.
+
+#### Limpiando el journal
+Puede limpiar manualmente los ficheros de diario archivados en cualquier momento con cualquiera
+de las tres opciones siguientes:
+- **`--vacuum-time=`**: esta opción basada en el tiempo eliminará todos los mensajes de los archivos de diario con una marca de tiempo más antigua que el marco temporal especificado. Los valores deben escribirse con cualquiera de los siguientes sufijos `s`, `m`, `h`, `days` (o `d`), `months`, `weeks` (o `w`) y `years` (o `y`). Por ejemplo, para eliminar todos los mensajes de los ficheros de diario archivados que tengan más de un mes de antigüedad: `sudo journalctl --vacuum-time=1months`.
+- **`--vacuum-size=`**: esta opción basada en el tamaño borrará los ficheros de diario archivados hasta que ocupen un valor inferior al tamaño especificado. Los valores deben escribirse con cualquiera de los siguientes sufijos: `K`, `M`, `G` o `T`. Por ejemplo, para eliminar los ficheros de diario archivados hasta que estén por debajo del 100 Mebibites: `sudo journalctl --vacuum-size=100M`.
+- **`--vacuum-files=`**: esta opción se encargará de que no queden más ficheros de diario archivados que el número especificado. El valor es un número entero. Por ejemplo, para limiar el número de ficheros de diario archivados a 10: `sudo journalctl --vacuum-files=10`.
+
+La aspiración solo elimina los archivos del diario archivados. Si quiere deshacerse de todo
+(incluidos los archivos de diario activos), debe utilizar una señal (`SIGUSR2`) que solicite la
+rotación inmediate de los archivos de diarios con la opción `--rotate`. Otras señales importantes
+pueden ser invocadas con las siguientes opciones:
+- **`--flush (SIGUSR2)`**: solicite el volcado de los archivos del diario desde `/run/` a `/var/` para que el diario sea persistente. Requiere que el registro persistente esté habilitado y que `/var/` esté montado.
+- **`--sync (SIGRTMIN+1)`**: se utiliza para solicitar que todos los datos del registro no escritos se escriban en disco.
+
+> para comprobar la consistencia interna del archivo del diario, utilice `sudo journalctl --verify`. Verá una barra de progreso mientras se realiza la comprobación y se mostrará posibles problemas.
+
+#### Recuperación de datos del diario de un sistema de rescate
+Como administrador del sistema puede encontrarse en una situación en la que necesite acceder a los
+archivos del diario en el disco duro de una máquina defectuosa a través de un sistema de rescata
+(un CD de arranque o una llave USB que contenga una distribución de Linux en vivo).
+
+`journalctl` busca los archivos del diario en `/var/log/journal/<machine-id>/`. Debido a que los ID
+de las máquinas en los sistemas de rescate y en los sistemas defectuosos serán diferentes, debe
+utilizar la siguiente opción:
+
+**-D </path/to/dir>, --directory=</path/to/dir>**: con esta opción, especificamos una ruta de
+directorio donde `journalctl` buscará los archivos del diario en lugar de las ubicaciones por defecto
+del tiempo de ejecución y del sistema.
+
+Por lo tanto, es necesario que monte el `rootfs` del sistema defectuoso (`/dev/sda1`) en el sistema
+de archivos en modo rescate y proceda a leer los archivos del diario así:
+
+    sudo journalctl -D /media/carol/faultu.system/var/log/journal/
+
+Otras opciones que pueden ser útiles en este escenario son:
+- **`-m, --merge`**: combina las entradas de todos los diarios disponibles en `/var/log/journal/`, incluidos los remotos.
+- **`--file`**: monstrará las entradas de un archivo específico, por ejemplo: `sudo journalctl --file /var/log/journal/64319965bda04dfa81d3bc4e7919814a/user-1000.journal`.
+- **`--root`**: se pasa como argumento una ruta de directorio que significa el directorio raíz `journalctl` buscará allí los archivos del diario (por ejemplo, `sudo journalctl --root /faulty.system/`).
+
+#### Reenvío de datos de registro a un demonio `syslog` tradicional
+Los datos de registro del diario pueden ponerse a disposición de un demonio `syslog` tradicional:
+- Reenvío de mensajes al fichero socket `/run/systemd/journal/syslog` para que lo lea `syslog`. Esta facilidad se activa con la opción `ForwardToSyslog=yes`.
+- Tener un demonio `syslog` que se compore como `journalctl`, por lo tanto leyendo los mensajes de registro directamente de los archivos del diario. En este caso, la opción relevante es la de `Storage`; debe tener un valor distinto de `nono`.
+
+## Conceptos básicos del Agente de Transferencia de Correo
+En los sistema operativos tipo Unix, como Linux, cada usuario tiene su propia bandeja de entrada:
+una unicación especial en el sistema de archivos a la que no pueden acceder otros usuario que no
+sean root y que almacena los mensajes de correo electrónico personal del usuario. Los nuevos
+mensajes entrantes son añadidos a la bandeja de entrada del usuario por *Mail Transfer Agent*
+(MTA). El MTA es un programa que se ejecuta como un servicio del sistema y que recoge los mensajes
+enviados por otras cuentas locales, así como los mensajes recibidos de la red, enviados desde
+cuentas de usuarios remotos.
+
+El mismo MTA es también responsable de enviar mensajes a la red, si la dirección de destino se
+refiere a una cuenta remota. Para esto, utiliza una ubicación del sistema de archivos como buzón
+de salida de correo para todos los usuarios del sistema: tan pronto como un usuario coloque
+un nuevo mensaje en el buzón de salida, el MTA identificará el nodo de red de destino a
+partir del nombre de dominio dao por la dirección del correo de destino (después del signo @)
+intentará transferir el mensaje al MTA remoto utilizando el protocolo simple de tranferencia
+de correo (SMTP). SMTP se diseño tomando en cuenta las redes poco fiables, por lo que intentará
+establecer rutas de entraga alternativas si el no principal de destino del correo es inalcanzable.
+
+#### MTA local y remoto
+Las cuentas de usuario tradicionales en máquinas conectadas a la red constituyen el escenario de
+intercambio de correo más sencillo, en este, cada nodo de la red ejecuta su propio demonio
+MTA y no requiere ningún otro software aparte del MTA para enviar y recibir mensajes de correo.
+En la práctica, sin embargo, es más común utilizar una cuenta de correo remota y no tener un
+servicio MTA local activo (es decir, utilizar una aplicación cliente de correo para acceder
+a la cuenta remota).
+
+A diferencia de las cuentas locales, una cuenta de correo remota (también llamada buzón remoto)
+requier la autenticación del usuario para concederle acceso al buzón y al MTA remoto (en este
+caso, llamado simplemente servidor SMTP). Mientras que el usuario que interactúa con el buzón
+y un MTA locales ya está identificado por el sistema, un sistema remoto debe verificar la
+identidad del usuario antes de manejar sus mensajes a través de IMAP o POP3.
+
+Cuando se ejecuta un demonio MTA en el sistema local, los usuarios locales puende enviar un
+correo a otros usuarios locales o a usuarios de una máquina remota, siempre que su sistema
+también tenga un servicio MTA que acepte conexiones de red. El puerto TCP 25 es el estándar para
+la comunicación SMTP, pero también puede utilizar otros puertos, dependiendo del esquema de
+autenticación y/o cifrado que se utilice (si lo hay).
+
+Dejando de lado las topologías que implican el acceso a buzones remotos, se puede implementar una
+red de intercambio de correo entre cuentas de usuario ordinarias de Linux siempre que todos los
+nodos de la red tengan un MTA activo que sea capaz de realizar las siguientes tareas:
+- Mantener la cola de salida de los mensajes a enviar. Para cada mensaje en cola, el MTA local evaluará el MTA de destino a partir de la dirección del destinatario.
+- Comunicarse con demonios MTA remotos utilizando SMTP. El MTA local debe ser capaz de utilizar el Protocolo Simple de Transferencia de Correo (SMTP) a través de la pila TCP/IP para recibir, enviar y redirigir mensajes de/a otros demonios MTA remotos.
+- Mantener una baneja de entrada individual para cada cuenta local. El MTA suele almacenar los mensajes en el formato *mbox*: que es el único archivo de texto que contiene todos los mensajes de correo en secuencia.
+
+Normalmente, las direcciones de correo especifican un nombre de dominio como ubicación, por ejemplo
+`lpi.org` en `info@lpi.org`. En este caso, el MTA del remitente consultará al servicio DNS al registro
+MX correspondiente. El registro DNS MX contiene la dirección IP del MTA que gestiona el correo
+para ese dominio. Si el mismo dominio tiene más de un registro MX especificado en el DNS, el MTA
+debe intentar ponerse en contacto con ellos según sus valores de prioridad. Si la dirección del
+destinatario no especifica u nombre de dominio o el dominio no tiene un registro MX, la parte
+que sigue al símbolo `@` se tratará como el host del MTA de destino.
+
+Hay que tener en cuenta los aspectos de seguridad si los hosts MTA van a ser visibles para los
+hosts de Internet. Por ejemplo, es posible que un ususrio desconocido utilice el MTA local para
+hacerse pasar por otro usuario y enviar correos potencialmente dañinos. Un MTA que retransmite
+ciegamente un correo se conoce como retrasmisión abierta, cuando puede ser utilizado como
+intermediario para disfrazar potencialmente el verdadero remitente del mensaje. Para evitar estos
+usos indebidos, la recomendación es aceptar conexiones solo de dominios autorizados e
+implemetar un esquema de autenticación seguro.
+
+#### MTAs de Linux
+El MTA tradicional disponible para los sistemas Linux es *Sendmail*, un MTA de porpósito general muy
+flexible utilizado por muchos sistemas operativos tipo Unix. Otros MTA comunes son *Postfix*,
+*qmail* y *Exim*. La razón principal para elegir un MTA alternativo es implementar características
+avanzadas más facilmente, ya que configurar servidores de correo peronalizados en Sendmail puede
+ser una tarea complicada. Además, cada distribución puede tener su MTA preferido, con configuraciones
+predefinidas. Todos los MTA pretender ser sustitutos de Sendmail, por lo que todas las
+aplicaciones compatibles con Sendmail deberían funcionar independientemente del MTA que se utilice.
+
+Si el MTA está funcionando, pero no acepta conexiones de red, solo podrás entregar mensajes de
+correo en la máquina local. Para el MTA `sendmail`, el archivo `/etc/mail/sendmail.mc` debe ser
+modificado para acpetar conexiones no locales. Para ello, la entrada sera la siguiente:
+
+    DAEMON_OPTIONS(`Port=smtp,Addr=127.0.0.1, Name=MTA')dnl
+
+Debe modificarse a la dirección de red correcta y el servicio debe reiniciarse. Algunas
+distribuciones de Linux, como Debian, pueden ofrecer herramientas de configuración para ayudar
+a poner en marcha el servidor de correo con un conjunto predefinido de características de
+uso común.
+
+Una vez que el MTa está funcionando y aceptando conexiones de la red, los nuevos mensajes de
+correo se le pasan comandos SMTP que se envían a través de una conexión TCP. El comando `nc`
+(una utilidad de red que lee y escribe datos genéricos a través de la red) puede utilizarse para
+enviar comandos SMTP directamente al MTA. Si el comando `nc` no está disponible, se instalará
+con el paquete *ncat* o *nmap-ncat*, dependiendo del sistema de gestión de paquetes que se utilice.
+Escribir comando SMTP directamente al MTA le ayudará a entender mejor el protocolo y otros
+conceptos generales del correo, pero también pueden ayudar a diagnosticar problemas en el proceso
+de entrega del correo.
+
+Si, por ejemplo, el usuario `emma` en el host `lab1.campus` quiere enviar un mensaje al usuario
+`dave` en el host `lab2.campus`, entonces puede usar el comando `nc` para concetarse directamente al
+MTA `lab2.campus`, asumiendo que está escuchando en el puerto TCP 25:
+```sh
+nc lab2.campus 25
+220 lab2.campus ESMTP Sendmail 8.15.2/8.15.2; Sat, 16 Nov 2019 00:16:07 GMT
+HELO lab1.campus
+250 lab2.campus Hello lab1.campus [10.0.3.134], pleased to meet you
+MAIL FROM: emma@lab1.campus
+250 2.1.0 emma@lab1.campus... Sender ok
+RCPT TO: dave@lab2.campus
+250 2.1.5 dave@lab2.campus... Recipient ok
+DATA
+354 Enter mail, end with "." on a line by itself
+Subject: Recipient MTA Test
+Hi Dave, this is a test for your MTA.
+.
+250 2.0.0 xAG0G7Y0000595 Message accepted for delivery
+QUIT
+221 2.0.0 lab2.campus closing connection
+```
+Una vez establecida la conexión, el MTA remoto se identifica y está listo para recibir comandos MTA.
+El primer comando SMTP del ejemplo, `HELO lab1.campus`, indica que `lab1.campus` es el indicador del
+intercambio. Los dos siguientes comandos, `MAIL FROM: emma@lab1.campus` y `RCPT TO: dave@lab2.campus`,
+indican el remitente y el destinatario. El mensaje de correo propiamente dicho comienza después
+del comando `DATA` y termina con un punto en una línea por sí mismo. Para añadir un campo `subject`
+al correo, debe estar en la primera línea después del comando `DATA`, como se muestra en el ejemplo.
+Cuando se utiliza el campo de asunto, debe haber una línea vacía que lo separe del contenido del
+correo. El comando `QUIT` termina la conexión con el MTA en el host `lab2.campus`.
+
+En el host `lab2.campus`, el usuario `dave` recibirá un mensaje similar a `You have a new mail in /var/spool/mail/dave`
+tan pronto como entre en una sesión de shell. Este archivo contendraá el mensaje de correo
+en bruto enviado por `emma` así como las cabeceras añadidad por el MTA:
+```sh
+cat /var/spool/mail/dave
+From emma@lab1.campus
+Sat Nov 16 00:19:13 2019
+Return-Path: <emma@lab1.campus>
+Received: from lab1.campus (lab1.campus [10.0.3.134])
+by lab2.campus (8.15.2/8.15.2) with SMTP id xAG0G7Y0000595
+for dave@lab2.campus; Sat, 16 Nov 2019 00:17:06 GMT
+Date: Sat, 16 Nov 2019 00:16:07 GMT
+From: emma@lab1.campus
+Message-Id: <201911160017.xAG0G7Y0000595@lab2.campus>
+Subject: Recipient MTA Test
+Hi Dave, this is a test for your MTA.
+```
+La cabecera `Received`: muestra que el mensaje de `lab1.campus` fue recibido directamente por
+`lab2.campus`. Por defecto, los MTAs solo aceptan mensajes a destinatarios locales. El siguiente
+error probablemente ocurrirá si el usuario `emma` intenta enviar un correo al usuario `henry` en
+el host `lab3.campus`, pero utilizando el MTA `lab2.campus` en lugar del MTA apropiado `lab3.campus`:
+```sh
+nc lab2.campus 25
+220 lab2.campus ESMTP Sendmail 8.15.2/8.15.2; Sat, 16 Nov 2019 00:31:44 GMT
+HELO lab1.campus
+250 lab2.campus Hello lab1.campus [10.0.3.134], pleased to meet you
+MAIL FROM: emma@lab1.campus
+250 2.1.0 emma@lab1.campus... Sender ok
+RCPT TO: henry@lab3.campus
+550 5.7.1 henry@lab3.campus... Relaying denied
+```
+Los números de respuesta SMTP que empiezan por 5, como el mensaje `Relaying denied`, indican un
+error. Hay sistuaciones legítimas en las que la retrasmisión es deseable, como cuando los hosts
+que envían y reciben correos no están conectados todo el tiempo: se puede configurar un MTA
+intermedio para que acepte los correos destinados a otros hosts, actuando como un servidor
+SMTP de retrasmisión que puede reenviar mensajes entre MTAs.
+
+La posibilidad de enrutar el tráfico de correo a través de servidores SMTP intermedios desaconseja
+el intento de conectarse direactemente al host inidicado por la dirección de correo del
+destinatario, como se muestra en los ejemplos anteriores. Además, las direcciones suelen tener
+de dominio como ubicación (después de la `@`), por lo que el nombre real del host MTA
+correspondiente debe ser recuperado a través de DNS. Por lo tanto, se recomienda delegar la tarea
+de identificar el host de destino apropiado al MTA local o al servidor SMTP remoto, cuando se
+utilizan buzones remotos.
+
+Sendmail proporciona el comando `sendmail` para realizar muchas operaciones relacionadas con el
+correo, incluyendo la asistencia en la composición de nuevos mensajes. También requiere que el
+usuario escriba las cabeceras del correo a mano, pero de una forma más amigable que utlizando
+los comandos SMTP directamente. Así que un método más adecuado para el usuario `emma@lab1.campus`
+envíe un mensaje de corre a `dave@lab2.campus` sería:
+```sh
+sendmail dave@lab2.campus
+From: emma@lab1.campus
+To: dave@lab2.campus
+Subject: Sender MTA Test
+Hi Dave, this is a test for my MTA.
+.
+```
+También en este caso, el punto en una línea por sí mismo termina el mensaje. El mensaje debería ser
+enviado inmediatamente al destinatario, a menos que el MTA local no se haya podido contactar con el
+MTA remoto. El comando `mailq`, si es ejecutado como root, mostrará todos los mensajes no
+entregados. Si, por ejemplo, el MTA de `ñab2.campus` no ha responido, el comando `mailq` monstrará
+el mensaje no entregado y la causa del fallo:
+```sh
+mailq
+/var/spool/mqueue (1 request)
+-----Q-ID----- --Size-- -----Q-Time----- ------------Sender/Recipient-----------
+xAIK3D9S000453
+36 Mon Nov 18 20:03 <emma@lab1.campus>
+(Deferred: Connection refused by lab2.campus.)
+<dave@lab2.campus>
+Total requests: 1
+```
+La ubicación por defecto de la cosa de salida es `/var/spool/mqueue/`, pero diferentes MTAs pueden
+utilizar diferentes ubicaciones en el directorio `/var/spool/`. Postfix, por ejemplo, creará un
+árbol de directorios en `/var/spool/postfix/` para gestionar la cola. El comando `mailq` es
+qeuivalente a `sendmail -bp`, debe estar presente independientemente del MTA instalado en el sistema.
+Para asegurar la compatibilidad con versiones anteriores, la mayoría de los MTAs proporcionan
+estos comandos tradicionales de administración de correo.
+
+Si el host principal de destino del correo (cuando se proporciona desde un registro DNS MX
+para el dominio) es inalcanzable, el MTA intentará ponerse en contacto con las entradas con menor
+prioridad (si hay alguna especificada). Si ninguna de ellas es alcanzable, el mensaje permancerá
+en la cola de la bandeja de salida local para ser enviado más tarde. Si se configura para ello,
+el MTA puede comprobar periódicamente la disponibilidad de los hosts remotos y realizar un nuevo
+intento de entraga. Si se utiliza un MTA compatible con Sendmail, ser realizará inmediatamente
+un nuevo intento con el comando `sendmail -q`.
+
+Sendmail almacenará los mensajes entrantes en un archivo con el nombre del propietario de la
+bandeja de entrada correspondiente, por ejemplo `/var/spool/mail/dave`. Otros MTA, como Postfix,
+pueden almacenar los mensajes de correo entrantes en ubicaciones como `/var/mail/dave`, pero el
+contenido del archivo es el mismo. En el ejemplo, el comando `sendmail` se utilizó en el host del
+remitente para crear el mensaje, por lo que las cabeceras de los mensajes sin procesar muestran
+que el correo siguió pasos adicionales antes de llegar al destino final:
+```sh
+cat /var/spool/mail/dave
+From emma@lab1.campus
+Mon Nov 18 20:07:39 2019
+Return-Path: <emma@lab1.campus>
+Received: from lab1.campus (lab1.campus [10.0.3.134])
+    by lab2.campus (8.15.2/8.15.2) with ESMTPS id xAIK7clC000432
+    (version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NOT)
+    for <dave@lab2.campus>; Mon, 18 Nov 2019 20:07:38 GMT
+Received: from lab1.campus (localhost [127.0.0.1])
+    by lab1.campus (8.15.2/8.15.2) with ESMTPS id xAIK3D9S000453
+    (version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NOT)
+    for <dave@lab2.campus>; Mon, 18 Nov 2019 20:03:13 GMT
+Received: (from emma@localhost)
+    by lab1.campus (8.15.2/8.15.2/Submit) id xAIK0doL000449
+    for dave@lab2.campus; Mon, 18 Nov 2019 20:00:39 GMT
+Date: Mon, 18 Nov 2019 20:00:39 GMT
+Message-Id: <201911182000.xAIK0doL000449@lab1.campus>
+From: emma@lab1.campus
+To: dave@lab2.campus
+Subject: Sender MTA Test
+
+Hi Dave, this is a test for my MTA.
+```
+De abajo a arriba, las líneas que comienzan con `Received:` muestran la ruta seguida por el mensaje.
+El mensaje fue enviado por el usuario `emma` con el comando `sendmail dave2@lab2.campus` emitido en
+`lab1.campus`, como se indica en la primera cabecera `Received:`. A continuación, todavía en
+`lab1.campus`, el MTA utiliza ESMTPS (un superconjunto del SMTP, que añade extensiones de cifrado)
+para enviar el mensaje el MTA en `lab2.campus`, como se indica en la última cabecera (superior)
+`Received:`.
+
+El MTA termina su trabajo una vez que el mensaje se guarda en la bandeja de entrada del usuario.
+Es habitual realizar algún tipo de filtrado de correo, como el bloqueo de spam o la aplicación
+de reglas de filtrado definidas por el usuario. Estas tareas son ejecutadas por aplicaciones de
+terceros, que trabajan conjuntamente con el MTA. El MTA podría, por ejemplo, llamar a la utilidad
+*SpamAssassian* para marcar los mensajes sospechosos utilizando sus funciones de análisis de texto.
+
+Aunque es posible, no es conveniente leer el archivo del buzón directamente. Se recomienda utilizar
+en su lugar un programa cliente de correo (por ejemplo Thunderbird, Evolution o KMail), que
+analizará el archivoy gestionará adecuadamente los mensajes. Estos programas también ofrecen
+funciones adicionales, como accesos directos comunes, subdirectorios de la bandeja de entrada, etc.
+
+#### El comando `mail` y los agentes de usuario de correo (MUA)
+Es posible escribir un mensaje de correo directamente en su formato crudo, pero es mucho más
+práctico utilizar una applicación cliente (también conocida como MUA *Agente de Usuario de Correo*)
+para acelerar el proceso y evitar errores. El MUA se encarga del trabajo bajo el capó, es decir,
+el cliente de correo presenta y organiza los mensajes recibidos y maneja la comunicación
+adecuada con el MTA después de que el usuario compone un correo.
+
+Hay muchos tipos distintos de agentes de usuario de correo. Las aplicaciones de escritorio, como
+Mozilla Thunderbird y Evolution de Gnome soportan cuentas de correo tanto locales como remotas.
+Inlcuso las interfaces de Webmail pueden considerarse un tipo de MUA, ya que interviene la
+interacción entre el usuario y el MTA subyacente. Sin embargo, los clientes de correo no se
+limitan a las interfaces gráficas. Los clientes de correo de consola se utilizan ampliamente para
+acceder a los buzones no integrados en una interfaz gráfica y para automatizar las tareas
+relacionadas con el correo dentro de los scripts de shell.
+
+Originalmente, el comando `mail` de Unix solo estaba pensado para compartir mensajes entre usuarios
+del sistema local. Cuando los intercambios de correo en red se hicieron más importantes, se crearon
+otros programas para hacer frente al nuevo sistema de entraga y sustituyeron gradualmente `mail`.
+
+Hoy en día, el comando `mail` más utilizado es el proporcionado por el paquete *mailx*, que es
+compatible con todas las características modernas del correo. En la mayoría de las distribuciones
+de Linux, el comando `mail` es solo un enlace simbólico al comando `mailx`. otras implementaciones,
+como el paquete *GNU MAilutils*, proporcionan básicamente las mismas características que `mailx`.
+Sin embargo, existen ligeras diferencias entre ellas, especialmente en lo que respecta a las
+opciones de línea de comandos.
+
+Independientemente de su implementación, todas las variantes modernas del comando `mail` funcionan
+en dos modos: modo normal y modo de envío. Si se proporciona un dirección de correo como argumento
+al comando `mail`, este entrará en modo de envío, de lo contrario entrará en modo normal (lectura).
+En el modo normal, los mensajer recibidos se listan con un índice numérico para cada uno, de modo
+que el usuario puede referirse a ellos individualmente cuando escribe comando en el prompt
+interactivo. El comando `print 1` puede utilizarse para mostrar el contenido del mensaje número 1,
+por ejemplo. Los comandos interactivos puden ser abreviados, por lo que el comando `print`,
+`delete` y `reply` pueden ser reemplazados por `p`, `d` o `r`, respectivamante. El comando `mail`
+siempre considerará el último mensaje recibido o el último visto cuando se omita el número de índice
+del mensaje. El comando `quit` o `q` terminará el programa.
+
+El modo *send mode* es especialmente útil para enviar mensajes de correo automatizados. Puede
+utilizarse, para enviar un correo al administrador del sistema si un script de mantenimiento
+programado no realiza su tarea. En el modo de envío, `mail` utilizará el contenido de la entrada
+estándar como cuerpo del mensaje:
+
+    mail -s "Maintenance fail" henry@lab3.campus <<<"The maintenance script failed at `date`"
+
+En este ejemplo, se añadió la opción `-s` para incluir un campo de asunto al mensaje. El cuerpo del
+mensaje fue proporcionado por la redirección de *Hereline* a la entrada estándar, pero el contenido
+de un archivo o salida de un comando también podría ser canalizados al stdin del programa. Si no
+se proporciona ningún contenido mediante una redirección a la entrada estándar, el programa
+esperará a que el usuario introduzca el cuerpo del mensaje. En este caso, la puslación de la tecla
+`Ctrl + D` finalizará el mensaje. El comando `mail` saldrá inmediatamente después de que el mensaje
+se añada a la cola de salida.
+
+#### Personalización de la entraga
+Por defecto, las cuentas de correo en un sistema Linux están asociadas a las cuentas estándares del
+sistema. Por ejemplo, Si el usuario Carol tiene el nombre de usuario `carol` en el host `lab2.campus`
+entonces su dirección de correo será `carol@lab2.campus`. Esta asociación uno a uno entre las cuentas
+del sistema y los buzones del correo puede ser extenida por métodos estándares proporcionados por
+la mayoría de las distribuciones de Linux, en particular el mecanismo de enrutamiento de correo
+proporcionado por el archivo `/etc/aliases`.
+
+Un alias de correo es un destinatario de correo "virtual" cuyos mensajes recibidos se redirigen a
+buzones locales existentes o a otros tipos de destinos de almacenamiento o procesamiento de
+mensajes. Los alias son útiles, por ejemplo, para colocar los mensajes enviados a
+`postmaster@lab2.campus` en el buzón de Caro, que es un buzón local ordinario en el sistema
+`lab2.campus`. Para ello, se debe añadir la línea `postmaster: carol` al fichero `/etc/aliases`
+en `lab2.campus`. Después de modificar el archivo `/etc/aliases`, se debe ejecutar el comando
+`newaliases` para actualizar la base de datos de alias del MTA y hacer efectivos los cambios. Los
+comandos `sendmail -bi` o `sendmail -I` también pueden utilizarse para actualizar la base de datos de
+alias. Los alias se definen por línea, con el formato `<alias>:<destino>`. Además de los buzones
+locales ordinarios, indicados por el nombre de usuario correspondiente, existen otros tipos
+de destino:
+- Una ruta completa (que comienza con `/`) a un archivo. Los mensajes enviados al alias correspondiente se añadirán al archivo.
+- Un comando para procesar el mensaje. El `<destino>` debe comenzar con un carácter de tubería y si el comando contiene caracteres especiales (como espacios en blanco), debe ir entre comillas dobles. Por ejemplo, el alias `subscribe: |subscribe.sh en lab2.campus` reenviará todos los mensajes enviados a `suscribe@lab2.campus` a la entrada estándar del comando `suscribe.sh`. Si sendamil se ejecuta en modo shell restringido, los comandos permitidos (o los enlaces a ellos) deben estar en `/etc/smrsh/`.
+- Un archivo de inclusión. Un solo alias puede tener múltiples destinos (separados por coma), por lo que puede ser más práctico mantenerlos en un archivo externo. La palabra clave `:include:` debe indicar la ruta del archivo, como en `:include:/var/local/destinos`.
+- Una dirección externa. los alias también pueden reenviar mensajes a direcciones de correo externas.
+- Otro alias.
+
+Un usuario local sin privilegios puede definir alias para su propio correo editando el archivo
+`.forward` en su directorio personal. Como los alias solo pueden afectar a su propio buzón, solo
+es necesaria la parte de `<destination>`. Para reenviar todos los correos entrantes a una dirección
+externa, por ejemplo, el usuario `dave` en `lab2.campus` podría crear el siguiente archivo
+`~/.forward`:
+```sh
+$ cat ~/.forward
+emma@lab1.campus
+```
+Reenviará todos loe mensajes de correo enviados a `dave@lab2.campus` a `emma@lab1.campus`. Al igual
+que con el fichero `/etc/aliases`, se pueden añadir (una por línea) otras reglas de redirección a
+`.forward`. Sin embargo, el archivo `.forward` debe ser escribible solo po su propietario y no es
+necesario ejecutar el comando `newaliases` después de modificarlo.
+
+## Gestión de la impresión y de las impresoras
+En Linux, así como en muchos otros sistemas operativos, la pila de software *Common Unix Printing System*
+(CUPS) permite imprimir y gestionar las impresoras desde un equipo. A continuación se muestra un
+esquema muy simplificado de cómo se imprime un archivo en Linux utilizando CUPS:
+1. Un usuario envía un archivo para ser impreso.
+
+2. El demonio de CUPS, `cupsd`, lo envía al spools el trabajo de impresión. Este trabajo de impresión recibe un número de trabajo por poarte de CUPS, junto con información sobre la cola de impresión que contiene el trabajo, así como el nombre del documento a imprimir.
+
+3. CUPS utiliza fisltros que están instalados en el sistema para generar un archivo con formato que la impresora puede utilizar.
+
+4. A continuación, CUPS envía el archivo formateado a la impresora para su impresión.
+
+#### El servicio CUPS
+La mayoría de las instalaciones de escritorio de Linux tendrán los paquetes CUPS ya instalados. En
+las instalaciones mínimas de Linux los paquetes CUPS pueden no estarlo. Una intalación básica de
+CUPS puede realizarse en un sistema Debian así:
+
+    sudo apt install cups
+
+En los sistemas Fedora el proceso de instalación es igual de sencillo:
+```sh
+sudo dnd install cups
+sudo systemctl start cups.service
+```
+
+Como muchos otros demonios de Linux, CUPS depende de un conjunto de archivos de configuración para
+su operación. A continuación se listan los principales que son de interés para el administrador
+del sistema:
+- **`/etc/cups/cupsd.conf`**: este archivo contiene los ajustes de configuración para el servicio CUPS. Si está familiarizado con el archivo de configuración del servidor web Apache, el archivo de configuración de CUPS le parecerá bastane similar, ya que utiliza una sintaxis muy parecida. El archivo `cupsd.conf` contiene ajustes para cosas como el control del acceso a la diferentes colas de impresión de un sistema, si la interfaz web de CUPS está o no habilitada, así como el nivel de registro que el demonio utilizará.
+- **`/etc/printcap`**: este es el archivo heredado que fue utilizado por el protocolo LPD (Line Printer Daemon) antes de la llegada de CUPS. CUPS todavía creará este archivo en los sistemas para la  compatibilidad heredada y es a menudo un enlace simbólico a `/run/cups/printcap`. Cada línea de este archivo contiene una impresora a la que el sistema tiene acceso.
+- **`/etc/cups/printers.conf`**: este archivo contiene cada una de las impresoras configuradas para ser utilizadas por el sistemas CUPS. Cada impresora y su cola de impresión asociada en este archivo está encerrada dentro de una sección `<Printer></Printer>`. Este archivo proporciona los listados individuales de impresoras que se encuentras en `/etc/printecap`.
+
+> No se debe realizar modificaciones en el archivo `/etc/cups/printers.conf` en la línea de comandos mientras el servicio CUPS está en funcionamiento.
+
+- **`/etc/cups/pdd/`**: no se trata de un archivo de configuración, sino de un directorio que contiene los arcivos *PostScript Printer Description* (PPD) de las impresras que los utilizan. Las capacidades operativas de cada impresora se almacena en un archivo PPD (que termina con la extensión `.ppd`). Estos archivos son de texto plano y siguen un formato específico.
+
+El servicio CUPS también utiliza el registro de la misma manera que el servicio Apache 2. Los
+registros se almacenan en `/var/log/cups/` y contiene un `access_log`, `page_log` y un `error_log`.
+El `access_log` mantiene un registro de los accesos a la interfaz web CUPS, así como las acciones
+realizadas en ella, como la gestión de impresoras. El `page_log` mantiene un registro de los trabajos
+de impresión que se han enviado a las cosas de impresión gestionadas por la instalación de CUPS.
+El `error_log` contendrá mensajes sobre los trabajos de impresión que han fallado y otros errores
+registrados por la interfaz web.
+
+#### Uso de la interfa web
+El archivo de configuración `/etc/cups/cupsd.conf` determina si la interfaz web del sistema CUPS está
+habilitada. La opción de configuración tiene el siguiente aspecto:
+```sh
+# Web interface setting...
+WebInterface Yes
+```
+Si la interfaz web está habilitada, entonces CUPS puede ser gestionado desde un navegador web en la
+URL, por defecto `http://localhost:631`. Por defecto, un usuario del sistema puede ver las impresoras
+y las colas de impresión, pero cualquier forma de modifiación de la configuración requiere un
+usuario con acceso de root para autenticarse con el servicio web. La sección de configuración dentro
+del archivo `/etc/cups/cupsd.conf` para restringir el acceso a las capacidades administrativas se
+parecerá a lo siguiente:
+```sh
+# All administration operations require an administrator to authenticate...
+<Limit CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class
+CUPS-Set-Default>
+    AuthType Default
+    Require user @SYSTEM
+    Order deny,allow
+</Limit>
+```
+A continuación se desglosan esas opciones:
+
+**`AuthType Default`**: utilizará una solicitud de autenticación básica cuando una acción requiera de
+acceso root.
+
+**`Require user @SYSTEM`**: indica que se requerirá un usuario con privilegios administrativos para la
+operación. Esto podría cambiarse a `@nombredelgrupo` donde los miembros de `nombredelgrupo` pueden
+administrar el servicio CUPS o se podría porporcionar a los usuarios individuales una lista como
+en `Requiere user carol, tim`.
+
+**`Order deny,allow`**: se emplea de forma muy parecida a la opción de configuración de Apache 2 donde
+la acción es denegada por defecto a menos que un usuario (o miembro de un grupo) esté autenticado.
+
+La interfaz web para CUPS se puede descativar deteniendo primero el servicio CUPS, cambiando la
+opción `WebInterface` de `Yes` a `No`, y luego reiniciando el servicio CUPS.
+
+La interfaz web CUPS está construida como un sitio web básico con pestañas de navegación para
+varias secciones del sistema CUPS. Las pestañas de la interfaz web incluyen lo siguiente:
+
+**Home**: la página de inicio mostrará la versión actual de CUPS que está instalada. También
+desglosa CUPS en secciones como:
+
+   **CUPS for Users**: proporciona una descripción de CUPS, opciones de línea de comando para trabajar
+   con impresoras y colas de impresión, y un enlace de foro de usuarios de CUPS.
+
+   **CUPS for Administrators**: proporciona enlaces en la interfaz para instalar y gestionar
+   impresoras y enlaces a información sobre cómo trabajar con impresoras en una red.
+
+   **CUPS for Developers**: proporciona enlaces para desarrollar el propio CUPS, así como crear
+   archivos PPD para las impresoras.
+
+**Administration**: la página de administración también está dividida en secciones:
+
+   **Printers**: aquí un administrador puede añadir nuevas impresoras al sistemas, localizar las
+   impresoras conectadas al sistema y gestionar las que ya están instaladas.
+
+   **Classes**: las clases son un mecanismo que permite añadir impresoras a grupos con políticas
+   específicas. Por ejemplo, una clase puede contener un grupo de impresoras que pertenecen a una
+   planta específica de un edificio en la que solo pueden imprimir los usuarios de un departamento
+   concreto. Otra clase puede tener limitaciones en el número de páginas que un usuario puede
+   imprimir. Las clases no se crean por defecto en una instalación de CUPS y tiene que ser
+   definidas por un administrador. Esta es la sección de la interfaz web de CUPS donde se pueden
+   crear y gestionar nuevas clases.
+
+   **Jobs**: aquí es donde un administrador puede ver todos los trabajos de impresión que están
+   actualmente en cola para todas las impresoras que esta instalación CUPS gestiona.
+
+   **Server**: aquí es donde un administrador puede hacer cambios en el archivo `/etc/cups/cupsd.conf`.
+   Además, hay otras opciones de configuración disponibles a través de casillas de verificación,
+   como permitir que las impresoras conectadas a esta instalación de CUPS se compartan en una red,
+   la autenticación avanzada y permitir la administración remota de impresoras.
+
+**Classes**: si las clases están configuradas en el sistema, aparecerán en esta página. Cada clase de
+impresora tendrá opciones para gestionar todas las impresoras de la clase a la vez, así como para
+ver todos los trabajos que están en la cola para las impresoras de esta clase.
+
+**Help**: esta pestaña proporciona enlaces para toda la documentación disponible para CUPS que está
+instalada en el sistema.
+
+**Jobs**: la pestaña trabajos permite buscar trabajos de impresión individuales, así como listar
+todos los trabajos de impresión actuales gestionados por el servidor.
+
+**Printers**: la pestaña impresoras muestra todas las impresoras gestionadas actualmente por el
+sistema, así como un resumen rápido del estado de cada impresora. Se puede hacer clic en cada una
+de las impresoras de la lista y el administrador accedará a la página en la que se puede gestionar
+la impresora en cuestión. la información de las impresoras en esta pestaña proviene del archivo
+`/etc/cups/printers.conf`.
+
+#### Instalación de una impresora
+Añadir una cola de impresión al sistema es un proceso sencillo  dentro de la interfaz web de CUPS:
+
+1. Haga clic en la pestaña de **Administración** y luego en el botón **Agregar impresora**.
+
+2. La siguiente página ofrecerá varias opciones dependiendo de como está contactada la impresora a su sistema. Si se trata de una impresora local, seleccione la opción más releveante, como el puerto al que está conectado la impresora o el software de impresión de teceros que pueda ser instalado. CUPS también intentará detectar las impresoras que están conectadas a la red y las mostrará. También puede elegir una opción de conexión directa a una impresora de red en función de los protocolos de impresión en red que admita la impresora. Seleccione la opción adecuada y haga clic en **Continuar**.
+
+3. La sigueiente página le permitirá proporcionar un nombre, una descripción y una ubicación (como "oficina trasera" o "escritorio principal", etc.) para la impresora. Si desea compartir esta impresora a través de la red, puede seleccionar la casilla de verificación para esta opción en esta página también. Una vez introducida la configuración, haga clic en el botón **Continuar**.
+
+4. En la siguiente página se puede seleccionar la marca y el modelo de la impresora. Esto permite a CUPS buscar en su base de datos instalada localmente los controladores y archivos PPD más adecuados para utilizar con la impresora. Si tiene un archivo PPD proporcionado por el fabricante de la impresora, busque una ubicación y seleccionelo para utilizarlo aquí. Una vez hecho esto, haga clic en el botón **Agregar impresora**.
+
+5. La última página es donde se establecen las opciones por defecto, como el tamaño de la página que utilizará la impresora y la resolución de los caracteres impresos en la página. Haga clic en el botón **Establecer opciones por defecto** y su impresora ya está instalada en el sistema.
+
+La cola de una impresora también puede instalarse utilizando los comandos LPD/LPR heredados. Aquí
+hay un ejemplo usando el comando `lpadmin`:
+
+    sudo lpadmin -p ENVY-4510 -L "office" -v socket://192.168.150.25 -m everywhere
+
+Vamos a desglosar el comando para ilustrar las opciones utilizadas aquí:
+- Dado que la adición de una impresora al sistema requiere un usuario con privilegios administrativos, anteponemos el comando `lpadmin` la palabra `sudo`.
+- La opción `-p` es el destino de los trabajos de impresión. Es esencialmente un nombre amigable para que el usuario sepa dónde aterrizarán los trabajos de impresión. Típicamente puede proporcionar el nombre de la impresora.
+- La opción `-L` es la ubicación de la impresora. Esto es opcional, pero es útil en caso de que tenga que gestionar varias impresoras en diferentes lugares.
+- La opción `-v` es para la URI del dispositivo de impresión. El URI del dispositivo es lo que la cola de impresión de CUPS necesita para enviar los trabajos de impresión realizados a una impresora específica. En nuestro ejemplo, estamos utilizando una ubicación de red empleando la dirección IP proporcionada.
+- La última opción `-m`, se establece como "everywhere". Esto establece el modelo de la impresora para que CUPS determine qué archivo PPD debe utilizar. En las versiones modernas de CUPS, es mejor utilizar "everywhere" para que CUPS pueda comprobar la URI del dispositivo (establecida con la opción anterior `-v`) para determinar automáticamente el archivo PPD correcto a utilizar para la impresora. En situaciones modernas, CUPS simplemente utilizará IPP.
+
+Es mejor que CUPS determine automáticamente qué archivo PPD debe utilizar para una cola de impresión
+en particular. Sin embargo, el comando (heredado) `lpinfo` puede ser utilizado para consultar los
+archivos PPD instalados localmente para ver cuáles están disponibles. Simplemente proporcione la
+opción `--make-and-model` para la impresora que desea instalar y la opción `-m`:
+```sh
+lpinfo --make-and-model "HP Envy 4510" -m
+hplip:0/ppd/hplip/HP/hp-envy_4510_series-hpijs.ppd HP Envy 4510 Series hpijs, 3.17.10
+hplip:1/ppd/hplip/HP/hp-envy_4510_series-hpijs.ppd HP Envy 4510 Series hpijs, 3.17.10
+hplip:2/ppd/hplip/HP/hp-envy_4510_series-hpijs.ppd HP Envy 4510 Series hpijs, 3.17.10
+drv:///hpcups.crv/hp-envy_4510_series.ppd HP Envy 4510 Series, hpcups 3.17.10
+everywhere IPP Everywhere
+```
+Tenga en cuenta que el comando `lpinfo` está obsoleto.
+
+> Las futuras versiones de CUPS han dejado de lados los controladores y en su lugar se centrerán en el uso de IPP (Protocolo de Impresión de Internet) y los formatos de archivo estándar. La salida del comando anterior ilustra esto con la capacidad de impresión `everywhere IPP everywhere`. IPP puede realizar las misma tareas para las que se utiliza un controlador de impresión. IPP, al igual que la interfaz web de CUPS, utiliza el puerto `631` con el protocolo TCP.
+
+Se puede establecer una impresora por defecto utilizando el comando `lpoptions`. De esta manera, si
+la mayoría (o todos) los trabajos de impresión se envian a una impresora en particular, la
+especificada con el comando `lpoptions` será la predeterminada. Solo hay que especificar la
+impresora junto con la opción `-d`:
+
+    lpoptions -d ENVY-4510
+
+#### Gestión de impresoras
+Una vez instalada una impresora, el administrador puede utilizar la interfaz web para gestionar
+las opciones disponibles para la impresora. Un enfoque más directo para la gestión de una
+impresora es mediante el uso del comando `lpadmin`.
+
+Una opción es permitir que una impresora sea compartida en la red. Esto se puede conseguir con la
+opción `printer-is-shared`, y especificando la impresora con la opción `-p`:
+
+    sudo lpadmin -p FRONT-DESK -o printer-is-shared=true
+
+Un administrador también puede configurar una cola de impresión para que solo acepte trabajos de
+impresión de usuarios específicos con cada usuario separado por una coma:
+
+    sudo lpadmin -p FRONT-DESK -u allow:carol,frank,grace
+
+A la inversa, solo se podría denegar el acceso a una cola de impresión específica a determinados
+usuarios:
+
+    sudo lpadmin -p FRONT-DESK -u deny:dave
+
+Los grupos de usuarios también pueden utilizarse para permitir o denegar el acceso a la cola de
+una impresora siempre que el nombre del grupo se encuentre precedido de un arroba (`@`):
+
+    sudo lpadmin -p FRONT-DESK -u deny:@sales,@marketing
+
+Una cola de impresión también puede tener una política de error en caso de encontrar problemas para
+imprimir un trabajo. Con el uso de políticas, un trabajo de impresión puede ser abortado
+(`abort-job`) o puede haber otro intento de impresión en un momento posterior (`retry-job`).
+Otras políticas incluyen la capacidad de deterner la impresora inmediatamente después de detectar
+un fallo (`retry-current-job`). A continuación se muestra un ejemplo en el que la política de la
+impresora se establece para abortar el trabajo de impresión si se produce un error en la impresora
+`FRONT-DESK`:
+
+    sudo lpadmin -p FRONT-DESK -o printer-error-policy=abort-job
+
+#### Envío de trabajos de impresión
+Muchas aplicaciones de escritorio le permitirán enviar trabajos de impresión desde un elemento del
+menú o utilizando el atajo del teclado `Ctrl+p`. Si se encuentra en un sistema Linux que no utiliza
+un entorno de escritorio, todavía puede enviar archivos a una impresora por medio de los comandos
+LPD/LPR heredados.
+
+El comando `lpr` (line printer remote) se utiliza para enviar un trabajo de impresión a la cola de
+impresión. La forma básica de utilizar el comando, es colocar el nomre de archivo junto con el
+comando `lpr`:
+
+    lpr report.txt
+
+El comando anterior enviará el archivo `report.txt` a la cola de impresión por defecto del sistema
+(identificada por el archivo `/etc/cups/printers.conf`).
+
+Si una instalación de CUPS tiene varias impresoras instaladas, se puede utilizar el comando
+`lpstat` para imprimir una lista de impresoras disponibles utilizando la opción `-p` y la opción `-d`
+indicará cuál es la impresora por defecto:
+
+    lpstat -p -d
+
+Así, en nuestro ejemplo, el archivo `report.txt` se enviará a la impresora `ENVY-4510`, ya que está
+configurada por defecto. Si el archivo necesita ser impreso en una impresora diferente,
+especifique la impresora junto con la opción `-P`:
+
+    lpr -P FRONT-DEK report.txt
+
+Cuando se envía un trabajo de impresión a CUPS, el demonio averiguará qué backend es el más
+adecuado para manejar la tarea. CUPS puede hacer uso de varios controladores de impresoras, filtros,
+monitores de puerto de hardware y otro software para renderizar adecuadamente el documento.
+Habrá ocasiones en las que un usuario que imprima un documento necesitará hacer modificaciones a
+cómo debe imprimirse el documento. Muchas aplicaciones gráficas facilitan esta tarea. También hay
+opciones de línea de comandos que pueden ser utilizadas para cambiar la forma en que un documento
+debe ser impreso. Cuando se envía un trabajo de impresión a través de la línea de comandos,
+podría utilizar `-o` (de opciones) junto con términos específicos para ajustar el diseño del
+documento para su impresión. A continuación se presenta una breve lista de las opciones más
+utilizadas:
+
+**`landscape`**: el documento se imprime con la página girada 90 grados en el sentido de la agujas del
+reloj. La opción `orientation-rquested=4` conseguirá el mismo resultado.
+
+**`two-sided-long-edge`**: la impresora imprimirá el docuemento en modo vertical em ambas carar del
+papel, siempre que la impresora admita esta capacidad.
+
+**`two-sided-short-edge`**: la imprresora imprimirá el documento en modo apaisado en ambas paras del
+papel, siempre que la impresora admita esta capacidad.
+
+**`media`**: la impresora imprimirá el trabajo en el tamaño de soporte especificado. Los tamaños de
+soporte disponibles para un trabajo de impresión dependen de la impresora, pero aquí hay una lista
+de tamaños comunes:
+
+Opción de tamaño | Próposito
+--|--
+`A4` | ISO A4
+`Letter` | US Letter
+`Legal` | US Legal
+`DL` | ISO DL Envelope
+`COM10` | US #10 Envelope
+
+**`collate`**: intercalar el documento impresro. Esto es útil si tiene un documento de varias páginas
+que se imprimirá más de una vez, ya que todas las páginas de cada documento se imprimirán en orden.
+Configure esta opción como `true` para activarla o `false` para desactivarla.
+
+**`page-ranges`**: esta opción se puede utilizar para seleccionar una sola página a imprimir, o un
+conjunto específico de páginas a imprimir de un documento. Un ejemplo sería el siguiente
+`-o page-ranges=5-7,9,15`. Esto imprimirá las páginas 5,6 y 7 y lueglo las páginas 9 y 15.
+
+**`fit-to-page`**: imprima el documento de forma que el archivo se ajuste al papel. Si el archivo que
+se va a imprimir no proporciona información sobre el tamaño de la página, es posible que el trabajo
+impreso se escale de forma incorrecta y que partes del documento se salgan de la página o que
+documento se escale demasiado.
+
+**`outputorder`**: imprime el documento en orden `inverso` o `normal` para comenzar la impresión en la
+página uno. Si una imprsora imprime sus páginas boca abajo, el orden por defecto es
+`-o outputorder=normal` mientras que las impresoras que imprimen con sus páginas hacia arriba
+imprimirán con `-o outputorder=reverse`.
+
+Tomando una muestra de las opciones anteriores, se puede construir el siguiente comando de
+ejemplo:
+
+    lpr -P ACCOUNTING-LASERJET -o landscape -o media=A4 -o two-sided-short-edge finance-report.pdf
+
+Se puede imprimir más de una copia de un documento utilizando la opción de número con el siguiente
+formato: `-#N` donde `N` es igual al número de copias a imprimir. A continuación se muestra un ejemplo
+con la opción de intercalar en el que se deben imprimir siete copias de un informe en la impresora
+por defecto:
+
+    lpr -#7 -o collate=true status-report.pdf
+
+Además del comando `lpr`, también se puede utilizar el comando `lp`. Muchas de las opciones que se
+utilizan con el comando `lpr` también se pueden utiizar con el comando `lp`, pero hay algunas
+diferencias. Así es como podemos ejecutar el comando `lpr` del ejemplo anterior utilizando la
+sintaxis del comando `lp` y especificando también la impresora de destino con la opción `-d`:
+
+    lp -d ACCOUNTING-LASERJET -n 7 -o collate=true status-report.pdf
+
+#### Gestión de los trabajos de impresión
+Cada trabajo de impresión enviado a la cola de impresión recibe un ID de trabajo de CUPS. Un
+usuario puede ver los trabajos de impresión que ha enviado con el comando `lpq`. Pasando la opción
+`-a` se mostrarán las colas de todas las impresoras  que están gestionadas por la instalación de
+CUPS:
+
+    lpa -a
+
+El mismo comando `lpstat` utilizado anteriormente también tiene una opción para ver las colas de
+impresión. La opción `-o` por sí misma mostrará todas las coas de impresión, o se puede especificar
+una cola de impresión por su nombre:
+
+    lp -p
+
+El ID del trabajo de impresión se le añadirá el nombre de la cola a la que se envío el trabajo, el
+nombre del usuario que lo envió, el tamaño del archivo y la hora a la que se envió.
+
+Si un trabajo de impresión se atasca en una impresora o un usuario desea cancelar su trabajo de
+impresión, utilice el comando `lprm` junto con el ID de trabajo encontrado en el comando `lpq`:
+
+    lprm 20
+
+Todos los trabajos de una cola de impresión pueden ser eliminados a la vez con un solo guión `-`:
+
+    lprm -
+
+Alternativamente, el comando `cancel` de CUPS también podría ser utilizado por un usuario para detener
+su trabajo de impresión actual:
+
+    cancel
+
+Un trabajo de impresión específico puede ser cancelado por su ID de trabajo precedido por el nombre
+de la impresora:
+
+    cancel ACCOUNTING-LASERJET-20
+
+Un trabajo de impresión también puede moverse de una cola de impresión a otra. Esto suele ser útil
+en caso de que un impresora deje de responder o el documento a imprimir requiera características
+disponibles en una impresora diferente. Tenga en cuenta que este procedimiento suele requerir un
+usuario con privilegios elevados. Utilizando el mismo trabajo de impresión del ejemplo anterior,
+podríamos moverlo a la cola de la impresora `FRONT-DESK`:
+
+    sudo lpmove ACCOUNTING-LASERJET-20 FRONT-DESK
+
+#### Eliminación de impresoras
+Para eliminar una impresora, a menudo es útil listar todas las impresoras que están actualmente
+gestionadas por el servicio CUPS. Esto se puede hacer con el comando `lpstat`:
+
+    lpstat -v
+
+La opción `-v` no solo muestra las impresoras, sino también dónde (y cómo) están conectadas. Es buena
+práctica rechazar primero cualquier trabajo nuevo que vaya a la impresora y así proporcionar una
+razón de por qué la impresora no aceptará nuevos trabajos. Esto se puede hacer con lo siguiente:
+
+    sudo cupsreject -r "Printer to be removed" FRONT-DESK
+
+Para eliminar una impresora, utilizamos el comando `lpadmin` con la opción `-x` para eliminar la
+impresora:
+
+    sudo lpadmin -x FRONT-DESK
+
+## Fundamentos de redes
+#### La interfaz de red
+*Interfaz de red* es el término con el que el sistema operativo se refiere al canal de comunicación
+configurado para trabajar con el hardware de red conectado al sistema, como un dispositivo
+Ethernet o Wi-Fi. La excepción a esto es la interfaz *loopback*, que el sistema operativo utiliza
+cuando necesita establecer una conexión consigo mismo, pero el propósito principal de una interfaz
+de red es proporcionar una ruta a través de la cual se pueden enviar datos locales y recibir datos
+remotos. A menos que la interfaz de res esté correctamente configurada, el sistema operativo no
+podrá comunicarse con otras máquinas de la red.
+
+En la mayoría de los casos, la configuración correcta de la interfaz se define por defecto o se
+personlaiza durante la instalación del sistema operativo. Sin embargo, a menudo es necesario revisar
+o incluso modificar estos ajustes  cuando la comunicación no funciona correctamente o cuando el
+comportamiento de la interfaz requiere una personalización.
+
+Hay muchos comandos de Linux para listar qué interfaz de res están presentes en el sistema, pero no
+todos están disponibles en todas las distribuciones. El comando `ip`, es parte del conjunto básico de
+herramientas de red incluidas en todas las distribuciones de Linux y puede ser utilizado para listar
+las interfaces de red. El comando completo para mostrar las interfaces de red es `ip link show`:
+
+    ip link show
+
+Si esta disponible, también se puede utilizar el comando `nmcli device`:
+
+    nmcli device
+
+Las computadras de escritorio y las portátiles con Linux suelen tener dos o tres interfaces de red
+predefinidas, una para la interfaz virtual de bulce invertido y las otras asignadas la hardware de
+red por el sistema. Los servidores y dispositivos de red con Linux, en cambio, pueden tener
+decenas de interfaces de red, pero los mismos principios se aplican a todos ellos. La abstracción
+proporcionada por el sistema operativo permite configurar las interfaces de red utilizando los mismo
+métodos, independientemente del hardware subyacente. Sin embargo, conocer los detalles sobre el
+hardware subyacente de una interfaz puede ser útil para entender mejor lo que ocurre cuando la
+comunicación no funciona como se espera. En un sistema en el que hay muchas interfaces de red
+disponibles, podría ser obvio cuál corresponde a wi-fi y al ethernet. Por esta razón, Linux utiliza
+una convención de nomeclatura de interfaces que ayuda a identificar qué interfaz de red a cada
+dispositivo y puerto.
+
+#### Nombres de interfaces
+Las antiguas distribuciones de Linux nombraban las interfaces de red ethernet como `eth0`, `eth1`, `etc.`, numeradas según el orden en que el kernel identifica los dispositivos. Las interfaces
+inalámbricas se llamaban `wlan0`, `wlan1`, `etc.` Sin embargo, esta convención de nomeclatura, no 
+aclara qué puerto ethernet específico coincide con la interfaz `eth0`, por ejemplo. Dependiendo de
+cómo se detectara el hardware, era incluso posible que dos interfaces de red intercambiaran sus
+nombres después de un reinicio.
+
+Para superar esta ambigüedad, los sistemas Linux más recientes emplean una convención de
+nomeclatura predecible para las interfaces de res, estableciendo una relación más estrecha entre
+el nombre de la interfaz y la conexión de hardware subyacente.
+
+En las distribuciones de Linux que utilizan el esquema de nomeclatura systemd, todos los nombre de
+interfaz comienzan con un prefijo de dos caracteres que significa el tipo de interfaz:
+- **`en`**: Ethernet
+- **`ib`**: InfiniBand
+- **`sl`**: Serial line IP (slip)
+- **`wl`**: Wireless local area network (WLAN)
+- **`ww`**: Wireless wide area network (WWAN)
+
+De mayor a menor prioridad, el sistema operativo utiliza las siguientes reglas para nombrar y
+numerar las interfaces de red:
+
+1. Nombra la interfaz según el indice proporcionado por la BIOS o por el firmware de los dispositivos integrados, por ejemplo, `eno1`.
+
+2. Desgina la interfaz según el índice de la ranura PCI express, tal y como lo indica la BIOS o el firmware, por ejemplo, `ens1`.
+
+3. Nombra la interfaz según su dirección en el bus correspondiente, por ejemplo, `enp3s5`.
+
+4. Designa la interfaz con la dirección MAC de la misma, por ejemplo, `enx78e7d1ea46da`.
+
+5. Nombra la interfaz utilizando la convención heredada, por ejemplo, `eth0`.
+
+Es correcto suponer, que la interfaz de res `enp3s5` se denominó así porque no se ajustaba a los dos
+primeros métodos de denominación, por lo que se utilizó en su lugar su dirección en el bus y la ranura
+correspondiente. La dirección del dispositivo `03:05.0`, encontrada en la salida del comando `lspci`,
+revela el dispositivo asociado.
+
+Las interfaces de red son creadas por el propio kernel de Linux, pero hay muchos comandos que se
+pueden utilizar para interactuar con ellas. Normalmente, la configuración se realiza de forma
+automática y no es necesario cambiar la configuración manualmente. Sin embargo, con el nombre de la
+interfaz, es posible indicarle al kernel cómo proceder para configurarla si es necesario.
+
+#### Gestión de interfaces
+A lo largo de los años, se han desarrollado varios programas para interactuar con las características
+de red proporcionadas por el núcleo de Linux. Aunque el antiguo comando `ifconfig` todavía se puede
+utilizar para realizar configuraciones y consultas simples de las interfaces, ahora está obsolteo
+debido a su limitado soporte de las interfaces que no son Ethernet. El comando `ifconfig` fue
+sustituido por el comando `ip`, que es capaz de gestionar muchos otros aspectos de las interfaces
+TCP/IP, como rutas y túneles.
+
+Las muchas capacidades del comando `ip` puede ser excesivas para la mayoría de las tareas ordinarias,
+por lo que existen comandos auxiliares para facilitar la activación y configuración de las interfaces
+de red. Los comandos `ifup` y `ifdown` pueden utilizarse para configurar las interfaces de red
+basándose en las definiciones de las interfaces que se encuentran en el fichero
+`/etc/network/interfaces`. Aunque pueden ser invocados manualmente, estos comandos se ejecutan
+normalmente de forma automática durante el arranque del sistema.
+
+Todas las interfaces de red gestionadas por `ifup` y `ifdown` deben estar listadas en el fichero
+`/etc/network/interfaces`. El formato utilizado en el fichero es sencillo: las líneas que comienzan
+con la palabra `auto` se utilizan para identificar las interfaces físicas que se van a activar
+cuando se ejecute `ifup` con la opción `-a`. El nombre de la interfaz debe seguir a la palabra `auto`
+en la misma línea. Todas las interfaces marcadas como `auto` se activan en el momento del aranque,
+en el orden en que aparecen en la lista.
+
+La configuración real de la interfaz se escribe en otra línea, empezando por la palabra `iface`,
+seguida del nombre de la interfaz, el nombre de la familia de direcciones que utiliza la interfaz y
+el nombre del método utilizado para configurar la interfaz. El siguiente ejemplo muestra un fichero
+de configuración básico para las interfaces `lo` (loopback) y `enp3s5`:
+```sh
+auto lo
+iface lo inet loopback
+auto enp3s5
+iface enp3s5 inet dhcp
+```
+La familia de direcciones debe ser `inet` para redes TPC/IP, pero también hay soporte para redes IPX
+(`ipx`), y redes IPv6 (`inet6`). Las interfaces Loopback utilizan el método de configuración
+`loopback`. Con el método `dhcp`, la interfaz utilizará la configuración IP proporcionada por el
+servidor DHCP de la red. Los ajustes de la configuración de ejemplo permiten la ejecución del comando
+`ifup` utilizando el nombre de la interfaz `enp3s5` como argumento:
+```sh
+# ifup enp3s5
+Internet Systems Consortium DHCP Client 4.4.1
+Copyright 2004-2018 Internet Systems Consortium.
+All rights reserved.
+For info, please visit https://www.isc.org/software/dhcp/
+Listening on LPF/enp3s5/00:16:3e:8d:2b:5b
+Sending on LPF/enp3s5/00:16:3e:8d:2b:5b
+Sending on Socket/fallback
+DHCPDISCOVER on enp3s5 to 255.255.255.255 port 67 interval 4
+DHCPOFFER of 10.90.170.158 from 10.90.170.1
+DHCPREQUEST for 10.90.170.158 on enp3s5 to 255.255.255.255 port 67
+DHCPACK of 10.90.170.158 from 10.90.170.1
+bound to 10.90.170.158 -- renewal in 1616 seconds.
+```
+En este ejemplo, el método elegido para la interfaz `enp3s5` fue `dhcp`, por lo que el comando `ifup`
+llamó a un programa cliente DHCP para obtener la configuración IP del servidor DHCP. Del mismo modo,
+el comando `ifdown enp3s5` se puede utilizar para apagar la interfaz.
+
+En redes sin servidor DHCP, se puede utilizar el metodo `static` en su lugar y proporcionar la
+configuración IP manualmente en `/etc/network/interfaces`. Por ejemplo:
+```sh
+iface enp3s5 inet static
+    address 192.168.1.2/24
+    gateway 192.168.1.1
+```
+Las interfaces que utilizan el método `static` no necesitan una directiva `auto` correspondiente, ya
+que se activan siempre que detecten el hardware de la red.
+
+Si la misma interfaz tiene más de una entrada `iface`, entonces todas las direcciones y opciones
+configuradas se aplicarán al abrir esa interfaz. Esto es útil para configurar tanto direcciones IPv4
+como IPv6 en la misma interfaz, así como para configurar múltiples direcciones del mismo tipo en
+una sola interfaz.
+
+#### Nombres locales y remotos
+Una configuración TCP/IP que funcione es solo el primer paso hacia la plena usabilidad de la red.
+Además de poder identificar los nodos de la red por sus números IP, el sistema debe se capaz de
+identificarlos con nombres más fáciles de entender por los seres humanos.
+
+El nombre con el que se identifica el sistema es personalizable y es una buena práctica deinirlo,
+incluso si la máquina no está destinada a unire a la red. El nombre local suele coincidir con el
+nombre de la red de la máquina, pero no es necesariamente cierto siempre. Si el fichero
+`/etc/hostname` existe, el sistema operativo utilizará el contenido de la primera línea como nombre
+local, que a partir de entonces se llamará simplemente *hostname*. Las líneas que comienzan con
+`#` dentro de `/etc/hostname` son ignoradas.
+
+El fichero `/etc/hostname` puede editarse directamente, pero el nombre de la máquina también puede
+definirse con el comando `hostnamectl`. Cuando se suministra con el subcomando `set-hostname`, el
+comando `hostnamectl` tomará el nombre dado como argumento y lo escribirá en `/etc/hostname`:
+```sh
+sudo hostnamectl set-hostname storage
+sudo cat /etc/hostname
+```
+El nombre de host definido en `/etc/hostname` es el nombre de host estático, es decir, el nombre que
+se utiliza para inicializar el nombre de host del sistema en el arranque. El nombre de host estático
+puede ser una cadena de forma libre de hasta 64 caracteres. Sin embargo, se recomienda que conste
+solo de caracteres ASCII en minúsculas y sin espacios ni puntos. También debe limitarse al formato
+permitido para las etiquetas de nombres de dominio DNS, aunque esto no es un requisito estricto.
+
+El comando `hostnamectl` puede establecer otros tipos de nombres de host además del nombre de host
+estático:
+
+**Pretty hostname**: a diferencia del nombre de host estático, este otro nombre puede incluir todo
+tipo de caracteres especiales. Se puede utilizar para establecer un nombre más descriptivo para el
+equipo, por ejemplo, "LAN Shared Storage":
+
+    sudo hostnamectl --pretty set-hostname "LAN Shared Storage"
+
+**Transient hostname**: se utiliza cuando el nombre de host estático no está establecido o cuando es
+el nombre `localhost` por defecto. El nombre de host transitorio es normalmente el nombre establecido
+junto con otras configuraciones automáticas, pero también puede ser modificado por el comando
+`hostnamectl`, por ejemplo:
+
+    sudo hostnamectl --transient set-hostname generic-host
+
+Si no se utiliza la opción `--pretty` ni `--transient`, los tres tipos de nombres de host se
+establecerán con el nombre dado. Para establecer el nombre de host estático, pero no los "pretty"
+y "transient", se debe utilizar la opción `--static`. En todos los casos, solo el nombre de host
+estático se almacena en el fichero `/etc/hostname`. El comando `hostnamectl` tamnién se puede utilizar
+para mostrar varios bits de información dscriptiva y de identidas sobre el sistema en ejecución:
+
+    hostnamectl status
+
+Esta es la opción por defecto del comando `hostnamectl`, por lo que el subcomando `status` puede ser
+omitodo. En cuanto al nombre de los nodos de la red remota, hay dor formas básicas que el sistema
+operativo puede implementar para hacer coincidir nombres y números IP: utilizar una fuente local
+o utilizar un servidor remoto para traducir los nombres en números IP y viceversa. Los métodos
+pueden ser complementariosentre sí y su orden de prioridad se define en el fichero de configuración
+*Name Service Switch*: `/etc/nsswitch.conf`. Este fichero es utilizado por el sistema y las
+aplicaciones para determinar no solo las fuentes de coinicidencia nombre-IP, sino también las
+fuentes de las que pueden obtener información de servicios de nombres en una serie de categorías,
+llamadas bases de datos.
+
+La base de datos hosts lleva la cuenta del mapeo entre nombres de host y direcciones IPs. La línea
+dentro de `/etc/nsswitch.conf` que comienza con `hosts` define los servicios responsables de
+proporcionar las asociaciones para ello:
+
+    hosts: files dns
+
+En esta entrade de ejemplo, `files` y `dns` son los nombres de los servicos que especifican cómo
+funcionará el proceso de búsqueda de nombres de host. En primer lugar, el sistema buscará
+coincidencias en los archivos locales, y luego preguntará al servicio DNS por las coincidencias.
+
+El archivo local para la base de datos de hosts es `/etc/hosts`, un simple archivo de texto que asocia
+direcciones IP con nombres de hosts, una línea por dirección IP, por ejemplo:
+
+    127.0.0.7   localhost
+
+El número de IP `127.0.0.1` es la dirección por defecto de la interfaz loopback, de ahí su asociación
+con el nombre `localhost`.
+
+También es posible vincular alias opcionales a la misma IP. Los alias pueden proporcionar
+ortografías alnternativas, nombre de host más cortos y deben añadirse al final de la línea, por
+ejemplo:
+
+    192.168.1.10    foo.mydmomain.org   foo
+
+Las reglas de formato para el archivo `/etc/hosts` son:
+- Los campos de la entrada están separados por cualquier número de espacios en blanco y/o caracteres de tabulación.
+- El texto desde un carácter `#` hasta el final de la línea es un comentario y se ignora.
+- Los nombres de host solo pueden contener caracteres alfanuméricos, signos menos y puntos.
+- Los nombres de host deben comenzar con un carácter alfabético y terminar con un carácter alfanumérico.
+
+Las direcciones IPv6 también pueden añadirse a `/etc/hosts`. La siguiente entrada se refiere a la
+dirección IPv6 loopback:
+
+    ::1 localhost ip6-localhost ip6-loopback
+
+Tras la especificación del servicio `files`, la especificación `dns` indica al sistema que solicite a 
+un servicio DNS la asociación nombre/IP deseada. El conjunto de rutinas responsables de este método
+se llama *resolver* y su fichero de configuración es `/etc/resolv.conf`. El siguiente ejemplo muestra
+un `/etc/resolv.conf` genérico que contiene entradas para los servidores DNS públicos de Google:
+```sh
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+```
+Como se muestra en el ejemplo, la palabra clave `nameserver` indica la dirección IP del servidor DNS.
+Solo se requiere un servidor de nombres, pero se pueden indicar hasta tres servidores de nombres.
+Los complementarios se utilizaran como reserva. Si no hay entradas de servidor de nombres, el
+comportamiento por defecto es utilizar el servidor de nombres de la máquina local.
+
+El resolvedor puede configurarse para añadir automáticamente el dominio a los nombres antes de
+consultarlos en el servidor de nombres. Por ejemplo:
+```sh
+nameserver 8.8.4.4
+nameserver 8.8.8.8
+domain mydomain.org
+search mydomain.net mydomain.com
+```
+La entrada `domain` establece `mydomain.org` como nombre de dominio local, por lo que las consultas de
+nombres dentro de este dominio podrán utilizar nombres cortos relativos al dominio local. La
+entrada `search` tiene un propósito similar, pero acepta una lista de dominios para probar cuando se
+proporciona un nombre corto. Por defecto, solo contiene el nombre del dominio local.
+
+Linux es compatible con prácticamente todas las tenologías de res utilizadas para conectar
+servidores, contenedores, máquinas virtuales, ordenadores de sobremesa y dispositivos móviles.
+Las conexiones entre todos estos nodos de red pueden ser dinámicas y heterogéneas, por lo que
+requieren una gestión adecuada por parte del sistema operativo que se ejecuta con ellos.
+
+En el pasado, las distribuciones desarrollaban sus propias soluciones pesonalizadas para gestionar
+la infraestructura de red dinámica. Hoy en día, herramientas como NetworkManager y systemd ofrecen
+funciones más completas e integradas para satisfacer todas las demandas específicas.
+
+La mayoría de las distribuciones de Linux adoptan el demonio de servicio NetworkManager para
+configurar y controlar las conexiones de red del sistema. El propósito de NetworkManager es hacer
+que la configuración de la red sea lo más sencilla y automática posible. Cuando se utiliza DHCP,
+por ejemplo, NetworkManager organiza los cambios de ruta, la obtención de direcciones IP y las
+actualizaciones de la lista local de servidores DNS, si es necesario. Cuando se dispone de
+conexiones por cable e inalámbricas, NetworkManager da prioridad por defecto a la conexión por
+cable e intentará mantener al menos una conexión activa todo el tiempo, siempre que sea posible.
+
+Por defcto, el demonio NetworkManager controlas las interfaces de red no mencionadas en el fichero
+`/etc/network/interfaces`. Lo hace para no interferir con otros métodos de configuración que puedan
+estar presentes también, modificando asó colo las interfaces desatendidas.
+
+El servicio NetworkManager se ejecuta en segundo plano con privilegios de root y desencadena las
+acciones necesarias para mantener el sistema en línea. los usuarios normales pueden crear y modidicar
+las conexiones de red con aplicaciones cliente que, aunque no tengan privilegios de root, son
+capaces de comunicarse con el servicio subyacente para realizar las acciones solicitadas.
+
+Las aplicaciones cliente para NetworkManager están disponibles tanto para la línea de comandos como
+para el entorno gráfico. Para este último, la aplicacione cliente viene como un accesorio del
+entorno de escritorio (bajo nombrec, como nm-tray, network-manager-gnome, nm-applet o plasma-nm) y
+suele ser accesible a através de un icono indicador en la esquina de la barra del escritorio o
+desde la utilidad de configuración del sistema.
+
+En la línea de comandos, el propio NetworkManager proporciona dos programas cliente: `nmcli` y
+`rmtui`. Ambos programas tienen las mismas características básicas, pero `rmtui` tiene una interfaz
+basada en curses mientras que `nmcli` es un comando más completo que también puede ser utilizado con
+scripts. El comando `nmcli` separa todas las propiedades relacionadas con la red controladas por
+NetworkManager en categorías llamadas *objects*:
+
+**`general`**: el estado y las operaciones generales de NetworkManager.
+
+**`networking`**: control general de la red.
+
+**`radio`**: conmutadores de radio de NetworkManager.
+
+**`connection`**: las conexiones de NetworkManager.
+
+**`device`**: dispositivos gestionados por NetworkManager.
+
+**`agent`**: agente secreto NetworkManager o agente polkit.
+
+**`monitor`**: supervisar los cambios del NetworkManager.
+
+El nombre del objeto es el argumento principal del comando `nmcli`. Para mostrar el estado general
+de la conectividad del sistema, por ejemplo, se debe dar como argumento el objeto `general`:
+
+    nmcli general
+
+La columna `STATE` indica si el sistema está conectado a una red o no. Si la conexión está limitada
+debido a una mala configuración externa o a restricciones de acceso, la columna `CONNECTIVITY` no
+informará del estado de conectividad `full`. Si aparece `Portal` en la columna `CONNECTIVITY`,
+significa que requiere pasos adicionales para la autenticación (normalmente a través del navegador
+web) para completar el proceso de conexión. Las columnas restantes informan en estado de las
+conexiones inalámbricas (si la hay), ya sea WIFI o WAN (Wide Wireless Area Network, es decir,
+redes celulares). El sufijo `HW` indica que el estado corresponde al dispositivo de red y no a la
+conexión de red del sistema, es decir, indica si el hardware está activado o desactivado para
+ahorrar energía.
+
+`nmcli` también necesita un argumento de comando para ejecutarse. El comando `status` se utiliza por
+defecto si no hay ningún argumento de comando, por lo que el comando `nmcli general` se interpreta
+en realidad como `nmcli general status`.
+
+No es necesario realizar ninguna acción cuando el adaptador de red se conecta directamente al punto
+de acceso a través de cables, pero las rdes inalámbricas requieren una mayor interacción para
+aceptar nuevos miembors. `nmcli` facilita el proceso de conexión y guarda la configuración para
+conectarse automáticamente en el futuro, por lo que es muy útil para los ordenadores portátiles
+o cualquier otro aparato móvil.
+
+Antes de conectarse al wi-fi, es conveniente listar primero las redes disponibles en el área local.
+Si el sistema tiene un adaptador wi-fi en funcionamiento, entonces el objeto `device` lo utilizará
+para escanear las redes disponibles con el comando `nmcli device wifi list`:
+
+    nmcli device wifi list
+
+La mayoría de los usuarios probablemente utilizarán el nombre de la columna `SSID` para identificar
+la red de interés. Por ejemplo, el comando `nmcli` puede conectarse a la red llamada
+`Hypnotoad` utilizando de nuevo el objeto `device`:
+
+    nmcli devide wifi connect Hypnotoad
+
+Si el comando se ejecuta dentro de un emulador de terminal en el entorno gráfico, aparecerá un
+cuadro de diálogo solicitando la frase de acceso a la red. Cuando se ejecuta en una consola de solo
+texto, la contraseña puede ser proporcionada junto con los otros argumentos:
+
+    nmcli device wifi connect Hypnotoad password MyPassword
+
+Si la red wi-fi oculta su nombre SSID, `nmcli` aún puede conectarse a ella con los argumentos extra
+`hidden yes`:
+
+    nmcli device wifi connect Hypnotoad password MyPassword hidden yes
+
+Si el sistema tiene más de un adaptador wi-fi, se puede indicar el que se va a utilizar con `ifname`.
+Por ejemplo, para conectarse usando el adaptador llamado `wlo1`:
+
+    nmcli device wifi connect Hypnotoad password MyPassword ifname wlo1
+
+Después de que la conexión tenga éxito, NetworkManager le dará el nombre del SSID correspondiente
+(si es una conexión wi-fi) y lo conservará para futuras conexiones. Los nombres de las conexiones
+y sus UUIDs son listados por el comando `nmcli connection show`:
+
+    nmcli connection show
+
+Se muestra el tipo de cada conexión (que puede ser `ethernet`, `wifi`, `tun`, `gsm`, `bridge`, etc.)
+así como al dispositivo al que están asociados. Para realizar acciones sobre una conexión concreta,
+hay que proporcionar su nombre o UUID. Para desactivar la conexión `Hypnotoad`, por ejemplo:
+
+    nmcli connection down Hypnotoad
+
+Igualmente, el comando `nmcli connection up Hypnotoad` puede ser utilizado para traer la conexión,
+ya que ahora está guardada por NetworkManager. El nombre de la interfaz también se puede utilizar
+para desconectar, pero en este caso se debe utilizar el objeto `device` en su lugar:
+
+    nmcli device disconnect wlo1
+
+El nombre de la interfaz también puede ser utilizada para restablecer la conexión:
+
+    nmcli device connect wlo1
+
+Tenga en cuenta que el UUID de la conexión cambia cada vez que se abre la conexión, por lo que es
+preferible utilizar su nombre para mantener la coherencia.
+
+Si el adapatador inalámbrico está disponible, pero no se está utilizando, entonces se puede apagar
+para ahorrar energía. Esta vez, el objeto `radio` debe ser pasado a `nmcli`:
+
+    nmcli radio wifi off
+
+Por su puesto, el dispositivo se puede volver a encender con el comando `nmcli radio wifi on`.
+
+Una vez establecidas las conexiones no será necesario ninguna interacción manual en el futuro, ya
+que NetworkManager identifica las redes conocidas disponibles y se conecta automáticamente a ellas.
+Si es necesario, NetworkManager tiene plugins que pueden ampliar sus funcionalidades, como el plugin
+para soportar conexiones VPN.
+
+#### `systemd-networkd`
+Los sistemas que ejecutan systemd pueden utilizar opcionalmente sus demonios incorporados para
+gestionar la conectividad de red: `systemd-networkd` para controlar las interfaces de red y
+`systemd-resolved` para gestionar la resolución de nombres locales. Estos servicios son compatibles
+con los métodos de configuración heredados de Linux, pero la configuración de las interfaces de red
+en particular tiene características que valen la pena conocer.
+
+Los archivos de configuración utilizados por systemd-networkd para configurar las interfaces de red
+pueden encontrarse en cualquiera de los tres directorio siguientes:
+
+**`/lib/systemd/network`**: el directorio de la red del sistema.
+
+**`/run/systemd/network`**: el directorio de red volátil de ejecución.
+
+**`/etc/systemd/network`**:  el directorio de red de la administración local.
+
+Los archivos se procesan en orden lexicográfico, por lo que se recomienda comenzar sus nombres con
+números para facilitar la laectura y el ordenamiento.
+
+Los archivos en `/etc` tienen la mayor prioridad, mientras que los archivos en `/run` tiene prioridad
+sobre los archivos con el mismo nombre en `/lib`. Esto significa que si los archivos de configuración
+en diferentes directorios tienen el mismo nombre, entonces systemd-networkd ignorará los archivos
+con menor prioridad. Separar los archivos de esta manera es una forma de cambiar la configuración
+de la interfaz sin tener que modificar los archivos originales: se pueden colocar modificaciones
+en `/etc/systemd/network` para anular las de `/lib/systemd/network`.
+
+El propósito de cada archivo de configuración depende de su sufijo. Los archivos que terminan en
+`.netdev` son utilizados por systemd-networkd para crear dispositivos de red virtuales, como los
+dispositivos bridge o tun. Los archivos que terminan en `.link` establecen configuraciones de bajo
+nivel para la interfaz de red correspondiente. systemd-networkd detecta y configura los
+dispositivos de red automáticamente a medida que aparecen (además de ignorar los dispositivos ya
+configurados por otros medios) por lo que no es necesario añadir estos archivos en la mayoría de las
+situaciones.
+
+El sufijo más importantes es `.network`. Los archivos que utilizan este sufijo pueden utilizarse para
+configurar direcciones y rutas de red. Al igual que con los otros tipos de archivos de configuración,
+el nombre del archivo define el orden en el que se procesará el archivo. La interfaz de red a la que
+se refiere el fichero de configuración se define en la sección `[Match]` dentro del mismo.
+
+Por ejemplo, la interfaz de red ethernet `enp3s5` puede ser seleccionada dentro del archivo
+`/etc/systemd/network/30-lan.network` utilizando la entrada `Name=enp3s5` en la sección `[Match]`:
+```sh
+[Match]
+Name=enp3s5
+```
+También se acepta una lista de nombres separados por espacios en blanco para hacer coincidir muchas
+interfaces de red con este mismo archivo a la vez. Los nombres pueden contener globos de estilo
+shell, como `es*`. otras entradas proporcionan varias reglas de coincidencia, como la selección de
+un dispositivo de red por su dirección MAC:
+```sh
+[Match]
+MACAddress=00:16:3e:8d:2b:5b
+```
+La configuración del dispositivo se encuentra en la sección `[Network]` del archivo. Una modificación
+de red estática solo requiere las entradas `Address` y `Gateway`:
+```sh
+[Match]
+MACAddress=00:16:3e:8d:2b:5b
+
+[Network]
+Address=192.168.0.100/24
+Gateway=192.168.0.1
+```
+Para utilizar el protocolo DHCP en lugar de direcciones IP estáticas, se debe utilizar la entrada
+`DHCP`:
+```sh
+[Match]
+MACAddress=00:16:3e:8d:2b:5b
+
+[Network]
+DHCP=yes
+```
+El servicio systemd-networkd intentará obtener tanto direcciones IPv4 como IPv6 para la interfaz de
+red. Para utilizar solo para IPv4, se debe utilizar `DHCP=ipv4`. Del mismo modo, `DHCP=ipv6` ingorará
+la configuración de IPv4 y utilizará únicamente la dirección IPv6 proporcionada.
+
+Las redes inalámbricas protegidas por contraseña también pueden ser configuradas por systemd-nerworkd,
+pero el adaptador de red debe de estar ya autenticado en la red antes de que systemd-networkd pueda
+configurarlo. La autenticación la realiza WPA supplicant, un programa dedicado a configurar
+adaptadores de red para redes protegidas por contraseña.
+
+El primer paso es crear el archivo de credenciales con el comando `wpa_passphrase`:
+
+    wpa_passphrase MyWifi > /etc/wpa_supplicant/wpa_supplicant-wlo1.conf
+
+Este comando tomará la frase de contraseña para la red inalámbrica `MyWifi` de la entrada estándar
+y almacenará su hash en el archivo `/etc/wpa_supplicant/wpa_supplicant-wlo1.conf`. Tenga en cuenta
+que el nombre del archivo debe contener el nombre apropiado de la interfaz inalámbrica, de ahí
+el `wlo1` en el nombre del archivo.
+
+El gestor systemd lee los archivos de frases de paso WPA en `/etc/wpa_supplicant/` y crea el servicio
+correspondiente para ejecutar WPA supplicant y poner en marcha la interfaz. El archivo de frases de
+paso creado en el ejemplo tendrá entonces una unidad de servicio correspondiente llamada
+`wpa_supplicant@wlo1.service`. El comando `sudo systemctl start wpa_supplicant@wlo1.service`
+asociará el adaptador inalámbrico con el punto de acceso remoto. El comando
+`sudo systemctl enable wpa_supplicant@wlo1.service` hace que la asociación sea automática durante el
+arranque. Finalmente, un archivo `.network` que coincida con la interfaz `wlo1` debe estar presente en
+`/etc/systemd/network/`, ya que systemd-networkd lo utilizará para configurar la interfaz tan pronto
+como el supplicant WPA finalice la asociación con el punto de acceso.
+
+#### Sobre el comando `ip`
+El comando `ip` es una utilidad bastante reciente que se utiliza para ver y configurar casi todo lo
+relacionado con las configuraciones de red. 
+
+Opciones para tener ayuda de los comandos de `ip`:
+```sh
+man ip
+man ip-address
+ip address help
+```
+
+#### Revisión de máscaras de red y enrutamiento
+IPv4 e IPv6 son lo que se concoe como protocolos enrutados. Esto significa que están diseñados de
+tal manera que los diseñadores de redes pueden controlar el flujo de tráfico. Ethernet no es un
+protocolo enrutable. Esto significa que si se conecta un grupo de dispositivos usnado solo
+Ethernet, hay muy poco que se pueda hacer para controlar el flujo de tráfico de la red. Cualquier
+medida para controlar el tráfico acabaría siendo similar a la de los protocolos enrutables y de
+enrutamiento actuales.
+
+Los protocolos enrutables permiten a los disesañores de redes segmentarlas para reducir los
+requisitos de procesamiento de los dispositivos de conectividad, proporcionar redundancia y
+gestionar el tráfico.
+
+Las direcciones IPv4 e IPv6 tienen dos secciones. El primer conjunto de bits constituye la sección
+de red, mientras que el segundo conjunto constituye la parte del host. El número de bits que
+componen la parte de red viene determinado por la máscara de red (también llamada máscara de
+subred). a veces también se denomina longitud de prefijo. Independientemente de cómo se llame, es
+el número de bits que la máquina trata como la parte de red de la dirección. Con IPv4, a veces se
+especifica en notación decimal con puntos.
+
+A continuación se muestra un ejemplo utilizando IPv4. Observe cómo los dígitos binarios mantienen su
+valor de posición en los octetos incluso cuando se divide por la máscara de red.
+```sh
+192.168.130.5/20
+
+    192         168     130     5
+    11000000 10101000 10000010 00000101
+
+20 bits = 11111111 11111111 11110000 00000000
+
+Network = 192.168.128.0
+Host    = 2.5
+```
+La parte de una red en una dirección es utilizada por las máquinas IPv4 o IPv6 para buscar en su
+tabla de enrutamiento la interfaz por la que debe enviarse un paquete. Cuando un host IPv4 o IPv6
+con el enrutamiento activado recibe un paquete que no es para el propio host, intenta hacer
+coincidir la parte de la red del destino con una red en la tabla de enrutamiento. Si se ubica una
+entrada que coincida, envía el paquete al destino especificado en la tabla e enrutamiento. Si no se
+encuentra ninguna entrada y se ha configurado una entrada por defecto, se envía a la ruta por defecto.
+Si no se localiza ninguna entrada y no se ha configurado ninguna ruta por defecto, el paquete se
+descarta.
+
+#### Configurar una interfaz
+`ifconfig` o `ip`. El programa `ifconfig`, aunque sigue siendo ampliamanete utilizado, se considera
+una herramienta herdedada y puede no estar disponible en los sistemas más nuevos.
+
+> En las nuevas distribuciones de Linux, la instalación del paquete `net-tools` le proporcionará los comandos de red heredados.
+
+Antes de configurar una interfaz, debe saber qué interfaces están disponibles. Hay varias formas
+de hacerlo. Una forma es utilizar la opción `-a` de `ifconfig`:
+
+    ifconfig -a
+
+Otra forma es con `ip`. A veces verá ejemplos con `ip addr`, `ip a`, y algunos con `ip address`, son
+sinónimos. Oficialmente, el subcomando es `ip address`. Esto significa que si desea ver la página del
+manual, debe utilizar `man ip-address` y no `man ip-addr`.
+
+El subcomando `link` para `ip` listará los enlaces de interfaz disponibles para su configuración:
+
+    ip link
+
+Asumiendo que el sistema de archivos `sys` esté montado, también puede listar el contenido de
+`/sys/class/net`:
+
+    ls /sys/class/net
+
+Para configurar una interfaz con `ifconfig`, debe iniciar la sesión como root o utilizar una
+herramienta como `sudo` para ejecutar el comando con privilegos de root:
+
+    ifconfig enp1s0 192.168.50.50/24
+
+La versión de Linux de `ifconfig` es flexible con la forma de especificar la máscara de subred:
+```sh
+ifconfig eth2 192.168.50.50 netmask 255.255.255.0
+ifconfig eth2 192.168.50.50 netmask 0xffffff00
+ifconfig enp0s8 add 2001:db8::10/64
+```
+Revise que con IPv6 usted ha utilizado la palabra clave `add`. Si no se precede una dirección IPv6
+con `add`, recibirá un mensaje de error.
+
+El siguiente comando configura una interfaz con `ip`:
+```sh
+ip addr add 192.168.5.5/24 dev enp0s8
+ip addr add 2001:db8::10/64 dev enp0s8
+```
+Con `ip`, se utiliza el mismo comando tanto para IPv4 como para IPv6.
+
+#### Configuración de opciones de bajo nivel
+El comando `ip link` se utiliza para configurar la interfaz de bajo nivel o los ajustes de protocolo
+como VLANs, ARP, o MTUs, o deshabilitar una interfaz.
+
+Una tarea común para `ip link` es desactivar o activar una interfaz. Esto también se puede hacer con
+`ifconfig`:
+```sh
+sudo ip link set dev enp0s8 down
+ip link show dev enp0s8
+...
+sudo ifconfig enp0s8 up
+ip link show dev enp0s8
+```
+A veces puede ser necesario ajustar la MTU de una interfaz. Al igual que con la habilitación/deshabilitación
+de interfaces, esto puede hacerse con `ifconfig` o `ip link`:
+```sh
+sudo ip link set enp0s8 mtu 2000
+ip link show dev enp0s3
+...
+sudo ifconfig enp0s3 mtu 1500
+ip link show dev enp0s3
+```
+
+#### La tabla de enrutamiento
+Los comandos `route`, `netstat -r` o `ip route` pueden ser utilizados para ver sus tablas de rutas. Si
+desea modificar sus rutas, debe utilizar `route` o `ip route`. A continuación se muestras ejemplos de
+visualización de una tabla de enrutamiento:
+```sh
+netstat -r
+...
+ip route
+...
+route
+```
+No hay ningua salida relativa a IPv6. Si desea ver su tabla de enrutamiento para IPv6, debe utilizar
+`route -6`, `netstat -6r`, o `ip -6 route`.
+
+Parte de la salida del comando `route` anterior se explica por sí misma. La columna `Flag`
+proporciona alguna información sobre la ruta. La columan flags, `U` indica que la ruta está activa.
+`!` significa que la ruta ha sido rechazada, es decir, una ruta con una bandera `!` no será utilizada.
+`n` significa que la ruta no ha sido cacheada. El kernel mantiene una caché de rutas para búsquedas
+más rápidas por separado de todas las rutas conocidas. `G` indica una puerta de enlace. La columna
+`Metric` o `Met` no es utilizada por el kernel. Se refiere a la distancia administrativa al objetivo.
+Esta distancia administrativa es utilizada por los protocolos de enrutamiento para determinar las
+rutas dinámicas. La columna `Ref` es el recuento de referencias, o el número de usos de una ruta. Al
+igual que `Metric`, no es utilizada por el kernel de Linux. La coumna `Use` muestra el número de
+búsquedas de una ruta.
+
+En la salida de `netstat -r`, `MSS` indica el tamaño máximo de segmentos para las conexiones TCP sobre
+esa ruta. La columna `Window` muestra el tamaño predeterminado de la ventana TCP. La columna `irtt`
+muestra el tiempo de ida y vuelta de los paquetes en esta ruta.
+
+La salida de `ip route` o `ip -6 route` es la siguiente:
+
+1. Destino.
+
+2. Dirección opcional seguida de interfaz.
+
+3. El protocolo de enrutamiento utilizado para añadir la ruta.
+
+4. El ámbito de la ruta. Si se omite, se trata de un ámbito global o de una puerta de enlace.
+
+5. La métrica de la ruta. Esta es utilizada por los protocolos de enrutamiento dinámico para determinar el coste de la ruta. La mayoría de los sistemas no la utilizan.
+
+6. Si es una ruta IPv6, la preferencia de ruta es RFC4191.
+
+Ejemplo de IPv4:
+
+    default via 10.0.2.2 dev enp0s3 proto dhcp metric 100
+
+1. El destino es la ruta por defecto.
+
+2. La dirección de la puerta de enlace es `10.0.2.2` alcanzable a través de la interfaz `enp0s3`.
+
+3. Ha sido añadido a la ruta de enrutamiento por DHCP.
+
+4. Se ha omitodo em ámbito, por lo que es global.
+
+5. La ruta tiene un valor de coste de `100`.
+
+6. No hay preferencia de ruta IPv6.
+
+Ejemplo de IPv6:
+
+    fc0::/64 dev enp0s8 proto kernel metric 256 pref medium
+
+1. El destino es `fc0::/64`.
+
+2. Es alncazable a través de la interfaz `enp0s8`.
+
+3. Ha sido añadido automáticamente por el kernel.
+
+4. Se ha omitido el ámbito, por lo que es global.
+
+5. La ruta tiene un valor de coste `256`.
+
+6. Tiene una preferencia IPv6 de `media`.
+
+#### Gestión de rutas
+Las rutas pueden ser gestionadas utilizando `route` o `ip route`. A continuación se muestra un ejemplo
+de cómo añadir añadir y eliminar una ruta utilizando el comando `route`. Con `route`, debe utilizar
+la opción `-6` para IPv6:
+```sh
+ping6 -c 2 2001:db8:1::20
+route -6 add 2001:db8:1::/64 gw 2001:db8::3
+ping6 -c 2 2001:db8:1::20
+route -6 del 2001:db8:1::/64 gw 2001:db8::3
+ping6 -c 2 2001:db8:1::20
+```
+Ahora utilizando el comando `ip route`:
+```sh
+ping6 -c 2 2001:db8:1:20
+ip route add 2001:db8:1::/64 via 2001:db8::3
+ping6 -c 2 2001:db8:1:20
+ip route del 2001:db8:1::/64 via 2001:db8::3
+ping6 -c 2 2001:db8:1::20
+```
+
+#### Probar las conexiones con `ping`
+Los comandos `ping` y `ping6` pueden utilizarse para enviar una solicitud de eco ICMP a una dirección
+IPv4 o IPv6, respectivamenet. Una petición de eco ICMP envía una pequeña cantidad de datos a la
+dirección de destino. Si la dirección de destino es alcanzable, enviará un mensaje de respuesta de
+echo ICMP de vuelta al remitente con los mismos datos que le fueron enviados:
+```sh
+ping -c 3 192.168.50.2
+...
+ping6 -c 3 2001:d8::10
+```
+La opción `-c` se utiliza para especificar el número de paquetes a enviar. Si imite esta opción,
+`ping` y `ping6` continuarán enviando paquetes hasta que lo detengas, normalmente con la combinación
+de teclado `Ctrl+C`.
+
+Que no pueda hacer un ping a un host no significa que no pueda conectarse a él. Muchas organizaciones
+tienen cortafuegos o listas de control de acceso al router que bloquean todo lo que no sea el
+mínimo necesario para que sus sistemas funciones. Esto incluye las peticiones y respuestas de eco
+ICMP. Dado que estos paquetes pueden incluir datos arbitrarios, un atacante inteligente podría
+utilizarlos para exfiltrar datos.
+
+#### Traceroute
+Los programas `traceroute` y `traceroute6` puede utlizarse para mosrar la ruta que sigue un paquete
+para llegar a su destino. Lo hacen enviando múltiples paquetes al destino, incrementando el campo
+*Time-To-Live* (TTL) de la cabecera IP con cada paquete subsiguiente. Cada router a lo largo del
+camino responderá con un mensaje ICMP de TTL excedido:
+
+    traceroute 192.168.1.20
+
+Por defecto, `traceroute` envía 3 paquetes UDP con datos basura al puerto `33434`, incrementandólo
+cada vez que envía un paquete. Cada línea de salida del comando es una interfaz de router por la que
+atreviesa el paquete. El tiempo mostrado en cada línea es el tiempo de ida y vuelta de cada paquete.
+La dirección IP es la dirección de la interfaz de router en cuestión. Si `traceroute` puede, utiliza
+el nombre DNS de la interfaz de router. A veces verá `*` en lugar de un tiempo. Cuando esto sucede,
+significa que `traceroute` nunca recibió el mensaje de TTL excedido para este paquete. Cuando se
+empieza a ver esto, suele indicar que la última respuesta es el último salto de la ruta.
+
+Si tiene acceso a `root`, la opción `-I` hará que `traceroute` utilice peticiones de eco ICMP en lugar
+de un paquete UDP. Esto suele ser más efectivo que el UDP porque es más probable que el host de
+destino responsa a una petición de eco ICMP que al paquete UDP:
+
+    sudo traceroute -I learning.lpi.org
+
+Algunas organizaciones bloquean las peticiones y respuestas de eco ICMP. Para evitarlo, puede
+utilizar TCP. Al utilizar un puerto TCP abierto conocido, puede garantizar que el host de destino
+responderá. Para usar TCP, utilice la opción `-T` junto con la `-p` para especificar el puerto. Al
+igual que con las peticiones de eco ICMP, debe tener acceso `root` para hacer esto:
+
+    sudo traceroute -m 60 -T -p 80 learning.lpi.org
+
+Al igual que `ping`, `traceroute` tiene sus limitaciones. Es posible que los cortafuegos y los routers
+bloqueen paquetes enviados o devueltos por `traceroute`. Si tiene cceso `root`, hay opciones que
+pueden ayudar a obtener resultados precisos.
+
+#### Búsqueda de MTU con `tracepath`
+El comando `tracepath` es similar a `traceroute`. La diferencia es que rastrea los tamaños de las
+*Unidades Máximas de Transmisión* (MTU) a lo largo de la ruta. MTU es un ajuste configurado en una
+interfaz de red o una limitación de hardware de la unidad de datos de protocolos más grande que
+puede trasmitir o recibir. El programa `tracepath` funciona de la misma manera que `traceroute` en
+el sentido de que incrementa el TTL con cada paquete. Se diferencia de que envía un datagrama UDP
+muy grande. Es casi inevitable que el datagrama sea más grande que el dispositivo con la MTU más
+pequeña de la ruta. Cuando el paquete llega a este dispositivo, este suele responder con un
+paquete de destino inalcanzable. El paquete ICMP de destino inalcanzable tiene un campo para la MTU
+del enlace por el que enviaría el paquete si pudiera. `tracepath` envía entonces todos los paquetes
+subsiguientes con este tamaño:
+
+    tracepath 192.168.1.20
+
+Para IPv6:
+
+    tracepath6 2001:db8::11
+
+La salida es similar a `traceroute`. La ventaja de `tracepath` es que en la última línea muestra la
+MTU más paqueña de todo el enlace. Esto puede ser útil para solucionar problemas de conexiones que
+no pueden manejar fragmentos.
+
+Al igual que con las herramientas de solución de problemas anteriores, existe la posibilidad de
+que los equipos bloqueen sus paquetes.
+
+#### Crear conexiones arbitrarias
+El programa `nc`, conocido como netcat, puede enviar o recibir datos arbitrarios a través de una
+conexión de red TCP o UDP. Los siguientes ejemplos deberían dejar claro su funcionalidad.
+
+A continuación se muestra un ejemplo de configuración de un listener en el puerto `1234`:
+
+    nc -l 1234
+
+La salida de `LPI Example` aparece después del siguiente ejemplo, que está configurando un remitente
+netcat para enviar un paquete a `net2.example.net` en el puerto `1234`. La opción `-l` se utiliza para
+especificar que se desea que `nc` reciba datos en lugar de enviarlos:
+
+    nc net2.example.net
+
+Pulse `Ctrl+C` en cualquiera de los dos sistemas para detener la conexión.
+
+    nc -u -e /bin/bash -l 1234
+
+La opción `-u` es para UDP. La opción `-e` indica a netcat que envíe todo lo que recibe a la entrada
+estándar del ejecutable que le sigue. En este ejemplo: `/bin/bash`.
+
+    nc -u net2.example.net 1234
+
+La salida del comando `hostname` coincide con la del host que escucha y la salida del comando
+`pwd` con la de un directorio.
+
+#### Ver conexiones y oyentes actuales
+Los programas `netstat` y `ss` pueden utilizarse para ver el estado de sus oyentes y conexiones
+actuales. Al igual que `ifconfig`, `netstat` es una herramienta heredada. Tanto `netstat` como `ss`
+tienen salidas y opciones similares. Aquí están algunas opciones disponibles para ambos programas:
+
+**`-a`**: muetra todos los sockets.
+
+**`-l`**: presenta los sockets en escucha.
+
+**`-p`**: muestra el proceso asociado a la conexión.
+
+**`-n`**: evita la búsqueda de nombres tanto para los puertos como para las direcciones.
+
+**`-t`**: presenta las conexiones TCP.
+
+**`-u`**: muestra la conexiones UDP.
+
+Los ejemplos siguientes muestran la salida de un conjunto de opciones comúnmente utilizadas para
+ambos programas:
+```sh
+sudo netstat -tunlp
+...
+sudo ss -tunlp
+```
+La columna `Rec-Q` es el número de paquetes que un socket ha recibido pero no ha pasado a su programa.
+La columan `Send-Q` es el número de paquetes que un socket ha enviado y que no han sido reconocidos
+por el receptor. El resto de las columnas se explica sí mismas.
+
+#### Proceso de resolución de nombres
+los programas que resuelven nombres a números casi siempre utilizan funciones proporcionadas para
+la biblioteca estándar en C, que en los sistemas Linux es el glibc del proyecto GNU. Lo primero
+que hacen estas funciones es leer el archivo `/etc/nsswitch.conf` para obtener instrucciones sobre
+cómo resolver ese tipo de nombre. Una vez que el proceso lee `/etc/nsswitch.conf`, busca el
+nombre de la manera especificada. Dado que `/etc/nsswitch.conf` soporta plugins, lo que viene a
+continuación puede ser cualquier cosa. Una vez que la función ha terminado de buscar el nombre o
+el número, devuele el resultado al proceso que lo ha llamado.
+
+#### Clases de DNS
+El DNS tiene tres clases de registrs, IN, HS y CH. La clase IN es para las direcciones de Internet
+que utilizan la pila TCP/IP. CH es para ChaosNet, que es una tecnología de red que tuvo una corta
+vida y ya no está en uso. La clase HS es para Hesiod. Hesiod es una forma de almacenar cosas como
+password y entradas de grupo como DNS.
+
+#### Comprendiendo el archivo `/etc/nsswitch.conf`
+A continuación se muestra un ejemplo sencillo de `/etc/nsswitch.conf` de su página man:
+```sh
+    passwd: compat
+    group: compat
+    shadow: compat
+    hosts: dns [!UNAVAIL=return] files
+    networks: nis [NOTFOUND=return] files
+    ethers: nis [NOTFOUND=return] files
+    protocols: nis [NOTFOUND=return] files
+    rpc: nis [NOTFOUND=return] files
+    services: nis [NOTFOUND=return] files
+    # This is a comment. It is ignored by the resolution functions.
+```
+El archivo está orgaizado en columnas. Las columnas del extremo izquierdo es el tipo de base de
+datos de nombres. El resto de las columnas son los métodos que las funciones de resolución deben    utilizar para buscar un nombre. los métodos van seguidos de las funciones de izquierda a derecha.
+Las columnas con `[]` se utilizan para proporcionar alguna lógica condicional limitada a la columna
+inmediatamente a la izquierda de la misma.
+
+Supongamos que un proceso intenta resolver el nombre de host `learning.lpi.org`. Haría una llamada
+a la biblioteca C apropiada (probablemente `gethostbyname`). Esta función leerá entonces
+`/etc/nsswitch.conf`. Como el proceso está buscando un nombre de host, encontrará la línea que
+comienza con `host`. Entonces intentará usara el DNS para resolver el nombre. La siguiente columna,
+`[!UNAVAIL=return]` significa que el servicio no está disponible, entonces no inente la siguiente
+fuente, es decir, si DNS está disponible, deje de intentar resolver el nombre de lhost aunque los
+servidores de nombres no puedan. Si el DNS no está disponible, entonces continúe con la siguiente
+fuente. En este caso, la siguiente fuentes es `files`.
+
+Cuando veas una columna con el formato `[resultado=action]`, significa que la búsqueda del resolver
+de la columna a la izquierda es `resultado`, entonces se realiza `action`. Si resultado es similar a
+un `!`, significa que el resultado no es igual a este, entonces se realiza `action`.
+
+Ahora supongamos que un proceso está intentando resolver un número de puerto a un nombere de servicio.
+Para ello, leerá la línea `servicios`. La primera fuente listadas es `NIS`. Estas siglas significan
+*Network Information Service* (a veces llamado yellow pages). Es un antiguo servicio que permitía la
+gestión centralizada de objetos como los usuarios. Ya no se usa mucho debido a su escasa seguridad.
+La siguiente columna `[NOTFOUND=return]` significa que si la búsqueda tiene éxito, pero no encuentra
+el servicio, debe dejar de buscar. Si la condición mencionada no se aplica, utilice los archivos
+locales.
+
+#### El archivo `/etc/resolv.conf`
+El archivo `/etc/resolv.conf` se utiliza para configurar la resolución de hosts mediante DNS. Algunas
+distribuciones tienen scripts de inicio, demonios y otras herramientas que escriben en este archivo.
+Tenga esto en cuenta cuando edite este archivo. Algunas herramientas, como Network Manager,
+dejarán un cometario en el archivo para informarle que los cambios manuales se sobreescribirán.
+
+El formato del archivo es bastante sencillo. En la columna de la izquerda se encuentra la opción
+`name`. El resto de las columnas en la misma línea son el valor de la opción.
+
+La opción más común es `nameserver`. Se utiliza para especificar la dirección IPv4 o IPv6 de un
+servidor DNS. Puede especificar hasta tres servidores de nombres. Si su `/etc/resolv.conf` no tiene
+la opción `nameserver`, su sistema utilizara por defecto el servidor de nombres de la máquina local.
+
+A continuación se muestra un archivo de ejemplo simple que es representativo de las configuraciones
+más comunes:
+```sh
+search lpi.org
+nameserver 10.0.0.53
+nameserver fd00:ffff::2:53
+```
+La opción `search` se utiliza para permitir las búsquedas de forma corta. En este ejemplo, se ha
+configurado un único dominio de búsqueda de `lpi.org`. Esto significa que cualquier intento de
+resolver un nombre de host sin uns porción de dominio trendrá `.lpi.org` añadido antes de la
+búsqueda. Por ejemplo, si intentara buscar un host llamado `aprendizaje`, el resolvedor buscaría
+`aprendizaje.lpi.org`. Puede tener configurado hasta seis dominios de busqueda.
+
+Otra opción común es la opción `domain`. Se utiliza para establecer el nombre de dominio local. Si
+esta opción no está presente, se utiliza por defecto todo lo que siga al primer `.` en el nombre de
+host de la máquina. Si el nombre de host contienen un `.`, se asume que el nombre de la máquina es
+parte del diminio raíz. Al igual que `search`, `domain` puede utilizarse para búsquedas de nombres cortos.
+
+Tenga en cuenta que `domain` y `search` son mutuamente excluyentes. Si ambos están presentes, se
+utiliza la última instancia del archivo.
+
+Hay varias opciones que se pueden establecer para afectar el comportamiento del resolver. Para
+establecerlas, utilice la palabra clave `options`, seguida del nombre de la opción a establecer, y si
+es aplicable, un `:` seguido del valor. A continuación se muestra un ejemplo de configuración de la
+opción de tiempo de espera, que es el tiempo en segundos que el resolvedor esperará a un servidor de
+nombres antes de rendirse:
+
+    option timeout:3
+
+Hay otras opciones en `resolv.conf`, pero estas son las más comunes.
+
+#### El archivo `/etc/hosts`
+El archivo `/etc/hosts` se utiliza para resolver nombres a direcciones IP y viceversa. Tanto IPv4 como
+IPv6 son comptaibles. Las columnas de la izquierda es la dirección IP, el resto son nombres asociados
+a esa dirección. El uso más común de `/etc/hosts` es para hosts y para direcciones donde el DNS no es
+posible, como las direcciones de loopback. En el ejemplo siguiente, se definen las direcciones IP
+de los componentes críticos de la infraestructura.
+
+Este es un ejemplo realista de un archivo `/etc/hosts`:
+```sh
+127.0.0.1   localhost
+127.0.1.1   proxy
+::1         localhost ip6-localhost ip6-loopback
+ff02::1     ip6-allnodes
+ff02::2     ip6-allrouters
+
+10.0.0.1    gateway.lpi.org gateway gw
+fd00:ffff::1 gateway.lpi.org gateway gw
+
+10.0.1.53   dns1.lpi.org
+fd00:ffff::1:53 dns1.lpi.org
+10.0.2.53   dns2.lpi.org
+fd00:ffff::2:53 dns2.lpi.org
+```
+
+#### `systemd-resolved`
+Systemd proporciona un servicio llamado `systemd-resolved`. Proporciona mDNS, DNS y LLMNR. Cuando se
+ejecuta, escucha las peticiones DNS en `127.0.0.53`. No proporciona un servidor DNS completo. Las
+peticiones DNS que recibe se buscan consultando los servidores configurados en `/etc/sysmted/resolv.conf`
+o `/etc/resolv.conf`. Si desea utilizar esto, use `resolve` para hosts en `/etc/nsswitch.conf`.
+Tenga en cuenta que el paquete del sistema operativo que tiene la biblioteca `systemd-resolved`
+puede no estar disponible por defecto.
+
+#### Herramientas de resolución de nombres
+Hay muchas herramientas disponibles para los usuarios de Linux para la resolución de nombres.
+
+#### El comando `getent`
+La utilidad `getent` se utiliza para mostrar las entradas de las bases de datos del servicio de
+nombre. Puede recuperar registros de cualquier fuente configurable por `/etc/nsswitch.conf`.
+
+para utilizar `getent`, siga el comando con el tipo de nombre que desea resolver y, opcionalmente,
+una entrada específica para buscar. Si solo se especifica el tipo de nombre, `getent` intentará
+monstar todas las entradas de ese tipo de datos:
+```sh
+$ getent hosts
+127.0.0.1 localhost
+127.0.1.1 proxy
+10.0.1.53 dns1.lpi.org
+10.0.2.53 dns2.lpi.org
+127.0.0.1 localhost ip6-localhost ip6-loopback
+$ getent hosts dns1.lpi.org
+fd00:ffff::1:53 dns1.lpi.org
+```
+A partir de la versión 2.2.5 de glibc, puede forzar a `getent` a utilizar una fuente de datos
+específica con la opción `-s`. El siguiente ejemplo lo demuestra:
+
+    getent -s files hosts learning.lpi.org
+
+#### El comando `host`
+`host` es un programa sencillo para buscar entradas DNS. Sin opciones, si a `host` se le da un nombre,
+devuelve los conjuntos de registro A, AAAA y MX. Si se le da una dirección IPv4 o IPv6, devuelve
+el registro PTR si hay uno disponible:
+```sh
+host wikipedia.org
+
+host 208.80.154.224
+```
+Si busca un tipo de registro específico, puede utilizar `host -t`:
+```sh
+host -t NS lpi.org
+
+host -y SOA lpi.org
+```
+`host` también puede utilizar para consultar un servidor de nombres específico si no desea utilizar
+los que se encuentran en `/etc/resolv.conf`. Simplementa añada la dirección IP o el nombre del
+servidor que desea utilizar como último argumento:
+
+    host -t MX lpi.org dns1.easydns.com
+
+#### El comando `dig`
+Otra herramienta para consultar servidores DNS es `dig`. Este comando es mucho más detallado que
+`host`. Po defecto, `dig` consulta los registros A. Probablemente es demaciado tedioso buscar una
+dirección IP o nombre de host. `dig` funcionará para búsquedas sencillas, pero es más adecuado para
+solucionar problemas de configuración del servidor DNS:
+```sh
+ig learning.lpi.org
+; <<>> DiG 9.11.5-P4-5.1+deb10u1-Debian <<>> learning.lpi.org
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 63004
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 3, ADDITIONAL: 5
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: ca7a415be1cec45592b082665ef87f3483b81ddd61063c30 (good)
+;; QUESTION SECTION:
+;learning.lpi.org. IN A
+;; ANSWER SECTION:
+learning.lpi.org.
+480
+|
+learning.lpi.org
+|
+208.94.166.198
+;; AUTHORITY SECTION:
+lpi.org. 86400 IN NS dns2.easydns.net.
+lpi.org. 86400 IN NS dns1.easydns.com.
+lpi.org. 86400 IN NS dns3.easydns.ca.
+dns1.easydns.com. 172682 IN A 64.68.192.10
+dns2.easydns.net. 170226 IN A 198.41.222.254
+dns1.easydns.com. 172682 IN AAAA 2400:cb00:2049:1::a29f:1835
+dns2.easydns.net. 170226 IN AAAA 2400:cb00:2049:1::c629:defe
+;; ADDITIONAL SECTION:
+;; Query time: 135 msec
+;; SERVER: 192.168.1.20#53(192.168.1.20)
+;; WHEN: Sun Jun 28 07:29:56 EDT 2020
+;; MSG SIZE
+rcvd: 266
+```
+Como puede ver, `dig` proporciona mucha información. La salida está dividida en secciones. La primera
+sección muestra información sobre la versión de `dig` instalada y la consulta enviada, junto con las
+opciones utilizada para el comando. A continuación muestra información sobre la consulta y la
+respuesta.
+
+La siguiente sección muestra información sobre las extenciones EDNS utilizdas y la consulta. En el
+ejemplo, se utiliza la extensión cookie. `dig` está buscando un registro A para `learninig.lpi.org`.
+
+La siguiente sección muestra el resultado de la consulta. El número de la segunda columna es el TTL
+del recurso en segundos. 
+
+El resto de la salida proporciona informacion sobre los servidores de nombre de dominio, incluyendo
+los registro NS del servidor junto con los registrosA y AAAA de los servidores en el registro NS del
+dominio.
+
+Al igual que `host`, puede especificar un tipo de registro con la opción `-t`:
+
+    dig -t SOA lpi.org
+
+El comando `dig` tiene muchas opciones para afinar tanto la salida como la consulta enviada al
+servidor. Estas opciones comienzan con `+`. Una de ellas es la opción `short`, que suprime toda la    salida excepto el resultado:
+
+    dig +short lpi.org
+
+Este es un ejemplo de cómo descativar la extensión de la cookie EDNS:
+
+    dig +nocookie -t MX lpi.org
+
+## Tareas de administración de seguridad
+#### Gestión de caducidad de contraseñas
+Puede emplear la utilidad `passwd` para cambiar su propia contraseña como usuario normal. Además,
+puede pasar la opción `-S` o `--status` para obtener información sobre el estado de su cuenta:
+```sh
+passwd -S
+carol P 12/07/2019 0 99999 7 -1
+```
+A continuación se desglosan los siete cmapos que se obtienen en la salida:
+
+**`carol`**: nombre de acceso del usuario.
+
+**`P`**: indica que el usuario tiene una contraseña válida; otros valores posibles son `L` para una
+contraseña bloqueada y `NP` para ninguna contraseña.
+
+**`12/07/2019`**: fecha del último cambio de contraseña.
+
+**`0`**: edad mínima en días (el número mínimo de días entre cambios de contraseña). Un valor de `0`
+significa que la contraseña puede cambiarse en cualquier momento.
+
+**`99999`**: edad máxima en días (el número máximo de días que la contraseña es válida). Un valor de
+`99999` desactivará la caducidad de la contraseña.
+
+**`7`**: período de advertencia en días (el número de días antes de la expiración de la contraseña
+que un usuario será advertido).
+
+**`-1`**: periodo de inactividad de la contraseña en días (el número de días inactivos después de la
+expiración de la contraseña antes de que la cuenta se bloquee). Un valor de `-1` eliminará la
+inactividad de la cuenta.
+
+Aparte de informar sobre el estado de las cuentas, se puede utilizar el comando `passwd` como root
+para llevar a cabo algunas tareas básicas de mantenimiento de cuentas. Puede bloquear y desbloquear
+cuentas, forzar a un usuario a cambiar su contraseña en el siguiente inicio de sesión y eliminar
+la contraseña de un usuario con las opciones `-l`, `-u`, `-e` y `-d`, respectivamente.
+
+Para probar estas opciones es conveniente introducir el comando `su` en este punto. A través de `su`
+se puede cambiar de usuario durante una sesión de inicio de sesión. Por ejemplo, usemos `passwd`
+como root para bloquear la contraseña de `carol`. Entonces cambiaremos a `carol` y comprobaremos el
+estado de nuestra cuenta para verificar que la contraseña ha sido bloqueada y no puede ser cambiada.
+Finalmente, volviendo al usuario root, desbloquearemos la cuenta de `carol`:
+```sh
+sudo passwd -l carol
+...
+sudo passwd -S carol
+...
+passwd
+...
+sudo passwd -u carol
+```
+También puede bloquear y desbloquear la contraseña de un usuario con el comando `usermod`:
+
+Bloquear la contraseña del usuario `carol`:
+
+    sudo usermod -L carol o --lock
+
+Desbloquear la contraseña del usuario `carol`:
+
+    sudo usermod -U carol o --unlock
+
+Además de `passwd` y `usermod`, el comando más directo para tratar la caducidad de contraseñas y
+cuentas es `chage` (chage age). Como root, puede pasarle a `chage` la opción `-l` seguido de un
+nombre de usuario para que se imprima en la pantalla la contraseña actual de ese usuario y la
+información de caducidad de la cuenta; como usuario normal, puede ver su propia información:
+
+    sudo chage -l user
+
+Ejecutado sin opciones y solo seguido de un nombre de usuario, `chage` se comportará de forma
+interactiva:
+
+    chage carol
+
+Las opciones para modificar los diferentes ajustes de `chage` son los siguientes:
+
+**`-m days username o --mindays day username`**: especifica el número mínimo de días entre cambios de
+contraseña (por ejemplo: `chage -m 5 carol`). Un valor de `0` permitirá al usuario cambiar su    contraseña en cualquier momento.
+
+**`-M days username o --maxdas days username`**: especifica el número máximo de días que la contraseña
+será válida (por ejemplo: `chage -M 30 carol`). Para desactivar la caducidad de la contraseña, es
+habitual dar a esta opción un valor de `99999`.
+
+**`-d days username o --lastday days username`**: especifica el número de días desde que la contraseña
+fue cambiada por última vez (por ejemplo: `chage -d 10 carol`). Un valor de `0` obligará al usuario a
+cambiar su contraseña en el siguiente inicio de sesión.
+
+**`-W days username o --wandays days username`**: especifica el número de días que se le recordará al
+usuario que su contraseña ha caducado.
+
+**`-I days username o --inactive days username`**: especifica el número de días inactivos después de
+la expiración de la contraseña (por ejemplo: `chage -I 10 carol`), lo mismo que `usermod -f` o
+`usermod --inactive`. Una vez que haya pasado ese número de días, la cuenta se bloqueará. Sin embargo,
+con un valor de `0`, la cuenta no se bloqueará.
+
+**`-E date username o --expiredate date username`**: especifica la fecha (o el número de días desde
+la época, el 1 de enero de 1970) en la que se bloqueará la cuenta. Normalmente se expresa en el
+formato `YYYY-MM-DD` (por ejemplo: `chage -E 2050-12-12 carol`).
+
+#### Descubrir los puertos abiertos
+Cuando se trata de vigilar los puertos abiertos, hay cuatro potentes utilidades presentes en la
+mayoría de los sistemas linux: `lsof`, `fuser`, `netstat` y `nmap`.
+
+`lsof` significa "listar archivos abiertos", lo cual no es poca cosa teniendo en cuenta que, para
+Linux, todo es un archivo. De echo, si escribe `lsof` en la terminal, obtendrá un gran listado de
+archivos regulares, archivos de dispositivos, sockets, etc. Para imprimir el listado de todos los
+archivos de red de "Internet", ejecute `lsof` con la opción `-i`:
+
+    sudo lsof -i
+
+Aparte del servicio `bootpc`, que es utilizado por DHCP, la salida muestra dos servicios que están
+escuchando conexiones, `ssh` y el servidor web Apache (`http`), así como dos conexiones ssh
+establecidas. puede especificar un host en particular con la notación `@ip-address` para
+comprobar sus conexiones:
+
+    sudo lsof -i@192.168.1.7
+
+Asimismo, puede filtrar por puerto pasando la opción `-i` (o `@ip-address`) al argumento `:port`.
+```sh
+sudo lsof -i :10222
+# or
+sudo lsof -i@192.168.0.10:10222
+```
+Los puertos múltiples se separan con comas y los rangos por guión:
+
+    sudo lsof -i@192.168.1.7:22,10222
+
+El siguiente de la lista de comandos de red es `fuser`. Su propósito principal es encontrar el usuario
+de un fichero, lo que implica saber qué proceso está accediendo a qué ficheros; también de alguna
+otra información como el tipo de acceso. Por ejemplo, para comprobar el directorio de trabajo actual,
+basta con ejecutar `fuser`. Sin embargo, para obtener un poco más de información, es conveniente
+utilizar la opción verbose (`-v` o `--verbose`):
+```sh
+fuser .
+
+fuser . -v
+```
+Desglosemos la salida:
+
+**`File`**: el archivo del que estamos obteniendo información.
+
+**`USER`**: el propietario del archivo (`root`).
+
+**`PID`**: el identificador del proceso (`580`).
+
+**`ACCESS`**: tipo de acceso (`..c..`). Uno de:
+- **`c`**: directorio actual
+- **`e`**: ejecutables que se llevan a cabo
+- **`f`**: abrir archivo (se omite en el modo de visualización por defecto)
+- **`F`**: abrir archivo para escribir (se omite en el modo de visualización por defecto)
+- **`r`**: directorio raíz
+- **`m`**: archivo mmap'ed o biblioteca compartida
+- **`.`**: marcador de posición (omitido en el modo de visualización por defecto)
+
+**`COMMAND`**: el comando afiliado al archivo (`bash`).
+
+Con la opción `-n` (o `--namespace`), puede encontrar información sobre los puertos/sockets de red.
+También debe proporcionar el protocolo de red y el número de puerto. Así para obtener información
+sobre el servidor web Apache ejecutará el siguiente comando:
+
+    sudo fuser -vn tcp 80
+
+Pasemos ahora a `netstat`. Esta es una herramienta de red muy versátil que se utiliza principalmente
+para imprimir "estadísitcas de red".
+
+Ejecutado sin opciones, `netstat` monstrará tanto las conexiones activas a Intenert ocomo los sockets
+de Unix. Debido al tamaño del listado, es posible que quiera canalizar su salida a través de `less`:
+
+    netstat | less
+
+Para listar solo los puertos y sockets de escucha, se utilizarán las opciones `-l` o `--listening`.
+Las opciones `-t`/`--tcp` y `-u`/`--udp` pueden añadirse para filtrar por protocolos TCP y UDP,
+respectivamente (también pueden combinarse en el mismo comando). Asimismo, `-e`/`--extend` mostrará
+información adicional:
+
+    sudo netstat -tulpne
+
+Si omite la opción `-l`, solo mostrará las conexiones establecidas:
+
+    sudo netstat -ute
+
+Si solo le interesa la información numérica relativa a los puertos y hosts, puede utilizar la opción
+`-n` o `--numeric` para imprimir solo los números de puerto y las direcciones IP. Observe cómo `ssh`
+se convierte en `22` al añadir `-n` al comando anterior:
+
+    sudo netstat -uten
+
+Como puede ver, es posible utilizar comando `netstat` muy útiles y productivos combinando algunas de
+sus opciones.
+
+Por último `nmap`, o el network mapper. Otra utilidad muy potente, este escáner de puertos se ejecuta
+especificando una dirección IP o un nombre de host:
+
+    nmap localhost
+
+Aparte de un solo host, `nmap` le permite escanear:
+
+**Múltiples hosts**: separándolos con espacios (por ejemplo: `nmap localhost 192.168.12.15`).
+
+**Rangos de hosts**: utilizando un guión (por ejemplo: `192.168.1.3-20`).
+
+**Subredes**: utilizando un comodín o una notación CIDR (por ejemplo: `nmap 192.168.1.*` o
+`nmap 192.168.1.0/24`). Puede excluir determinados hosts (por ejemplo: `nmap 192.168.1.0/24 --exclude 192.168.1.7`).
+
+Para escanear un puerto concreto, utilice la opción `-p` seguida del número de puerto o del nombre
+del servicio (`nmap -p 22` y `nmap -p ssh` le darán la misma salida):
+
+    nmap -p 22 localhost
+
+También puede escanear varios puertos o rangos de puertos utilizando comas y guines, respectivamente:
+
+    nmap -p ssh,80 localhost
+
+Otras dos opciones importantes y útiles de `nmap` son:
+- **`-F`**: ejecuta un escaneo rápido en los 100 puertos más comunes.
+- **`-v`**: obtiene una salida más detallada (`-vv` imprimirá una salida con más información).
+
+#### Límites en los inicios de sesión de los usuarios, los procesos y el uso de la memoria
+Los recursos en un sistema Linux no son ilimitados, por lo que debe asegurar un buen equilibrio
+entre los límites de los usuarios sobre los recursos y el correcto funcionamiento del sistema
+operativo. `ulimit` puede ayudarle en este sentido.
+
+`ulimit` se ocupa de los límites soft y hard, especificados por las opciones `-S` y `-H`, respectivamente.
+Si se ejecuta sin opciones ni argumentos, `ulimit` mostrará los bloques de archivos con límites
+flexibles del usuario actual:
+
+    ulimit
+
+Con la opción `-a`, `ulimit` monstrará todos los límites flexibles actuales (lo mismo que `-Sa`); para
+mostrar todos los límites estricto actuales, utilice `-Ha`:
+
+    ulimit -Ha
+
+Los recursos del shell disponibles se especifican mediante opciones como:
+- **`-b`**: tamaño máximo del búfer en el socker.
+- **`-f`**: tamaño máximo de los archivos escritos por el shell y sus hijos.
+- **`-l`**: tamaño máximo que se puede bloquear en la memoria.
+- **`-m`**: tamaño máximo del conjunto residente (RSS), la porción actual de memoria que tiene un proceso en la memoria principal (RAM).
+- **`-v`**: cantidad máxima de la memoria virtual.
+- **`-u`**: número máximo de procesos disponibles para un solo usuario.
+
+Así, para mostrar los límites se utilizará `ulimit` seguido de `-S` (flexible) o `-H`(estricto) y la
+opción de recuros; si no se suministra ni `-S` ni `-H`, se monstrarán los limites felxibles:
+```sh
+carol@debian:~$ ulimit -u
+10000
+carol@debian:~$ ulimit -Su
+10000
+carol@debian:~$ ulimit -Hu
+15672
+```
+Del mismo modo, para establecer nuevos límites en un recurso concreto se especificara `S` o `H`,
+seguido de la opción de recurso correspondiente y el nuevo valor. Este valor puede ser un número o
+las palabras especiales `soft` (límite flexible actual), `hard` (límite estricto actual) o `unlimited`
+(sin limites). Sino se especifica ni `S` ni `H`, se establecerán ambos límites. Por ejemplo, leamos
+primero el valor del tamaño máximo actual de los archivos escritos por el shell y sus hijos:
+```sh
+root@debian:~# ulimit -Sf
+unlimited
+root@debian:~# ulimit -Hf
+unlimited
+```
+Ahora, cambiemos el valor de `unlimited` a `500` bloques sin especificar ni `-S` ni `-H`. Observe cómo
+se modifican tanto los límites flexibles como los estrictos:
+```sh
+root@debian:~# ulimit -f 500
+root@debian:~# ulimit -Sf
+500
+root@debian:~# ulimit -Hf
+500
+```
+por último, disminuirimes solo el límite flexible a `200` bloques:
+```sh
+root@debian:~# ulimit -Sf 200
+root@debian:~# ulimit -Sf
+200
+root@debian:~# ulimit -Hf
+500
+```
+Los límites estrictos solo pueden ser aumentados por el usuario root. Por otro lado, los usuarios
+regulares pueden disminuir los límites estrictos y aumentar los limites flexibles hasta el valor de
+los límites duros. para hacer que los nuevos valores de los límites sean persistentes a través de
+los reinicios, debe escribirlos en el archivo `/etc/security/limits.conf`. Este es también el archivo
+utilizado por el administrador para aplicar restricciones a terminados usuarios.
+
+#### Tratar con usuarios registrados
+Otro de los trabajos como administrador de sistemas implica llevar un registro de los usuarios
+conectados. Hay tres utilidades que pueden ayudar con estas tareas: `last`, `who` y `w`.
+
+`last` imprime un listado de los últimos usuarios conectados con la información más reciente en la
+parte superior:
+```sh
+root@debian:~# last
+carol pts/0 192.168.1.4 Sat Jun 6 14:25 still logged in
+reboot system boot 4.19.0-9-amd64 Sat Jun 6 14:24 still running
+mimi pts/0 192.168.1.4 Sat Jun 6 12:07 - 14:24 (02:16)
+reboot system boot 4.19.0-9-amd64 Sat Jun 6 12:07 - 14:24 (02:17)
+(...)
+wtmp begins Sun May 31 14:14:58 2020
+```
+Considerando el listado truncado, obtenemos información sobre los dos últimos usuarios del sistema.
+Las dos primeras líneas nos hablan del usuario `carol`; las dos siguientes, del usuario `mimi`. La
+información es la siguiente:
+
+1. El usuario `carol` en la terminal `pts/0` desde el host `192.168.1.4` inició su sesión el `sábado 6 de junio ala 14:25` y todavía está conectado. El sistema, que utiliza el kernel `4.19.0.9-amd64`, se inició (`reboot system boot`) el `sábado 6 de junio a las 14:24` y sigue funcionando.
+
+2. El usuario `mini` en la terminal `pts/0` desde el host `192.168.1.4` inició su sesión el `sábado 6 de junio a las 12:07` y cerró la sesión a las `14:24` (la sesión duro un total de [`02:16`] horas). El sistema que utiliza el kernel `4.49.0.9-amd64`, se inició el `sábado 6 de junio a las 14:24` (estuvo funcionando durante [`02:17`] horas).
+
+Puede pasarle a `last` un nombre de usuario para que solo muestre las entradas de ese usuario:
+
+    last carol
+
+Las utilidades `who` y `w` se centran en los usuarios actualmente conectados y son bastante similares.
+La primera muestra quién está conectado, mientras que la segunda también muestra información
+sobre lo que está haciendo.
+
+Cuando se ejecuta sin opciones, `who` mostrará cuatro columnas correspondientes al usuario conectado,
+el terminal, la fecha, la hora y el nombre de host:
+```sh
+root@debian:~# who
+carol pts/0 2020-06-06 17:16 (192.168.1.4)
+mimi pts/1 2020-06-06 17:28 (192.168.1.4)
+```
+`who` acepta una serie de opciones, entre las que podemos destactar las siguientes:
+- **`-b, --boot`**: muestra la hora del último arranque del sistema.
+- **`-r, --runlevel`**: muestra el nivel de ejecución actual.
+- **`-H, --heading`**: imprime los títulos de las columnas
+
+En comparación con `who`, `w` da una salida más detallada:
+
+    w
+
+La línea superior ofrece información sobre la hora actual (`17:56:12`), el tiempo que lleva el
+sistema en funcionamiento (`up 40 min`), el número de usuarios conectados en ese momento
+(`2 usuarios`) y los números de la media de carga (`media de carga: 0,04, 0,12, 0,09`). Estos valores
+se refieren al número de trabajos en la cola de ejecución promediados en los últimos 1,5 y 15
+minutos, respectivamente.
+
+A continuación, encontrará ocho columnas; vamos a desglosarlas:
+
+**`USER`**: nombre de inicio de sesión del usuario.
+
+**`TTY`**: nombre del terminal en el que se encuentra el usuario.
+
+**`FROM`**: host remoto desde el que el usuario está conectado.
+
+**`LOGIN@`**: hora de inicio de sesión.
+
+**`IDLE`**: tiempo de inactividad.
+
+**`JCPU`**: tiempo utilizado por todos los procesos conectados a la tty (incluidos los trabajos en
+en segundo plano que se están ejecutando actualmente).
+
+**`PCPU`**: tiempo utilizado por el proceso actual (el que se muestra bajo `WHAT`).
+
+**`WHAT`**: línea de comandos del proceso actual.
+
+Al igual que con `who` puede pasar el nombre de un usuario:
+
+    w bender
+
+#### Configuración y uso básico de `sudo`
+`su` permite cambiar a cualquier otro usuario del sistema siempre que se proporcione la contraseña
+del usuario de destino. En el caso del usuario `root`, tener su contraseña distribuida o conocida por
+(muchos) usuarios pone el riesgo el sistema y es muy mala práctica de seguridad. El uso básico
+de `su` es `su - user`. Sin embargo, al cambiar a `root`, el nombre de usuario de destino es opcional:
+
+    su -
+
+El uso del guión (`-`) garantia que se cargue el entorno del usuario de destino. Sin él, se mantendrá
+el entorno del usuario anterior:
+
+    su
+
+Por otro lado, está el comando `sudo`, con el que se puede ejecutar un comando como usuario `root` o
+cualquier otro usuario. Desde una perpectiva de seguridad, `sudo` es una opción mucho mejor que `su`
+ya que presenta dos ventajas principales: para ejecutar un comando como root, no se necesita la
+contraseña del usuario `root`, sino solo la del usuario que lo invoca en cumplimiento de una política
+de seguridad. la política de seguridad por defecto es `sudoers` como se especifica en
+`/etc/sudoers` y `/etc/sudoers.d/*`.
+
+1. `sudo` le permite ejecutar comando individuales con privilegios elevados en lugar de lanzar un nuevo subshell para root como hace `su`.
+
+El uso básico de `sudo` es `sudo -u user command`. Sin embargo, para ejecutar un comando como usuario
+root, la opción `-u user` no es necesario:
+
+    sudo whoami
+
+#### El archivo `/etc/sudoers`
+El archivo de configuración principal de `sudo` es `/etc/sudoers` (también existe el directorio
+`/etc/sudoers.d/`). Este es el lugar donde se determinan los privilegios de `sudo` de los usuarios.
+En otras palabras, aquí se especifica quién puede ejecutar qué comandos como qué usuarios en qué
+máquinas, así como otras configuraciones. La sintaxis utilizda es la siguiente:
+```sh
+carol@debian:~$ sudo less /etc/sudoers
+(...)
+# User privilege specification
+root    ALL=(ALL:ALL) ALL
+# Allow members of group sudo to execute any command
+%sudo   ALL=(ALL:ALL) ALL
+(...)
+```
+La especificación de privilegios para el usuario roos es `ALL=(ALL:ALL) ALL`. Esto se traduce como:
+el usuario root (`root`) puede iniciar sesión desde todas las máquinas (`ALL`), como todos los
+usuarios y todos los grupos (`(ALL:ALL)`), y ejecutar todos los comandos (`ALL`). Lo mismo ocurre
+con los miembros del grupo `sudo` (nótese cómo los nombres de los grupos se identifican con un
+signo de porcentaje precedente (`%`)).
+
+Así, para que el usuario `carol` pueda comprobar el estado de `apache2` desde cualquier host como
+cualquier usuario o grupo, añadirá la siguiente línea en el fichero `sudoers`:
+
+    carol ALL=(ALL:ALL) /usr/bin/systemctl status apache2
+
+Digamos que ahora quiere restringir sus hosts a 192.168.1.7 y permitir que `carol` ejecute
+`systemctl status apache2` como usuario `mimi`. Usted modificaría la línea de la siguiente manera:
+
+    carol 192.168.1.7=(mimi) /usr/bin/systemctl status apache2
+
+Ahora puede comprobar el estado del servidor web Apache como usuario `mimi`:
+
+    sudo -u mimi systemctl satus apache2
+
+Si `carol` fuese promovida a sysadmin y quisera darle todos los privilegios, el enfoque más fácil
+sería el de incluirla en el grupo especial `sudo` con `usermod` y la opción `-G` (también es posible
+querer usar la opción `-a`, que se asegura que el usuario no sea removido de cualquier otro grupo
+al que pudiera pertenecer):
+
+    sudo usermod -aG sudo carol
+
+En lugar de editar `/etc/sudoers` directamente, simplemente debe utilizar el comado `visudo` como
+root, que abrirá `/etc/sudoers` utilizando su editor de texto predefinido. Para cambiar el editor de
+texto por defecto, puedes añadir la opción `editor` como un ajuste `Defaults` en `/etc/sudoers`. Por
+ejemplo, para cambiar el editor a `nano`, añada la siguiente línea:
+
+    Defaults editor=/usr/bin/nano
+
+515
