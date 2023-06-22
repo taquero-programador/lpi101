@@ -5474,8 +5474,470 @@ al que pudiera pertenecer):
 En lugar de editar `/etc/sudoers` directamente, simplemente debe utilizar el comado `visudo` como
 root, que abrirá `/etc/sudoers` utilizando su editor de texto predefinido. Para cambiar el editor de
 texto por defecto, puedes añadir la opción `editor` como un ajuste `Defaults` en `/etc/sudoers`. Por
-ejemplo, para cambiar el editor a `nano`, añada la siguiente línea:
+ejemplo, para cambiar el editor a `vim`, añada la siguiente línea:
 
-    Defaults editor=/usr/bin/nano
+    Defaults editor=/usr/bin/vim
 
-515
+Aparte de los usuarios y grupos, también puede hacer uso de los alias en `/etc/sudoers`. Hay tres
+categorías principales de alias que puede definir: alias de host (`Host_Alias`), alias de usuario
+(`User_Alias`) y alias de comando (`Cmnd_Alias`). He aquí un ejemplo:
+```sh
+# Especificación de alias de host
+Host_Alias SERVERS = 192.168.1.7, server1, server2
+
+# Especificación de alias de usuario
+User_Alias REGULAR_USERS = john, mary, alex
+User_Alias PRIVILEGED_USERS = mimi, alex
+User_Alias ADMINS = carol, %sudo, PRIVILEGED_USERS, !REGULAR_USERS
+
+# Especificación de alias de Cmnd
+Cmnd_Alias SERVICES = /usr/bin/systemctl *
+
+# Especificación de los privilegios del usuario
+root ALL=(ALL:ALL) ALL
+ADMINS SERVERS=SERVICES
+
+# Permitir a los miembros del grupo sudo ejecutar cualquier comando
+%sudo ALL=(ALL:ALL) ALL
+```
+Teniendo en cuenta este archivo de ejemplo `sudoers`, vamos a explicar los tres tipos de alias con
+un poco más de detalle:
+
+**Host Aliases**: incluye una lista separadas por comas de nombres de host, direcciones IP, así como
+redes y netgroups (precedidos por `+`). También se puede especificar máscaras de red. El alias de host
+`SERVERS` incluye una dirección IP y dos nombres de host:
+
+    Host_Alias SERVERS = 192.168.1.7, server1, server2
+
+**User Aliases**: incluye una lista separadas por comas de usuarios especificados como nombres de
+usuario, grupos (precedidos por `%`) y netgroups (precedidos por (`+`)). Se pueden excluir usuarios
+conrectos con `!`. El alias de usuario `ADMINS`, por ejemplo, incluye el usuario `carol`, los miembros
+del grupo `sudo` y aquellos miembros del alias de usuario `PRIVILEGED_USERS` que no pertenecen al
+alias de usuario `REGULAR_USERS`:
+
+    User_Alias ADMINS = carol, %sudo, PRIVILEGED_USERS, !REGULAR_USERS
+
+**Command Aliases**: incluye una lista de comandos y directorios separados por comas. Si se especifica
+un directorio, se incluirá cualquier archivo de ese directorio, aunque se ingorarán los
+subdirectorios. El alias de comando `SERVICES` incluye un solo comando con todos sus subcomandos,
+según lo especificado por el astericos (`*`):
+
+    Cmnd_Alias SERVICES = /usr/bin/systemctl *
+
+Como resultado de las especificaciones de alias, la línea `ADMIN SERVER=SERVICES` bajo la sección
+`Especificación de privilegios del usuario` se traduce como: todos los usuarios pertenecientes a
+`ADMIN` puede usar `sudo` para ejecutar cualquier comando en `SERVICES` en cualquier servidor en
+`SERVERS`.
+
+## Configuración de la seguridad del sistema
+#### Mejorar la seguridad de la autenticación con shadow password
+Los componentes básicos de los datos de la cuenta de un usuario se almacenan en el archivo
+`/etc/passwd`. Este archivo contiene siete campos: nombre de inicio de sesión, userid, groupid,
+contraseña, comentarios (también conocido como GECOS), ubicación del directorio principal y
+el shell por defecto.
+
+Aunque en los sistemas modernos la contraseña ya no se almacena en el archivo `/etc/passwd`.
+En su lugar, el campo de la contraseña solo contiene una `x` minúscula. El archivo `/etc/passwd`
+tiene que ser legible por todos los usuarios. Por lo tanto, no es una buena idea almacenar
+contraseñas allí. La `x` indica que la contraseña encriptada (hash) se almacena en el archivo
+`/etc/shadow`. Este archivo no debe ser legible para todos los usuarios.
+
+La configuración de las contraseñas se hace con los comandos `passwd` y `chage`. Ambos comandos
+cambiarán la entrada para el usuario `emma` en el archivo `/etc/shadow`. Como superusuario puede
+configurar la contraseñ para el usuario `emma` con el siguiente comando:
+
+    sudo passwd emma
+
+A continuación, se le pedirá dos veces que confirme la nueva contraseña.
+
+Para listar el tiempo de expiración de la contraseña y otros ajustes de expiración de la contraseña
+para el usuario `emma` utilice:
+
+    sudo chage -l emma
+
+Para evitar que el usuario `emma` se registre en el sistema, el superusuario puede establecer una
+fecha de caducidad de la contraseña que preceda a la fecha actual. Por ejemplo, si la fecha de hoy
+fuera 2020-03-27, podría caducar la contraeña del usuario utilizando una fecha más antigua:
+
+    sudo chage -E 2020-03-26 emma
+
+Como alternativa, el superusuario puede utilizar la opción `-l` de `passwd` para bloquear
+temporalmente la cuenta:
+
+    sudo passwd -l emma
+
+Para evitar que todos los usuarios, excepto el usuario root, inicien sesión en el sistema
+temporalmente, el superusuario puede crear un archivo llamado `/etc/nologin`. Este arcivo puede
+contener un mensaje para los usuarios notificándoles por qué no pueden iniciar sesión. Tenga en
+cuenta que también hay un comando `nologin` que se puede utilizar para evitar un inicio de sesión
+cuando se establece como el shell por defecto para un usuario. Por ejemplo:
+
+    sudo usermod -s /sbin/nologin emma
+
+#### Cómo utilizar un superdemonio para escuchar las conexiones de red entrantes
+Los servicios de red, como los servidores web, los de correo y de impresión, suelen ejecutarse como
+independiente que escucha en un puerto de red dedicado. Todos estos servicios se ejecutan uno al
+lado del otro. En un sistema clásico basado en Sys-V-init cada uno de estos servicios puede ser
+controlados por el comando `service`. En los sistemas actuales basados en systemd se utiliza
+`systemctl` para gestionar los servicios. En épocas anteriores, la disponibilidad de recursos
+informáticos era mucho menor. Ejecutar muchos servicios en modo autónomo no era una buena opción.
+En su lugar, se utilizaba el llamado superdemonio, que escuchaba las conexiones de red entrantes e
+iniciaba el servicio apropiado a petición. Este método de crear una conexión de red requería un
+poco más de tiempo. Los superdemonios más conocidos son `inetd` y `xinetd`. En los sistemas actuales
+basados en systemd la unidad `systemd.socket` se puede utilizar de forma similar. Utilizaremos
+`xinetd` para interceptar las conexiones al demonio `sshd` y arrancar este demonio a petición para
+demontrar cómo se utiliza el superdemonio.
+
+Antes de configurar el servicio `xinetd` es necesario realizar algunos preparativos. No importa si
+utiliza un sistema basado en Debian o Red Hat. Primero aasegúrese de que los paquetes `openssh-server`
+y `xinetd` están instalados. Ahora verifique que el servicio SSH funciona con:
+
+    sudo systemctl status ssh
+
+Compruebe también que el servicio SSH está escuchando en su puerto de red estándar `22`:
+
+    sudo lsof -i :22
+
+Finalmente detenga el servicio SSH con:
+
+    sudo systemctl stop ssh
+
+En caso de que quiera hacer este cambio permanente utilice `sudo systemctl disable ssh`.
+
+Ahora puede crear el archivo de configuración de xinetd `/etc/xinetd.d/ssh` con algunos ajustes
+básicos:
+```conf
+service ssh
+{
+    disable = no
+    socket_type = stream
+    protocol = tcp
+    wait = no
+    user = root
+    server = /usr/sbin/sshd
+    server_args
+    = -i
+    flags = IPv4
+    interface = 192.168.178.1
+}
+```
+Reinicie el servicio xinetd con:
+
+    sudo systemctl restart xinetd
+
+Comrpuebe qué servicio está escuchando ahora las conexiones SSH entrantes:
+
+    sudo lsof -i :22
+
+Podemos que el servicio xinetd ha tomado el control para el acceso al puerto 22.
+
+Aquí hay unos detalles más sobre la configuración de `xinetd`. El archivo de configuración principal
+es `/etc/xinetd.conf`:
+```conf
+# Simple configuration file for xinetd
+#
+# Some defaults, and include /etc/xinetd.d/
+defaults
+{
+# Please note that you need a log_type line to be able to use log_on_success
+# and log_on_failure. The default is the following :
+# log_type = SYSLOG daemon info
+
+}
+includedir /etc/xinetd.d
+```
+Además de la configuración por defecto, solo hay una directiva para establecer un directorio de
+inclusión. En este directorio puede establecer un único fichero de configuración para cada servicio
+que quiera que sea gestionado por `xinetd`. Nosotros hemos hecho esto para el servicio SS y hemos
+llamado al fichero `/etc/xinetd.d/ssh`. Los nombre de los ficheros de configuración pueden ser
+eleguido arbitrariamente, excepto los nombre de ficheros que contengan un punto (`.`) o que
+terminen con una tilde (`~`). Pero es una práctica generalizada nomrbar el fichero con el nombre del
+servicio que se quiere configurar.
+
+Algunos archivos de configuración en el directorio `/etc/xinetd.d/` ya son proporcionados por la
+distribución:
+```sh
+ls -l /etc/xinetd.d
+total 52
+-rw-r--r-- 1 root root 640 Feb 5 2018 chargen
+-rw-r--r-- 1 root root 313 Feb 5 2018 chargen-udp
+-rw-r--r-- 1 root root 502 Apr 11 10:18 daytime
+-rw-r--r-- 1 root root 313 Feb 5 2018 daytime-udp
+-rw-r--r-- 1 root root 391 Feb 5 2018 discard
+-rw-r--r-- 1 root root 312 Feb 5 2018 discard-udp
+-rw-r--r-- 1 root root 422 Feb 5 2018 echo
+-rw-r--r-- 1 root root 304 Feb 5 2018 echo-udp
+-rw-r--r-- 1 root root 312 Feb 5 2018 servers
+-rw-r--r-- 1 root root 314 Feb 5 2018 services
+-rw-r--r-- 1 root root 569 Feb 5 2018 time
+-rw-r--r-- 1 root root 313 Feb 5 2018 time-udp
+```
+Estos archivos pueden ser utilizados como plantillas en el raro caso de que tenga que utilizar
+algunos servicios heredados como `daytime`, una implementación muy temprana de un servidor de tiempo.
+Todos etos archivos de plantilla contienen la directiva `disable = yes`.
+
+Aquí hay más detalles sobre las directivas usadas en el archivo de ejemplo `/etc/xinetd.d/ssh`:
+```conf
+service ssh
+{
+    disable = no
+    socket_type = stream
+    protocol = tcp
+    wait = no
+    user = root
+    server = /usr/sbin/sshd
+    server_args = -i
+    flags = IPv4
+    interface = 192.168.178.1
+}
+```
+**`service`**: muestra el servicio que xinetd debe controlar. Puede utilizar un número de puerto, como
+el 22, o el nombre asignado al número de puerto en `/etc/services`, por ejemplo `ssh`.
+
+**`{`**: los ajustes detallados comienzan con una llave de apertura.
+
+**`disable`**: para activar esta configuración, póngala en `no`. Si quiere desactivar la configuración
+temporalmente, puede ponerla en `yes`.
+
+**`socket_type`**: puede elegir `stream` para sockets TCP p `dgram` para sockets UDP y más.
+
+**`protocol`**: elija entre TCP o UDP.
+
+**`wait`**: en el caso de las conexiones TCP, este valor suele ser `no`.
+
+**`user`**: el servicio iniciado en esta línea será propiedad de este usuario.
+
+**`server`**: ruta completa del servicio que debe ser iniciado por `xinetd`.
+
+**`server_args`**: aquí puede añadir opciones para el servicio. Si es iniciado por un super-servidor,
+muchos servicios requieren una opción especial. Para SSH sería la opción `-i`.
+
+**`flags`**: puede elegir Ipv4, IPv6 y otros.
+
+**`interface`**: la interfaz de red que `xinetd` debe controlar. Nota: también pede elegir la
+directiva `bind`, que no es más que un sinónimo de `interfaz`.
+
+**`}`**: termina con un corchete de cierrre.
+
+Los sucesores de los servicios iniciados por el super-servidor `xinetd` son unidades de socket
+systemd. Configurar una unaidad de socket systemd es muy sencillo y fácil, porque ya existe una
+unidad de socket systemd predefinida para SSH. Asegúrese de que los servicios `xinetd` y `ssh` no
+se estén ejecutando.
+
+Ahora solo tiene que iniciar la unidad de socket SSH:
+
+    sudo systemctl start ssh.socket
+
+Para comprobar qué servicio está ahora escuchando en el puerto 22 utilizamos de nuevo `lsof`.
+Observe que aquí se ha utilizado la opción `-P` para mostrar el número de puerto en lugar del
+nombre de servicio en la salida:
+
+    sudo lsof -i :22 -P
+
+Para que su sesión sea completa, debe intentar iniciar sesión en un servidor con un cliente SSH
+de su elección.
+
+#### Comprobación de servicios en busca de daemons innecesarios
+Por razones de seguirdad, así como para controlar los recursos del sistema, es importante tener una
+visión general de los servicios que se están ejecutando. Los servicios innecesarios y no utilizados
+deben ser desactivados. Por ejemplo, si no necesita distribuir páginas web, no es necesario
+ejecutar un servidor web con Apache o Nginx.
+
+En los sistemas basados en Sys-V-init puede comprobar el estado de los servicios con lo siguiente:
+
+    sudo service --status-all
+
+Verifique si cada uno de los servicios listados en la salida del comando son necesarios y desactive
+los servicios innecesarios con (para sistemas basados en Debian):
+
+    sudo update-rc.d SERVICE-NAME remove
+
+O en los sistemas basados en Red Hat se utilizaría:
+
+    sudo chkconfig SERVICE-NAME off
+
+En los sistemas modernos basados en systemd podemos utilizar lo siguiente para listar todos los
+servicios en ejecución:
+
+    systemctl list-units --state active --type service
+
+A continuación, desactivaría cada unidad de servicio innecesaria con:
+
+    sudo systemctl disable UNIT --now
+
+Este comando detendrá el servicio y lo eliminará de la lista de servicios, para evitar que se
+inicie en el próximo arranque del sistema.
+
+Además, para obtener un estudio de los servicios de red en escucha, puede utilizar `netstat` en
+sistemas antiguos (siempre que tenga instalado el paquete `net-tools`):
+
+    sudo netstat -ltu
+
+O en los sistemas modernos, puede utilizar el comando equivalente `ss` (para socket services):
+
+    ss -ltu
+
+#### TCP Wrappers como una especie de Firewall simple
+En los tiempos que no había cortafuegos disponibles para Linux, Se utilizaba TCP Wrappers para
+asegurar las conexiones de red de un host. Hoy en día muchos ya no obedecen a los TCP Wrappers.
+En las distribuciones recientes basadas en Red Hat (por ejemplo, Fedora 29) el soporte TCP
+Wrappers ha silo eliminado completamente. Para dar soporte a los sistemas Linux heredados que
+todavía utilizan  TCP Wrappers, es útil tener algunos conocimientos básicos sobe esta tecnología
+en particular.
+
+Una vez más utilizaremos el servicio SSH como ejemplo básico. El servicio en nuestro host de
+ejemplo debe ser accesible desde la red local solamente. Primero, comprobemos si el demonio SSH
+utiliza la bibliotaca `libwrap` que ofrece soporte a TCP Wrappers:
+
+    ldd /usr/sbin/sshd | grep "libwrap"
+
+Ahora, añadimos la siguiente línea en el archivo `/etc/hosts.deny`
+
+    sshd: ALL
+
+Finalmente, configuramos una excepción en el archivo `/etc/hosts.allow` para las conexiones SSH
+desde la red local:
+
+    sshd: LOCAL
+
+Los cambios tienen efecto inmediato, no es necesario reiniciar ningún servicio. puede comprobarlo con
+el cliente `ssh`.
+
+## Protección de datos mediante cifrado
+#### Configuración y uso básico del cliente OpenSSH
+Aunque el servidor y el cliente de OpenSSH vienen en paquetes separados, normalmente se pueden
+instalar un metapaquete que proporciona ambos a la vez. Para esablecer una sesión remota con el
+servidor SSH se utiliza el comando `ssh`, especificando el usuario con el que se quiere conectar en
+la máquina remota y la dirección IP o el nombre de la máquina remota. La primera vez que se conecte
+a una máquina remota recibirá un mensaje como este:
+```sh
+carol@debian:~$ ssh ina@192.168.1.77
+The authenticity of host '192.168.1.77 (192.168.1.77)' can't be established.
+ECDSA key fingerprint is SHA256:5JF7anupYipByCQm2BPvDHRVFJJixeslmppi2NwATYI.
+Are you sure you want to continue connecting (yes/no)?
+```
+Después de teclar `yes` y pulsar `Enter`, se le pedira la contraseña del usuario remoto. Si se
+introduce correctamente, se montrará un mensaje de advertencia y se iniciará la sesión en el host
+remoto:
+```sh
+Warning: Permanently added '192.168.1.77' (ECDSA) to the list of known hosts.
+Password:
+Last login: Sat Jun 20 10:52:45 2020 from 192.168.1.4
+Have a lot of
+```
+Los mensajes se explican por sí mismos: como era la primera vez que establecía una conexión con el
+servidor remoto `192.168.1.77`, su autenticidad no podía ser comprobada con ninguna base de datos.
+Por lo tanto, el servidor remoto proporcionó una huella digital de clave `ECDSA` de su clave pública
+(utilizando la función hash `SHA256`). Una vez aceptada la conexión, la clave pública del servidor
+remoto se añade a la base de datos de `known_hosts`, permitiendo así a autenticación del servidor para
+futuras coenxiones. Esta lista de claves públicas de hosts conocidos se mantiene en el archivo
+`~/.ssh/known_hosts`.
+
+Tanto como `.ssh` como `known_hosts` fueron creados después de establecer la priera conexión remota.
+`~/.ssh` es el directorio por defecto para la configuración específica del usuario y la información
+de autenticación.
+
+Si está utilizando el mismo usuario tanto en el host local como en el remoto, no es necesario
+especificar el nombre de usuario al establecer la conexión SSH. por ejemplo, si está conectado como
+usuario `carol` en `debian` y quiere conectarse a `halof` también como usuario `carol`, simplemente
+escribiría `ssh 192.168.1.77` o `ssh halof` (si el nombre puede ser resuelto):
+
+    ssh 192.168.1.77
+
+Ahora suponga que establece una nueva conexión remota con un host que casualmente tienen la misma
+dirección IP que `halof` (algo común si utiliza DHCP en su LAN). Se le advertirá de la posibilidad
+de un ataque *man-in-the-middle*:
+```sh
+carol@debian:~$ ssh john@192.168.1.77
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@
+WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!
+@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ECDSA key sent by the remote host is
+SHA256:KH4q3vP6C7e0SEjyG8Wlz9fVlf+jmWJ5139RBxBh3TY.
+Please contact your system administrator.
+Add correct host key in /home/carol/.ssh/known_hosts to get rid of this message.
+Offending ECDSA key in /home/carol/.ssh/known_hosts:1
+    remove with:
+    ssh-keygen -f "/home/carol/.ssh/known_hosts" -R "192.168.1.77"
+ECDSA host key for 192.168.1.77 has changed and you have requested strict checking.
+Host key verification failed.
+```
+Como no se trata de un ataque man-in-the-middle, puede añadir con seguridad la huella de la clave
+pública del nuevo host a `~/.ssh/known_hosts`. Como indica el mensaje, primero, puede utilizar el
+comando `ssh-keygen -f "/home/carol/.ssh/known_hosts" -R "192.168.1.77"` para eliminar la clave
+ofensiva (alternativamente puede optar por `ssh-keygen -R 192.168.1.77` para eliminar todas las
+claves pertenecientes a `192.168.1.77` de `~/.ssh/known_hosts`). Entonces, podrá establecer una
+conexión con el nuevo host.
+
+#### Inicio de sesión basado en claves
+Puede configurar su cliente SSH para que no solicite ninugna contraseña al iniciar sesión, sino que
+utilice claves públicas. Este es el método preferido para conectarse a un servidor remoto vía SSH,
+ya que es mucho más seguro. Lo primero que tiene que hacer es crear un par de claves en la máquina
+cliente. Para hacer esto, usará `ssh-keygen` con la opción `-t` especificando el tipo de encriptación
+deseado. A continuación, se le pedirá la ruta para guardar el par de claves (`~/.ssh` es
+conveniente, así como la ubicación por defecto) y una frase de contraseña. Aunque la frase de
+contraseña es opcional, se recomienda encarecidamente utilizarla siempre:
+
+    ssh-keygen -a 100 -t ed25519 -C "clave" -f ~/.ssh/filename_ed25519
+
+El comando anterior produjo dos archivos más en su directorio `~/.ssh`:
+
+**`filename_ed25519`**: clave privada.
+
+**`filename_ed25519.pub`**: clave pública.
+
+Lo siguiente que debe hacer es añadir su clave pública al archivo `~/.ssh/authorized_keys` del
+usuario con el que quiere iniciar sesión en el host remoto. Puede copiar su clave pública en el
+servidor remoto de varias maneras: usando una memoria USB, a través del comando `scp` o pasando con
+un `cat` el contenido de su clave pública y pasándolo a `ssh` de esta manera:
+
+    cat ~/.ssh/id_ecdsa.pub | ssh ina@192.168.1.77 'cat >> .ssh/authorized_keys'
+
+Una vez que su clave pública se haya añadido al archivo `authorized_keys` en el host remoto,
+puede enfrentarse a dos escenarios cuando intente establecer una nueva conexión:
+
+- Si no ha propocionado una frase de contraseña al crear el par de claves, se iniciará la sesión automáticamente. Aunque es conveniente, este método puede ser inseguro dependiendo de la situación:
+- Si proporcionó una frase de contraseña al crear el par de claves, tendrá que introducirla en cada conexión de la misma manera que si fuera una contraseña. Aparte de la clave pública, este método añade una capa extra de seguridad en forma de frase de contraseña y puede considerarse más segura. Sin embargo, en lo que respecta a la comodidad, es exactamente lo mismo que introducir una contraseña cada vez que se establece una conexión. Si no utiliza una frase de contraseña y alguien consigue obtener su archivo de clave SSH privada, tendría acceso a todos los servidores en los que esté instalada su clave pública.
+
+Sin embargo, hay una forma que combina seguirdad y comodidad: utilizar el agente de autenticación
+SSH (`ssh-agent`). El agente de autenticación necesita generar su propio shell y mantendrá sus claves
+privadas, para la autenticación con clave pública, en memoria durante el resto de la sesión.
+
+1. Utilice `ssh-agnet` para iniciar un nuevo shell Bash:
+
+    ssh-agent /bin/bash
+
+2. Utilice el comando `ssh-add` para añadir su clave privada a una zona segura de la memoria. Si proporciona una frase de contraseña al generar el par de claves, se le pedirá:
+
+    ssh-add
+
+Una vez añadida su identidad, podrá iniciar sesión en cualquier sevidor remoto en el que esté
+presente su clave pública sin tener que volver a escribir su frase de contraseña. Es una práctica
+habitual en los ordenadores de sobremesa modernos realizar este comando al arrancar el ordenador,
+ya que permanecerá en la memoria hasta que se apague el ordenador.
+
+Complementemos esta sección enumerando los cuatro tipos de algoritmos de clave pública que se pueden
+especificar con `ssh-keygen`:
+
+**RSA**: llamado así por sus creadores Ron Rivest, Adi Shamir y leonard Adleman, fue publicado en
+1977. Se considera seguro y sigue siendo muy utilizado en la actualidad. Su tamaño mínimo de clave
+es de 1024 bits (por defecto es de 2048).
+
+**DSA**: el Algoritmo de Firma Digital (DSA) ha demostrado ser inseguro y ha sido obviado a prtir de
+OpenSSH 7.0. Las claves DSA deben tener exactamente 1024 bits de longuitud.
+
+**ecdsa**: el Algoritmo de Firma Digital de Curva Elíptica es una mejora del DSA y, por tanto, se
+considera más seguro. Utiliza la criptografía de curva elíptica. La longuitud de la clave ECDSA
+está determinada por uno de los tres tamaños posibles de la curva eliptica en bits: 256, 384 o 521.
+
+**ed25519**: se trara de una implementación EdDSA, Algoritmo de Firma Digital de la Curva de Edwardsm,
+que utiliza la curva 25519 más fuerte. Se considera la más fuerte de todas. Todas las claves
+Ed25519 tienen una longuitud fija de 256 bits.
+
+#### El papel de las claves del servidor OpenSSH
+553
