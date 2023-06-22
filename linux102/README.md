@@ -5528,3 +5528,279 @@ Como resultado de las especificaciones de alias, la línea `ADMIN SERVER=SERVICE
 `Especificación de privilegios del usuario` se traduce como: todos los usuarios pertenecientes a
 `ADMIN` puede usar `sudo` para ejecutar cualquier comando en `SERVICES` en cualquier servidor en
 `SERVERS`.
+
+## Configuración de la seguridad del sistema
+#### Mejorar la seguridad de la autenticación con shadow password
+Los componentes básicos de los datos de la cuenta de un usuario se almacenan en el archivo
+`/etc/passwd`. Este archivo contiene siete campos: nombre de inicio de sesión, userid, groupid,
+contraseña, comentarios (también conocido como GECOS), ubicación del directorio principal y
+el shell por defecto.
+
+Aunque en los sistemas modernos la contraseña ya no se almacena en el archivo `/etc/passwd`.
+En su lugar, el campo de la contraseña solo contiene una `x` minúscula. El archivo `/etc/passwd`
+tiene que ser legible por todos los usuarios. Por lo tanto, no es una buena idea almacenar
+contraseñas allí. La `x` indica que la contraseña encriptada (hash) se almacena en el archivo
+`/etc/shadow`. Este archivo no debe ser legible para todos los usuarios.
+
+La configuración de las contraseñas se hace con los comandos `passwd` y `chage`. Ambos comandos
+cambiarán la entrada para el usuario `emma` en el archivo `/etc/shadow`. Como superusuario puede
+configurar la contraseñ para el usuario `emma` con el siguiente comando:
+
+    sudo passwd emma
+
+A continuación, se le pedirá dos veces que confirme la nueva contraseña.
+
+Para listar el tiempo de expiración de la contraseña y otros ajustes de expiración de la contraseña
+para el usuario `emma` utilice:
+
+    sudo chage -l emma
+
+Para evitar que el usuario `emma` se registre en el sistema, el superusuario puede establecer una
+fecha de caducidad de la contraseña que preceda a la fecha actual. Por ejemplo, si la fecha de hoy
+fuera 2020-03-27, podría caducar la contraeña del usuario utilizando una fecha más antigua:
+
+    sudo chage -E 2020-03-26 emma
+
+Como alternativa, el superusuario puede utilizar la opción `-l` de `passwd` para bloquear
+temporalmente la cuenta:
+
+    sudo passwd -l emma
+
+Para evitar que todos los usuarios, excepto el usuario root, inicien sesión en el sistema
+temporalmente, el superusuario puede crear un archivo llamado `/etc/nologin`. Este arcivo puede
+contener un mensaje para los usuarios notificándoles por qué no pueden iniciar sesión. Tenga en
+cuenta que también hay un comando `nologin` que se puede utilizar para evitar un inicio de sesión
+cuando se establece como el shell por defecto para un usuario. Por ejemplo:
+
+    sudo usermod -s /sbin/nologin emma
+
+#### Cómo utilizar un superdemonio para escuchar las conexiones de red entrantes
+Los servicios de red, como los servidores web, los de correo y de impresión, suelen ejecutarse como
+independiente que escucha en un puerto de red dedicado. Todos estos servicios se ejecutan uno al
+lado del otro. En un sistema clásico basado en Sys-V-init cada uno de estos servicios puede ser
+controlados por el comando `service`. En los sistemas actuales basados en systemd se utiliza
+`systemctl` para gestionar los servicios. En épocas anteriores, la disponibilidad de recursos
+informáticos era mucho menor. Ejecutar muchos servicios en modo autónomo no era una buena opción.
+En su lugar, se utilizaba el llamado superdemonio, que escuchaba las conexiones de red entrantes e
+iniciaba el servicio apropiado a petición. Este método de crear una conexión de red requería un
+poco más de tiempo. Los superdemonios más conocidos son `inetd` y `xinetd`. En los sistemas actuales
+basados en systemd la unidad `systemd.socket` se puede utilizar de forma similar. Utilizaremos
+`xinetd` para interceptar las conexiones al demonio `sshd` y arrancar este demonio a petición para
+demontrar cómo se utiliza el superdemonio.
+
+Antes de configurar el servicio `xinetd` es necesario realizar algunos preparativos. No importa si
+utiliza un sistema basado en Debian o Red Hat. Primero aasegúrese de que los paquetes `openssh-server`
+y `xinetd` están instalados. Ahora verifique que el servicio SSH funciona con:
+
+    sudo systemctl status ssh
+
+Compruebe también que el servicio SSH está escuchando en su puerto de red estándar `22`:
+
+    sudo lsof -i :22
+
+Finalmente detenga el servicio SSH con:
+
+    sudo systemctl stop ssh
+
+En caso de que quiera hacer este cambio permanente utilice `sudo systemctl disable ssh`.
+
+Ahora puede crear el archivo de configuración de xinetd `/etc/xinetd.d/ssh` con algunos ajustes
+básicos:
+```conf
+service ssh
+{
+    disable = no
+    socket_type = stream
+    protocol = tcp
+    wait = no
+    user = root
+    server = /usr/sbin/sshd
+    server_args
+    = -i
+    flags = IPv4
+    interface = 192.168.178.1
+}
+```
+Reinicie el servicio xinetd con:
+
+    sudo systemctl restart xinetd
+
+Comrpuebe qué servicio está escuchando ahora las conexiones SSH entrantes:
+
+    sudo lsof -i :22
+
+Podemos que el servicio xinetd ha tomado el control para el acceso al puerto 22.
+
+Aquí hay unos detalles más sobre la configuración de `xinetd`. El archivo de configuración principal
+es `/etc/xinetd.conf`:
+```conf
+# Simple configuration file for xinetd
+#
+# Some defaults, and include /etc/xinetd.d/
+defaults
+{
+# Please note that you need a log_type line to be able to use log_on_success
+# and log_on_failure. The default is the following :
+# log_type = SYSLOG daemon info
+
+}
+includedir /etc/xinetd.d
+```
+Además de la configuración por defecto, solo hay una directiva para establecer un directorio de
+inclusión. En este directorio puede establecer un único fichero de configuración para cada servicio
+que quiera que sea gestionado por `xinetd`. Nosotros hemos hecho esto para el servicio SS y hemos
+llamado al fichero `/etc/xinetd.d/ssh`. Los nombre de los ficheros de configuración pueden ser
+eleguido arbitrariamente, excepto los nombre de ficheros que contengan un punto (`.`) o que
+terminen con una tilde (`~`). Pero es una práctica generalizada nomrbar el fichero con el nombre del
+servicio que se quiere configurar.
+
+Algunos archivos de configuración en el directorio `/etc/xinetd.d/` ya son proporcionados por la
+distribución:
+```sh
+ls -l /etc/xinetd.d
+total 52
+-rw-r--r-- 1 root root 640 Feb 5 2018 chargen
+-rw-r--r-- 1 root root 313 Feb 5 2018 chargen-udp
+-rw-r--r-- 1 root root 502 Apr 11 10:18 daytime
+-rw-r--r-- 1 root root 313 Feb 5 2018 daytime-udp
+-rw-r--r-- 1 root root 391 Feb 5 2018 discard
+-rw-r--r-- 1 root root 312 Feb 5 2018 discard-udp
+-rw-r--r-- 1 root root 422 Feb 5 2018 echo
+-rw-r--r-- 1 root root 304 Feb 5 2018 echo-udp
+-rw-r--r-- 1 root root 312 Feb 5 2018 servers
+-rw-r--r-- 1 root root 314 Feb 5 2018 services
+-rw-r--r-- 1 root root 569 Feb 5 2018 time
+-rw-r--r-- 1 root root 313 Feb 5 2018 time-udp
+```
+Estos archivos pueden ser utilizados como plantillas en el raro caso de que tenga que utilizar
+algunos servicios heredados como `daytime`, una implementación muy temprana de un servidor de tiempo.
+Todos etos archivos de plantilla contienen la directiva `disable = yes`.
+
+Aquí hay más detalles sobre las directivas usadas en el archivo de ejemplo `/etc/xinetd.d/ssh`:
+```conf
+service ssh
+{
+    disable = no
+    socket_type = stream
+    protocol = tcp
+    wait = no
+    user = root
+    server = /usr/sbin/sshd
+    server_args = -i
+    flags = IPv4
+    interface = 192.168.178.1
+}
+```
+**`service`**: muestra el servicio que xinetd debe controlar. Puede utilizar un número de puerto, como
+el 22, o el nombre asignado al número de puerto en `/etc/services`, por ejemplo `ssh`.
+
+**`{`**: los ajustes detallados comienzan con una llave de apertura.
+
+**`disable`**: para activar esta configuración, póngala en `no`. Si quiere desactivar la configuración
+temporalmente, puede ponerla en `yes`.
+
+**`socket_type`**: puede elegir `stream` para sockets TCP p `dgram` para sockets UDP y más.
+
+**`protocol`**: elija entre TCP o UDP.
+
+**`wait`**: en el caso de las conexiones TCP, este valor suele ser `no`.
+
+**`user`**: el servicio iniciado en esta línea será propiedad de este usuario.
+
+**`server`**: ruta completa del servicio que debe ser iniciado por `xinetd`.
+
+**`server_args`**: aquí puede añadir opciones para el servicio. Si es iniciado por un super-servidor,
+muchos servicios requieren una opción especial. Para SSH sería la opción `-i`.
+
+**`flags`**: puede elegir Ipv4, IPv6 y otros.
+
+**`interface`**: la interfaz de red que `xinetd` debe controlar. Nota: también pede elegir la
+directiva `bind`, que no es más que un sinónimo de `interfaz`.
+
+**`}`**: termina con un corchete de cierrre.
+
+Los sucesores de los servicios iniciados por el super-servidor `xinetd` son unidades de socket
+systemd. Configurar una unaidad de socket systemd es muy sencillo y fácil, porque ya existe una
+unidad de socket systemd predefinida para SSH. Asegúrese de que los servicios `xinetd` y `ssh` no
+se estén ejecutando.
+
+Ahora solo tiene que iniciar la unidad de socket SSH:
+
+    sudo systemctl start ssh.socket
+
+Para comprobar qué servicio está ahora escuchando en el puerto 22 utilizamos de nuevo `lsof`.
+Observe que aquí se ha utilizado la opción `-P` para mostrar el número de puerto en lugar del
+nombre de servicio en la salida:
+
+    sudo lsof -i :22 -P
+
+Para que su sesión sea completa, debe intentar iniciar sesión en un servidor con un cliente SSH
+de su elección.
+
+#### Comprobación de servicios en busca de daemons innecesarios
+Por razones de seguirdad, así como para controlar los recursos del sistema, es importante tener una
+visión general de los servicios que se están ejecutando. Los servicios innecesarios y no utilizados
+deben ser desactivados. Por ejemplo, si no necesita distribuir páginas web, no es necesario
+ejecutar un servidor web con Apache o Nginx.
+
+En los sistemas basados en Sys-V-init puede comprobar el estado de los servicios con lo siguiente:
+
+    sudo service --status-all
+
+Verifique si cada uno de los servicios listados en la salida del comando son necesarios y desactive
+los servicios innecesarios con (para sistemas basados en Debian):
+
+    sudo update-rc.d SERVICE-NAME remove
+
+O en los sistemas basados en Red Hat se utilizaría:
+
+    sudo chkconfig SERVICE-NAME off
+
+En los sistemas modernos basados en systemd podemos utilizar lo siguiente para listar todos los
+servicios en ejecución:
+
+    systemctl list-units --state active --type service
+
+A continuación, desactivaría cada unidad de servicio innecesaria con:
+
+    sudo systemctl disable UNIT --now
+
+Este comando detendrá el servicio y lo eliminará de la lista de servicios, para evitar que se
+inicie en el próximo arranque del sistema.
+
+Además, para obtener un estudio de los servicios de red en escucha, puede utilizar `netstat` en
+sistemas antiguos (siempre que tenga instalado el paquete `net-tools`):
+
+    sudo netstat -ltu
+
+O en los sistemas modernos, puede utilizar el comando equivalente `ss` (para socket services):
+
+    ss -ltu
+
+#### TCP Wrappers como una especie de Firewall simple
+En los tiempos que no había cortafuegos disponibles para Linux, Se utilizaba TCP Wrappers para
+asegurar las conexiones de red de un host. Hoy en día muchos ya no obedecen a los TCP Wrappers.
+En las distribuciones recientes basadas en Red Hat (por ejemplo, Fedora 29) el soporte TCP
+Wrappers ha silo eliminado completamente. Para dar soporte a los sistemas Linux heredados que
+todavía utilizan  TCP Wrappers, es útil tener algunos conocimientos básicos sobe esta tecnología
+en particular.
+
+Una vez más utilizaremos el servicio SSH como ejemplo básico. El servicio en nuestro host de
+ejemplo debe ser accesible desde la red local solamente. Primero, comprobemos si el demonio SSH
+utiliza la bibliotaca `libwrap` que ofrece soporte a TCP Wrappers:
+
+    ldd /usr/sbin/sshd | grep "libwrap"
+
+Ahora, añadimos la siguiente línea en el archivo `/etc/hosts.deny`
+
+    sshd: ALL
+
+Finalmente, configuramos una excepción en el archivo `/etc/hosts.allow` para las conexiones SSH
+desde la red local:
+
+    sshd: LOCAL
+
+Los cambios tienen efecto inmediato, no es necesario reiniciar ningún servicio. puede comprobarlo con
+el cliente `ssh`.
+
+## Protección de datos mediante cifrado
