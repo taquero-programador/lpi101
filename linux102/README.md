@@ -5804,3 +5804,140 @@ Los cambios tienen efecto inmediato, no es necesario reiniciar ningún servicio.
 el cliente `ssh`.
 
 ## Protección de datos mediante cifrado
+#### Configuración y uso básico del cliente OpenSSH
+Aunque el servidor y el cliente de OpenSSH vienen en paquetes separados, normalmente se pueden
+instalar un metapaquete que proporciona ambos a la vez. Para esablecer una sesión remota con el
+servidor SSH se utiliza el comando `ssh`, especificando el usuario con el que se quiere conectar en
+la máquina remota y la dirección IP o el nombre de la máquina remota. La primera vez que se conecte
+a una máquina remota recibirá un mensaje como este:
+```sh
+carol@debian:~$ ssh ina@192.168.1.77
+The authenticity of host '192.168.1.77 (192.168.1.77)' can't be established.
+ECDSA key fingerprint is SHA256:5JF7anupYipByCQm2BPvDHRVFJJixeslmppi2NwATYI.
+Are you sure you want to continue connecting (yes/no)?
+```
+Después de teclar `yes` y pulsar `Enter`, se le pedira la contraseña del usuario remoto. Si se
+introduce correctamente, se montrará un mensaje de advertencia y se iniciará la sesión en el host
+remoto:
+```sh
+Warning: Permanently added '192.168.1.77' (ECDSA) to the list of known hosts.
+Password:
+Last login: Sat Jun 20 10:52:45 2020 from 192.168.1.4
+Have a lot of
+```
+Los mensajes se explican por sí mismos: como era la primera vez que establecía una conexión con el
+servidor remoto `192.168.1.77`, su autenticidad no podía ser comprobada con ninguna base de datos.
+Por lo tanto, el servidor remoto proporcionó una huella digital de clave `ECDSA` de su clave pública
+(utilizando la función hash `SHA256`). Una vez aceptada la conexión, la clave pública del servidor
+remoto se añade a la base de datos de `known_hosts`, permitiendo así a autenticación del servidor para
+futuras coenxiones. Esta lista de claves públicas de hosts conocidos se mantiene en el archivo
+`~/.ssh/known_hosts`.
+
+Tanto como `.ssh` como `known_hosts` fueron creados después de establecer la priera conexión remota.
+`~/.ssh` es el directorio por defecto para la configuración específica del usuario y la información
+de autenticación.
+
+Si está utilizando el mismo usuario tanto en el host local como en el remoto, no es necesario
+especificar el nombre de usuario al establecer la conexión SSH. por ejemplo, si está conectado como
+usuario `carol` en `debian` y quiere conectarse a `halof` también como usuario `carol`, simplemente
+escribiría `ssh 192.168.1.77` o `ssh halof` (si el nombre puede ser resuelto):
+
+    ssh 192.168.1.77
+
+Ahora suponga que establece una nueva conexión remota con un host que casualmente tienen la misma
+dirección IP que `halof` (algo común si utiliza DHCP en su LAN). Se le advertirá de la posibilidad
+de un ataque *man-in-the-middle*:
+```sh
+carol@debian:~$ ssh john@192.168.1.77
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@
+WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!
+@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ECDSA key sent by the remote host is
+SHA256:KH4q3vP6C7e0SEjyG8Wlz9fVlf+jmWJ5139RBxBh3TY.
+Please contact your system administrator.
+Add correct host key in /home/carol/.ssh/known_hosts to get rid of this message.
+Offending ECDSA key in /home/carol/.ssh/known_hosts:1
+    remove with:
+    ssh-keygen -f "/home/carol/.ssh/known_hosts" -R "192.168.1.77"
+ECDSA host key for 192.168.1.77 has changed and you have requested strict checking.
+Host key verification failed.
+```
+Como no se trata de un ataque man-in-the-middle, puede añadir con seguridad la huella de la clave
+pública del nuevo host a `~/.ssh/known_hosts`. Como indica el mensaje, primero, puede utilizar el
+comando `ssh-keygen -f "/home/carol/.ssh/known_hosts" -R "192.168.1.77"` para eliminar la clave
+ofensiva (alternativamente puede optar por `ssh-keygen -R 192.168.1.77` para eliminar todas las
+claves pertenecientes a `192.168.1.77` de `~/.ssh/known_hosts`). Entonces, podrá establecer una
+conexión con el nuevo host.
+
+#### Inicio de sesión basado en claves
+Puede configurar su cliente SSH para que no solicite ninugna contraseña al iniciar sesión, sino que
+utilice claves públicas. Este es el método preferido para conectarse a un servidor remoto vía SSH,
+ya que es mucho más seguro. Lo primero que tiene que hacer es crear un par de claves en la máquina
+cliente. Para hacer esto, usará `ssh-keygen` con la opción `-t` especificando el tipo de encriptación
+deseado. A continuación, se le pedirá la ruta para guardar el par de claves (`~/.ssh` es
+conveniente, así como la ubicación por defecto) y una frase de contraseña. Aunque la frase de
+contraseña es opcional, se recomienda encarecidamente utilizarla siempre:
+
+    ssh-keygen -a 100 -t ed25519 -C "clave" -f ~/.ssh/filename_ed25519
+
+El comando anterior produjo dos archivos más en su directorio `~/.ssh`:
+
+**`filename_ed25519`**: clave privada.
+
+**`filename_ed25519.pub`**: clave pública.
+
+Lo siguiente que debe hacer es añadir su clave pública al archivo `~/.ssh/authorized_keys` del
+usuario con el que quiere iniciar sesión en el host remoto. Puede copiar su clave pública en el
+servidor remoto de varias maneras: usando una memoria USB, a través del comando `scp` o pasando con
+un `cat` el contenido de su clave pública y pasándolo a `ssh` de esta manera:
+
+    cat ~/.ssh/id_ecdsa.pub | ssh ina@192.168.1.77 'cat >> .ssh/authorized_keys'
+
+Una vez que su clave pública se haya añadido al archivo `authorized_keys` en el host remoto,
+puede enfrentarse a dos escenarios cuando intente establecer una nueva conexión:
+
+- Si no ha propocionado una frase de contraseña al crear el par de claves, se iniciará la sesión automáticamente. Aunque es conveniente, este método puede ser inseguro dependiendo de la situación:
+- Si proporcionó una frase de contraseña al crear el par de claves, tendrá que introducirla en cada conexión de la misma manera que si fuera una contraseña. Aparte de la clave pública, este método añade una capa extra de seguridad en forma de frase de contraseña y puede considerarse más segura. Sin embargo, en lo que respecta a la comodidad, es exactamente lo mismo que introducir una contraseña cada vez que se establece una conexión. Si no utiliza una frase de contraseña y alguien consigue obtener su archivo de clave SSH privada, tendría acceso a todos los servidores en los que esté instalada su clave pública.
+
+Sin embargo, hay una forma que combina seguirdad y comodidad: utilizar el agente de autenticación
+SSH (`ssh-agent`). El agente de autenticación necesita generar su propio shell y mantendrá sus claves
+privadas, para la autenticación con clave pública, en memoria durante el resto de la sesión.
+
+1. Utilice `ssh-agnet` para iniciar un nuevo shell Bash:
+
+    ssh-agent /bin/bash
+
+2. Utilice el comando `ssh-add` para añadir su clave privada a una zona segura de la memoria. Si proporciona una frase de contraseña al generar el par de claves, se le pedirá:
+
+    ssh-add
+
+Una vez añadida su identidad, podrá iniciar sesión en cualquier sevidor remoto en el que esté
+presente su clave pública sin tener que volver a escribir su frase de contraseña. Es una práctica
+habitual en los ordenadores de sobremesa modernos realizar este comando al arrancar el ordenador,
+ya que permanecerá en la memoria hasta que se apague el ordenador.
+
+Complementemos esta sección enumerando los cuatro tipos de algoritmos de clave pública que se pueden
+especificar con `ssh-keygen`:
+
+**RSA**: llamado así por sus creadores Ron Rivest, Adi Shamir y leonard Adleman, fue publicado en
+1977. Se considera seguro y sigue siendo muy utilizado en la actualidad. Su tamaño mínimo de clave
+es de 1024 bits (por defecto es de 2048).
+
+**DSA**: el Algoritmo de Firma Digital (DSA) ha demostrado ser inseguro y ha sido obviado a prtir de
+OpenSSH 7.0. Las claves DSA deben tener exactamente 1024 bits de longuitud.
+
+**ecdsa**: el Algoritmo de Firma Digital de Curva Elíptica es una mejora del DSA y, por tanto, se
+considera más seguro. Utiliza la criptografía de curva elíptica. La longuitud de la clave ECDSA
+está determinada por uno de los tres tamaños posibles de la curva eliptica en bits: 256, 384 o 521.
+
+**ed25519**: se trara de una implementación EdDSA, Algoritmo de Firma Digital de la Curva de Edwardsm,
+que utiliza la curva 25519 más fuerte. Se considera la más fuerte de todas. Todas las claves
+Ed25519 tienen una longuitud fija de 256 bits.
+
+#### El papel de las claves del servidor OpenSSH
+553
