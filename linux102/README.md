@@ -5474,8 +5474,57 @@ al que pudiera pertenecer):
 En lugar de editar `/etc/sudoers` directamente, simplemente debe utilizar el comado `visudo` como
 root, que abrirá `/etc/sudoers` utilizando su editor de texto predefinido. Para cambiar el editor de
 texto por defecto, puedes añadir la opción `editor` como un ajuste `Defaults` en `/etc/sudoers`. Por
-ejemplo, para cambiar el editor a `nano`, añada la siguiente línea:
+ejemplo, para cambiar el editor a `vim`, añada la siguiente línea:
 
-    Defaults editor=/usr/bin/nano
+    Defaults editor=/usr/bin/vim
 
-515
+Aparte de los usuarios y grupos, también puede hacer uso de los alias en `/etc/sudoers`. Hay tres
+categorías principales de alias que puede definir: alias de host (`Host_Alias`), alias de usuario
+(`User_Alias`) y alias de comando (`Cmnd_Alias`). He aquí un ejemplo:
+```sh
+# Especificación de alias de host
+Host_Alias SERVERS = 192.168.1.7, server1, server2
+
+# Especificación de alias de usuario
+User_Alias REGULAR_USERS = john, mary, alex
+User_Alias PRIVILEGED_USERS = mimi, alex
+User_Alias ADMINS = carol, %sudo, PRIVILEGED_USERS, !REGULAR_USERS
+
+# Especificación de alias de Cmnd
+Cmnd_Alias SERVICES = /usr/bin/systemctl *
+
+# Especificación de los privilegios del usuario
+root ALL=(ALL:ALL) ALL
+ADMINS SERVERS=SERVICES
+
+# Permitir a los miembros del grupo sudo ejecutar cualquier comando
+%sudo ALL=(ALL:ALL) ALL
+```
+Teniendo en cuenta este archivo de ejemplo `sudoers`, vamos a explicar los tres tipos de alias con
+un poco más de detalle:
+
+**Host Aliases**: incluye una lista separadas por comas de nombres de host, direcciones IP, así como
+redes y netgroups (precedidos por `+`). También se puede especificar máscaras de red. El alias de host
+`SERVERS` incluye una dirección IP y dos nombres de host:
+
+    Host_Alias SERVERS = 192.168.1.7, server1, server2
+
+**User Aliases**: incluye una lista separadas por comas de usuarios especificados como nombres de
+usuario, grupos (precedidos por `%`) y netgroups (precedidos por (`+`)). Se pueden excluir usuarios
+conrectos con `!`. El alias de usuario `ADMINS`, por ejemplo, incluye el usuario `carol`, los miembros
+del grupo `sudo` y aquellos miembros del alias de usuario `PRIVILEGED_USERS` que no pertenecen al
+alias de usuario `REGULAR_USERS`:
+
+    User_Alias ADMINS = carol, %sudo, PRIVILEGED_USERS, !REGULAR_USERS
+
+**Command Aliases**: incluye una lista de comandos y directorios separados por comas. Si se especifica
+un directorio, se incluirá cualquier archivo de ese directorio, aunque se ingorarán los
+subdirectorios. El alias de comando `SERVICES` incluye un solo comando con todos sus subcomandos,
+según lo especificado por el astericos (`*`):
+
+    Cmnd_Alias SERVICES = /usr/bin/systemctl *
+
+Como resultado de las especificaciones de alias, la línea `ADMIN SERVER=SERVICES` bajo la sección
+`Especificación de privilegios del usuario` se traduce como: todos los usuarios pertenecientes a
+`ADMIN` puede usar `sudo` para ejecutar cualquier comando en `SERVICES` en cualquier servidor en
+`SERVERS`.
