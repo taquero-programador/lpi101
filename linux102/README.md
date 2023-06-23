@@ -1035,7 +1035,7 @@ wayland-0
 ```
 Esta variable de entorno no está disponible en los sistemas que ejecutan X.
 
-## Escritorios gricos
+## Escritorios gráficos
 #### Sistema X Window
 En Linux y otros sistemas operativos similares a Unix en los que se emplea, el sistema X
 Window (conocido como X11 o simplemente X) proporciona los recuros de bajo nivel relacionados
@@ -1402,12 +1402,12 @@ envejecimiento de las contraseñas tales como:
 - **`-x`**: establece la duración máxima de la contraseña.
 - **`-w`**: determina el número de días de advertencia antes de que la contraseña expire, durante los cuales se advierte al usuario que debe cambiarla.
 
-#### El comando `change`
+#### El comando `chage`
 Este comando determinado como "change age", se usa para cambiar el período de la contraseña
-de un usuario. El comando `change` está restringido a root, expecto la opción `-l`, que puede ser
+de un usuario. El comando `chage` está restringido a root, expecto la opción `-l`, que puede ser
 usada por usuarios ordinarios para listar el timpo de su contraseña.
 
-Las otras opciones que se aplican al comando `change` son:
+Las otras opciones que se aplican al comando `chage` son:
 - **`-d`**: establece el último cambio de contraseña para una cuenta de usuario.
 - **`-E`**: establece la fecha de caducidad de una cuenta de usuario.
 - **`-I`**: establece el número de días de incatividad después de que una contraseña expire, durante los cuales el usuario deberá actualizaral (de lo contrario la cuenta será desactivada).
@@ -5940,4 +5940,110 @@ que utiliza la curva 25519 más fuerte. Se considera la más fuerte de todas. To
 Ed25519 tienen una longuitud fija de 256 bits.
 
 #### El papel de las claves del servidor OpenSSH
-553
+El directorio de configuración global de OpenSSH se ubica en el directorio `/etc`:
+```sh
+halof:~ # tree /etc/ssh
+/etc/ssh
+├── moduli
+├── ssh_config
+├── ssh_host_dsa_key
+├── ssh_host_dsa_key.pub
+├── ssh_host_ecdsa_key
+├── ssh_host_ecdsa_key.pub
+├── ssh_host_ed25519_key
+├── ssh_host_ed25519_key.pub
+├── ssh_host_rsa_key
+├── ssh_host_rsa_key.pub
+└── sshd_config
+0 directories, 11 files
+```
+Aparte de `moduli` y los archivos de configuración para el cliente (`ssh_config`) y sel servidor
+(`sshd_config`), encontrará cuatro pares de claves (o 3 sin `dsa`), un par de claves para cada
+algoritmo soportado, que se crean cuando se instalar el servidor OpenSSH. Como ya de ha dicho,
+el servidor utiliza estas claves de host para identificarse ante los clietes segín sea necesario.
+Su patrón de nombres es el siguiente:
+
+**Claves privadas**: `ssh_host_`prefix + algoritmo + `key` (p. ej.: `ssh_host_rsa_key`).
+
+**Claves públicas (o huella de clave pública)**: `ssh_host_`prefix + algoritmo + `key.pub`
+(p. ej.: `ssh_host_rsa_key.pub`).
+
+> Una huella digital se crea aplicando una función de hash criptoráfica a una clave pública. Como spon más cortas que las claves a las que se refiere, resultan útiles para simplificar ciertas tareas de gestión de claves.
+
+Los permisos de los archivos que contienen la claves privadas son `0600` o `-rw-------`: solo pueden
+ser leidos y escritos por el propietario root. Por otro lado, todos los archivos de claves públicas
+también son legibles por los miembros del grupo propietario y por todos los demás (`0644` o
+`-rw-r--r--`).
+
+Puede ver las huellas digitales de las claves pasando a `ssh-keygen` la opción `-l`. También debe
+proporcionar la opción `-f` para especificar la ruta del archivo de claves:
+
+    ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key.pub
+
+Para ver la huella digitail de la llave, así como su arte aleatorio, basta con añadir la opción `-v`:
+
+    ssh-keygen -lv -f /etc/ssh/ssh_host_ed25519_key.pub
+
+#### Túneles de puertos SSH
+OpenSSH cuenta con un mecanismo de reenvío muy potente por el que el tráfico de un puerto de origen
+se tuneliza y encripa a través de un proceso SSH que luego lo redirige a un puerto de un host de
+destino. Este mecanismo se conoce como túnles de puertos o reenvío de puertos y tienen importantes
+ventajas como las siguientes:
+
+- Permite saltarse los cortafuegos para acceder a los puertos de los hosts remotos.
+- Facilita el acceso desde el exterior a un host de su red privada.
+- Proprociona encriptación para todo el intercambio de datos.
+
+A grandes ragos, podemos diferenciar entre túner de puerto local y remoto.
+
+#### Túnel de puerto local
+Se define un puerto localmente para reenviar el tráfico al host de destino a través el proceso SSH
+que se encuentra en el medio. El proceso SSH puede ejecutarse en el host local o en un servidor
+remoto. Por ejemplo, si por alguna razón quisiera tunelizar una conexión a `www.gnu.org` a
+través de SSH usando el puerto `8585` en su máquina local, haría algo como esto:
+
+    ssh -L 8585:www.gnu.org:80
+
+La explicación es la siguiente: con el párametro `-L`, especificamos el puerto local `8585` para
+conectar con el puerto http 80 en `www.gnu.org` utlizando el proceso SSH que se ejecutan en `debian`,
+nuestro localhost. Podríamos haber escrito `ssh -L 8585:www.gnu.org:80 localhost` con el mismo
+efecto. Si ahora utiliza un navegador web para ir a `http://localhost:8585`, será redirigido a
+`www.gnu.org`. Para la demostración, utilzaremos `lynx`:
+
+    lynx http://localhost:8585
+
+Si quisiera hacer exactamente los mismo, pero conectándose a través de un proceso SSH ejecutado en
+`halof`, sería así:
+
+    ssh -L 8585:www.gnu.org:80 -Nf ina@192.168.1.77
+
+Es importante que note tres detallles en el comando:
+- Gracias a la opción `-N` no hemos entrado en `halof`, sino que que hemos hecho el reenvío de puertos.
+- La opción `f` le indica a SSH que se ejecute en segundo plano.
+- Especificamos el usuario `ina` para hacer el reenvío: `ina@192.168.1.77`.
+
+#### Túnel de puerto remoto
+En el tunelado de puerto remoto (o reenvío inverso de puerto) el tráfico que llega a un puerto del
+servidor remoto es reenviado al proceso SSH que se ejecuta en su host local, y de ahí al puerto
+especificado en el servidor de destino (que también puede ser una máquina local). Por ejemplo,
+digamos que quieren que alguien de fuera de su red acceda al servidor web Apache que se ejecuta
+en su máquina local a través del puerto `8585` del servidor SSH que se ejecuta en `halof` (`192.168.1.77`).
+Usted procedería con el siguiente comando:
+
+    ssh -R 8585:localhost:80 -Nf ina@192.168.1.77
+
+Ahora cualquiera que establezca una conexión con `halof` en el puerto `8585` vera la página de inicio
+por defecto de `Debian Apache2`.
+
+#### Túneles X11
+El túnel X11 (también conocido com X11forwarding). A través de un túnel X11, el X Window System
+del host remoto es reenviado a su máquina local. Para ello, solo tiene que pasar a `ssh` la
+opción `-X`:
+
+    ssh -X ina@halof
+
+
+Ahora puede lanzar una aplicación gráfica como el navegador Firefox con el siguiente resultado: la
+aplicación se ejecutará en el servidor remoto, pero su visualización se remitirá a su host local.
+
+
