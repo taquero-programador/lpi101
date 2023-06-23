@@ -6045,5 +6045,3 @@ opción `-X`:
 
 Ahora puede lanzar una aplicación gráfica como el navegador Firefox con el siguiente resultado: la
 aplicación se ejecutará en el servidor remoto, pero su visualización se remitirá a su host local.
-
-
