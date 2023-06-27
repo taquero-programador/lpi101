@@ -3328,6 +3328,13 @@ A la derecha de los dos símbolos menor que `<<` se encuentra el término final 
 modo de inserción finarlizará tan pronto como se ingrese una línea que contenga solo
 el término final. Se puede usar cualquier otro término final, pero es importante no poner
 caracteres en blanco entre el símbolo menor que que y el término final.
+```.sh
+cat > output.txt <<EOF
+word1
+word2
+word3
+EOF
+```
 
 El método *Here String* es muy similar al método de *Here Document*, pero solo para una
 línea:
